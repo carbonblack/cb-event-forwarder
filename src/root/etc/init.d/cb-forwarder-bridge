@@ -1,0 +1,110 @@
+#!/bin/sh
+#
+# cb-forwarder-bridge        Startup script for Carbon Black forwarder instegration instance.
+#
+# chkconfig: - 91 10
+# processname: cb-forwarder-bridge
+# description: cb-forwarder-bridge is a forwarder intergartion for Carbon Black events.
+#
+### BEGIN INIT INFO
+# Provides:          cb-forwarder-bridge
+# Short-Description: start and stop cb-forwarder-bridge
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+cd /usr/share/cb/integrations/cbforwarderbridge/
+exec="python cbforwarderbridge"
+prog="cb-forwarder-bridge"
+pidfile="/var/run/cb/integrations/cbforwarderbridge.pid"
+
+
+[ -f /etc/cb/cb.conf ] || {
+    echo Carbon Black Enterprise Server setup has not been finalized.
+    echo Run /usr/share/cb/cbinit to initialize the server instance.
+    exit 1
+}
+
+lockfile=/var/lock/subsys/$prog
+
+start() {
+    echo -n $"Starting $prog: "
+    $exec start
+    retval=$?
+    echo "Done"
+    [ $retval -eq 0 ] && touch $lockfile
+    return $retval
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    [ -f $pidfile ] && {
+        $exec stop
+        retval=$?
+	echo "Done"
+        [ $retval -eq 0 ] && rm -f $lockfile
+        return $retval
+    }
+    echo "Done"
+}
+
+restart() {
+    echo -n $"Restarting $prog: "
+    $exec restart
+    retval=$?
+    echo
+    [ $retval -eq 0 ] && rm -f $lockfile
+    return $retval
+}
+
+reload() {
+    restart
+}
+
+force_reload() {
+    restart
+}
+
+rh_status() {
+    # run checks to determine if the service is running or use generic status
+    status -p $pidfile $prog
+}
+
+rh_status_q() {
+    rh_status >/dev/null 2>&1
+}
+
+
+case "$1" in
+    start)
+        rh_status_q && exit 0
+        $1
+        ;;
+    stop)
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    reload)
+        rh_status_q || exit 7
+        $1
+        ;;
+    force-reload)
+        force_reload
+        ;;
+    status)
+        rh_status
+        ;;
+    condrestart|try-restart)
+        rh_status_q || exit 0
+        restart
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+        exit 2
+esac
+exit $?
+
+

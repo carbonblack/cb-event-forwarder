@@ -1,0 +1,5 @@
+#!/bin/sh
+
+/etc/init.d/cb-forwarder-bridge stop
+
+chkconfig --del cb-forwarder-bridge
