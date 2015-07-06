@@ -24,9 +24,9 @@ def process_event(event_processor, event):
         log.exception("Unable to process event")
 
 
-class CarbonBlackForwarderBridge(CbIntegrationDaemon):
+class CarbonBlackEventBridge(CbIntegrationDaemon):
     """
-    Integration daemon for Carbon Black event forwarding to Forwarder
+    Integration daemon for Carbon Black Forwarding from the Event bus
     """
 
     def __init__(self, name, configfile):
@@ -162,7 +162,7 @@ class CarbonBlackForwarderBridge(CbIntegrationDaemon):
         username, password = self.get_bus_credentials()
         credentials = pika.PlainCredentials(username, password)
         parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
-        queue_name = "forwarder_exporter_pid_%d" % os.getpid()
+        queue_name = "cbeventbridge_pid_%d" % os.getpid()
 
         try:
             self.connection = pika.BlockingConnection(parameters)

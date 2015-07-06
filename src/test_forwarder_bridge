@@ -6,13 +6,13 @@ import sys
 sys.path.insert(0, "../../lib/src/")
 
 
-import cbforwarderbridge.bridge
+import cbeventbridge.bridge
 
 
 if __name__ == "__main__":
     try:
-        name = "cbforwarderbridge"
-        daemon = cbforwarderbridge.bridge.CarbonBlackForwarderBridge(name, os.path.abspath("root/etc/cb/integrations/cbforwarderbridge/cbforwarderbridge.conf"))
+        name = "cbeventbridge"
+        daemon = cbeventbridge.bridge.CarbonBlackEventBridge(name, os.path.abspath("root/etc/cb/integrations/cbeventbridge.conf"))
         if len(sys.argv) == 2:
             if 'start' == sys.argv[1]:
                 daemon.start()

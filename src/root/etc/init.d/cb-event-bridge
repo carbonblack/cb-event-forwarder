@@ -1,22 +1,22 @@
 #!/bin/sh
 #
-# cb-forwarder-bridge        Startup script for Carbon Black forwarder instegration instance.
+# cb-event-bridge        Startup script for Carbon Black forwarder instegration instance.
 #
 # chkconfig: - 91 10
-# processname: cb-forwarder-bridge
-# description: cb-forwarder-bridge is a forwarder intergartion for Carbon Black events.
+# processname: cb-event-bridge
+# description: cb-event-bridge is a forwarder integration for Carbon Black events.
 #
 ### BEGIN INIT INFO
-# Provides:          cb-forwarder-bridge
-# Short-Description: start and stop cb-forwarder-bridge
+# Provides:          cb-event-bridge
+# Short-Description: start and stop cb-event-bridge
 ### END INIT INFO
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
 cd /usr/share/cb/integrations/cbforwarderbridge/
-exec="python cbforwarderbridge"
-prog="cb-forwarder-bridge"
+exec="python cbeventbridge"
+prog="cb-event-bridge"
 pidfile="/var/run/cb/integrations/cbforwarderbridge.pid"
 
 
