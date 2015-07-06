@@ -292,12 +292,15 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
             },
             {
                 "config_key": "events_binary_observed",
-                "events": ["binarystore.file.added"],
+                "events": ["binaryinfo.host.observed",
+                           "binaryinfo.observed,"
+                           "binaryinfo.group.observed"],
+
                 "options": self.forwarder_options.get("binobsnotifenabled", "0")
             },
             {
                 "config_key": "events_binary_upload",
-                "events": ["binary.host.observed"],
+                "events": ["binarystore.file.added"],
                 "options": self.forwarder_options.get("binuplnotifenabled", "0")
             }
         ]

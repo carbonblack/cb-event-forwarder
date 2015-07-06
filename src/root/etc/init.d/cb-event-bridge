@@ -14,10 +14,10 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-cd /usr/share/cb/integrations/cbforwarderbridge/
+cd /usr/share/cb/integrations/cbeventbridge/
 exec="python cbeventbridge"
 prog="cb-event-bridge"
-pidfile="/var/run/cb/integrations/cbforwarderbridge.pid"
+pidfile="/var/run/cb/integrations/cbeventbridge.pid"
 
 
 [ -f /etc/cb/cb.conf ] || {

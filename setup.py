@@ -31,7 +31,7 @@ setup(
     author_email='support@carbonblack.com',
     description='Carbon Black Event Bus Forwarder',
     long_description=__doc__,
-    packages=['cbforwarderbridge', ],
+    packages=['cbeventbridge', ],
     data_files=data_files,
     package_dir={'cbeventbridge': 'src/cbeventbridge'},
     package_data={'cbeventbridge': ['lib/*']},

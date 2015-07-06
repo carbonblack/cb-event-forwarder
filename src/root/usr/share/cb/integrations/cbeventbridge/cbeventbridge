@@ -3,7 +3,7 @@
 import os
 import sys
 
-import cbforwarderbridge.bridge
+import cbeventbridge.bridge
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import stat
 import string
 import sys
 import time
+import json
 
 from event_parser import EventParser
 
@@ -167,4 +168,5 @@ class EventProcessor(object):
 
         events = self.event_parser.parse_events(content_type, routing_key, body)
         for event in events:
-            self.output.write(event)
+            json_str = json.dumps(event)
+            self.output.write(json_str)
