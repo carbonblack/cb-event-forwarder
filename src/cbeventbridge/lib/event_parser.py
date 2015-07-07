@@ -11,7 +11,7 @@ class EventParser(object):
     def __init__(self, options):
         self.sensor_id_to_details_map = {}
 
-        self.cb_server = options.get("servername", None)
+        self.cb_server = options.get("server_name", None)
 
         self.cbapi_url = options.get("cbapi_url", None)
         self.cbapi_token = options.get("cbapi_token", None)
