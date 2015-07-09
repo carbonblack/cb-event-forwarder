@@ -41,6 +41,7 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
 
         self.channel = None
         self.connection = None
+        self.queue_name = None
         self.event_processor = None
         self.processor_pool = None
         self.testing = False
@@ -145,11 +146,29 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
         except:
             self.logger.exception("Error stopping service")
 
+    def bus_on_declare_queue(self, frame):
+        self.logger.info("Binding queue")
+        self.channel.queue_bind(self.bus_on_bind_ok, exchange="api.events", queue=self.queue_name, routing_key="#")
+
+    def bus_on_bind_ok(self, frame):
+        self.logger.info("Connected to bus - now consuming messages")
+        self.channel.basic_consume(self.on_bus_message, queue=self.queue_name, no_ack=True)
+
+    def bus_on_channel_open(self, new_channel):
+        self.channel = new_channel
+        queue_name = "cbeventbridge_pid_%d" % os.getpid()
+        self.queue_name = queue_name
+        self.logger.info("Subscribing to message bus (queue: %s)" % queue_name)
+        self.channel.queue_declare(queue=queue_name, auto_delete=True, exclusive=True, callback=self.bus_on_declare_queue)
+
+    def bus_on_connected(self, connection):
+        self.connection = connection
+        connection.channel(self.bus_on_channel_open)
+
     def consume_message_bus(self, test=False):
         """
         Subscribe to Carbon Black's event bus and begin consuming messages
         """
-
         if test:
             from test_fake_bus import FakeChannel, FakeConnection
             self.logger.info("Running Test Message Bus")
@@ -159,23 +178,14 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
 
             return
 
-
         username, password = self.get_bus_credentials()
         credentials = pika.PlainCredentials(username, password)
         parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
-        queue_name = "cbeventbridge_pid_%d" % os.getpid()
-
-        self.logger.info("Subscribing to message bus (queue: %s)" % queue_name)
 
         try:
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=queue_name, auto_delete=True, exclusive=True)
-            self.channel.queue_bind(exchange="api.events", queue=queue_name, routing_key="#")
-            self.channel.basic_consume(self.on_bus_message, queue=queue_name)
-
-            self.logger.info("Consuming message bus")
-            self.channel.start_consuming()
+            self.connection = pika.SelectConnection(parameters, self.bus_on_connected)
+            self.logger.info("Starting bus connection")
+            self.connection.ioloop.start()
 
         except (pika.exceptions.AMQPConnectionError, pika.exceptions.ConnectionClosed):
             if self.retry < self.max_retry:
@@ -220,11 +230,6 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
 
         except:
             self.logger.exception("Error processing bus message")
-
-        finally:
-            # need to make sure we ack the messages so they don"t get left un-acked in the queue
-            # we set multiple to true to ensure that we ack all previous messages
-            channel.basic_ack(delivery_tag=method_frame.delivery_tag, multiple=True)
 
     def get_bus_credentials(self):
         username = self.forwarder_options.get("rabbit_mq_username", "")
