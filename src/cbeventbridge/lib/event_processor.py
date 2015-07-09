@@ -168,5 +168,8 @@ class EventProcessor(object):
 
         events = self.event_parser.parse_events(content_type, routing_key, body)
         for event in events:
-            json_str = json.dumps(event)
-            self.output.write(json_str)
+            try:
+                json_str = json.dumps(event)
+                self.output.write(json_str)
+            except TypeError as e:
+                LOGGER.exception("Got an exception (%s) processing event (repr: %s)" % (e, repr(event)))

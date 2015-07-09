@@ -124,6 +124,8 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
         Close any open resources
         """
 
+        self.logger.info("Got a shutdown of service")
+
         try:
             if self.channel is not None:
                 self.channel.stop_consuming()
@@ -157,17 +159,18 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
 
             return
 
-        self.logger.info("Subscribing to message bus")
 
         username, password = self.get_bus_credentials()
         credentials = pika.PlainCredentials(username, password)
         parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
         queue_name = "cbeventbridge_pid_%d" % os.getpid()
 
+        self.logger.info("Subscribing to message bus (queue: %s)" % queue_name)
+
         try:
             self.connection = pika.BlockingConnection(parameters)
             self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=queue_name, auto_delete=True)
+            self.channel.queue_declare(queue=queue_name, auto_delete=True, exclusive=True)
             self.channel.queue_bind(exchange="api.events", queue=queue_name, routing_key="#")
             self.channel.basic_consume(self.on_bus_message, queue=queue_name)
 
