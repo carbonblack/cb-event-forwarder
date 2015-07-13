@@ -12,6 +12,13 @@ configuration file for the connector is stored in /etc/cb/integrations/cbeventbr
 The connector can be configured to output the events into various different output sources, including TCP, UDP, a file,
 standard out, and Amazon S3.  
 
+## Raw Sensor Events 
+
+We have seen a performance impact when exporting all raw sensor events onto the enterprise bus.  We do not recommend
+exporting all the events.  The performance impacts are seen when the events are broadcast on the bus, by enabling the
+"DatastoreBroadcastEventTypes".  We recommend that at most, only process and netconn events be broadcast on the event
+bus. 
+
 ## Quickstart Guide
 
 * Install the rpm for the CB event bridge connector "yum install cbeventbridge"
