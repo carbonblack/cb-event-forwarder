@@ -2,9 +2,9 @@
 
 echo -n $"Post Install"
 
-chkconfig --add cb-event-bridge
+chkconfig --add cb-event-forwarder
 
-chkconfig --level 345 cb-event-bridge on
+chkconfig --level 345 cb-event-forwarder on
 
 # not auto-starting because conf needs to be updated
-#/etc/init.d/cb-event-bridge start
+#/etc/init.d/cb-event-forwarder start

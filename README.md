@@ -7,7 +7,7 @@ events in a normalized JSON format.  These events can be consumed by any externa
 
 The connector can be configured to capture different events from the event bus and export those into the JSON format.
 By default all feed and watchlist hits, alerts, binary notifications, and raw sensor events are exported into JSON.  The
-configuration file for the connector is stored in /etc/cb/integrations/cbeventbridge.conf.
+configuration file for the connector is stored in /etc/cb/integrations/cb-event-forwarder.conf.
 
 The connector can be configured to output the events into various different output sources, including TCP, UDP, a file,
 standard out, and Amazon S3.  
@@ -31,7 +31,7 @@ bus.
 * Decide and configure the output type for the connector.   More information can be found in the configuration file.
 * You'll need a service account that can be used by the service to query sensor information from within CB.   Set the "cbapi_token" 
   configuration option to the token of the service account to use.
-* Start the service with "service cb-event-bridge start".
+* Start the service with "service cb-event-forwarder start".
 
 ## Dependencies
 
@@ -46,7 +46,8 @@ JSON event.   That token should be set in the "cbapi_token" configuration value.
 
 ## Configuration
 
-Configuration file is located at /etc/cb/integrations/cbeventbridge.conf.  It contains detailed information
+An example configuration file is located at /etc/cb/integrations/cb-event-forwarder.conf.example. Copy the example to
+  /etc/cb/integrations/cb-event-forwarder.conf and edit. It contains detailed information
 about each configuration option.
 
 ## Splunk
@@ -57,8 +58,8 @@ bridge use a file based output with Splunk universal forwarder configured to mon
 
 ## Logging
 
-The connector logs to the directory /var/log/cb/integrations/cbeventbridge.
+The connector logs to the directory /var/log/cb/integrations/cb-event-forwarder.
 
 ## Version
 
-Current version is 5.1.0.150618
+Current version is 1.1.0.

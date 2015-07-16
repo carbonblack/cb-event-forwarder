@@ -24,7 +24,7 @@ def process_event(event_processor, event):
         log.exception("Unable to process event")
 
 
-class CarbonBlackEventBridge(CbIntegrationDaemon):
+class CarbonBlackEventForwarder(CbIntegrationDaemon):
     """
     Integration daemon for Carbon Black Forwarding from the Event bus
     """
@@ -226,7 +226,7 @@ class CarbonBlackEventBridge(CbIntegrationDaemon):
                 self.processor_pool.apply_async(process_event, (self.event_processor, event))
 
             else:
-                self.logger.debug("Uknown message info: %s" % method_frame.routing_key)
+                self.logger.debug("Unknown message info: %s" % method_frame.routing_key)
 
         except:
             self.logger.exception("Error processing bus message")
