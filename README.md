@@ -1,9 +1,9 @@
-# Carbon Black Event Forwarder Bridge
+# Carbon Black Event Forwarder
 
 ## Overview
 
-Carbon Black Event Forwarder Bridge is a standalone service that will listen on the Carbon Black enterprise bus and export
-events in a normalized JSON format.  These events can be consumed by any external system (SIEM), specifically Splunk.
+Carbon Black Event Forwarder is a standalone service that will listen on the Carbon Black enterprise bus and export
+events in a normalized JSON format.  These events can be consumed by any external system that accepts JSON like Splunk and other SIEMs.
 
 The connector can be configured to capture different events from the event bus and export those into the JSON format.
 By default all feed and watchlist hits, alerts, binary notifications, and raw sensor events are exported into JSON.  The
@@ -38,7 +38,7 @@ curl -O https://opensource.carbonblack.com/release/x86_64/CbOpenSource.repo
 
 ## Dependencies
 
-Carbon Black Enterprise has to be present on the machine where this package is installed.
+Carbon Black Enterprise has to be present on the machine where this package is installed.  Installing it on the master for a cluster is the recommended approach -- you would NOT install this on every minion.
 
 The connector requires an API token in order to query sensor information from the Carbon Black server to populate with each
 JSON event.   That token should be set in the "cbapi_token" configuration value.
