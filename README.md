@@ -12,6 +12,11 @@ configuration file for the connector is stored in `/etc/cb/integrations/event-fo
 The connector can be configured to output the events into various different output sources, including TCP, UDP, a file,
 standard out, and Amazon S3.  
 
+## Support
+
+The pre-built RPM is supported via our [User eXchange (Jive)](https://community.bit9.com/groups/developer-relations) 
+and via email to dev-support@bit9.com.  
+
 ## Raw Sensor Events 
 
 We have seen a performance impact when exporting all raw sensor events onto the enterprise bus.  We do not recommend
