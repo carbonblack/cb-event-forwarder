@@ -2,7 +2,7 @@ import json
 import requests
 import logging
 
-import eventHelpers
+import event_helpers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class EventParser(object):
         Parse a Carbon Black event bus message that is in a protobuf format
         """
 
-        (sensor_id, event_obj) = eventHelpers.protobuf_to_obj_and_host(protobuf_bytes)
+        (sensor_id, event_obj) = event_helpers.protobuf_to_obj_and_host(protobuf_bytes)
 
         host_info = self.lookup_host_details(sensor_id)
         event_obj.update(host_info)

@@ -3,12 +3,12 @@
 import os
 import sys
 
-import cbeventbridge.bridge
+import cbeventforwarder.bridge
 
 
 if __name__ == "__main__":
-    name = "cbeventbridge"
-    daemon = cbeventbridge.bridge.CarbonBlackEventBridge(name, "/etc/cb/integrations/cbeventbridge.conf")
+    name = "cb-event-forwarder"
+    daemon = cbeventforwarder.bridge.CarbonBlackEventForwarder(name, "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
             daemon.start()

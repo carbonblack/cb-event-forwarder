@@ -1,5 +1,5 @@
 #!/bin/sh
 
-/etc/init.d/cb-event-bridge stop
+/etc/init.d/cb-event-forwarder stop
 
-chkconfig --del cb-event-bridge
+chkconfig --del cb-event-forwarder

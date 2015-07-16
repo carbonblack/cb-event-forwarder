@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, "src/")
 
-from cbeventbridge import version
+from cbeventforwarder import version
 from distutils.core import setup
 
 
@@ -23,7 +23,7 @@ def get_data_files(rootdir):
 data_files = get_data_files("src/root")
 
 setup(
-    name='cb-event-bridge',
+    name='cb-event-forwarder',
     version=version.__version__,
     url='http://www.carbonblack.com/',
     license='MIT',
@@ -31,10 +31,10 @@ setup(
     author_email='support@carbonblack.com',
     description='Carbon Black Event Bus Forwarder',
     long_description=__doc__,
-    packages=['cbeventbridge', ],
+    packages=['cbeventforwarder', ],
     data_files=data_files,
-    package_dir={'cbeventbridge': 'src/cbeventbridge'},
-    package_data={'cbeventbridge': ['lib/*']},
+    package_dir={'cbeventforwarder': 'src/cbeventforwarder'},
+    package_data={'cbeventforwarder': ['lib/*']},
     options={'bdist_rpm': {'post_install': 'post_install', 'pre_uninstall': 'pre_uninstall'}},
     platforms='any',
     classifiers=[
