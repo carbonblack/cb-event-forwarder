@@ -14,7 +14,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-cd /usr/share/cb/integrations/cb-event-forwarder/
+cd /usr/share/cb/integrations/cbeventforwarder/
 exec="python cb-event-forwarder"
 prog="cb-event-forwarder"
 pidfile="/var/run/cb/integrations/cb-event-forwarder.pid"

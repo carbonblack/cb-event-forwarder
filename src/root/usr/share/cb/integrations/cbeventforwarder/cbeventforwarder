@@ -8,7 +8,7 @@ import cbeventforwarder.bridge
 
 if __name__ == "__main__":
     name = "cb-event-forwarder"
-    daemon = cbeventforwarder.bridge.CarbonBlackEventForwarder(name, "/etc/cb/integrations/cb-event-forwarder.conf")
+    daemon = cbeventforwarder.bridge.CarbonBlackEventForwarder(name, "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
             daemon.start()

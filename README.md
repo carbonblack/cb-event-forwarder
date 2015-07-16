@@ -7,7 +7,7 @@ events in a normalized JSON format.  These events can be consumed by any externa
 
 The connector can be configured to capture different events from the event bus and export those into the JSON format.
 By default all feed and watchlist hits, alerts, binary notifications, and raw sensor events are exported into JSON.  The
-configuration file for the connector is stored in /etc/cb/integrations/cb-event-forwarder.conf.
+configuration file for the connector is stored in /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf.
 
 The connector can be configured to output the events into various different output sources, including TCP, UDP, a file,
 standard out, and Amazon S3.  
@@ -46,8 +46,8 @@ JSON event.   That token should be set in the "cbapi_token" configuration value.
 
 ## Configuration
 
-An example configuration file is located at /etc/cb/integrations/cb-event-forwarder.conf.example. Copy the example to
-  /etc/cb/integrations/cb-event-forwarder.conf and edit. It contains detailed information
+An example configuration file is located at /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf.example. Copy the example to
+  /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf and edit. It contains detailed information
 about each configuration option.
 
 ## Splunk

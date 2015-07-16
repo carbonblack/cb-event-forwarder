@@ -1,7 +1,5 @@
 #!/bin/sh
 
-echo -n $"Post Install"
-
 chkconfig --add cb-event-forwarder
 
 chkconfig --level 345 cb-event-forwarder on
