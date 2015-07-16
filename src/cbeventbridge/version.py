@@ -1,2 +1,2 @@
 import time
-__version__ = time.strftime("5.1.0.%y%m%d")
+__version__ = time.strftime("1.1.0.%y%m%d")

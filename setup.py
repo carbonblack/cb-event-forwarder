@@ -23,10 +23,10 @@ def get_data_files(rootdir):
 data_files = get_data_files("src/root")
 
 setup(
-    name='cbeventbridge',
+    name='cb-event-bridge',
     version=version.__version__,
     url='http://www.carbonblack.com/',
-    license='Commercial',
+    license='MIT',
     author='Carbon Black',
     author_email='support@carbonblack.com',
     description='Carbon Black Event Bus Forwarder',
@@ -40,7 +40,7 @@ setup(
     classifiers=[
         'Environment :: Environment',
         'Intended Audience :: Developers',
-        'License :: TBD',
+        'License :: MIT',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules'
