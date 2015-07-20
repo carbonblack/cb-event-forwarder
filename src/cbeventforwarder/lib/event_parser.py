@@ -92,7 +92,7 @@ class EventParser(object):
             parts = parts[0:5]
             return "-".join(parts)
         else:
-            return id
+            return unique_id
 
     def fix_process_guids(self, event):
         """
