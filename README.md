@@ -60,6 +60,8 @@ The Carbon Black event forwarder can be used to export Carbon Black events in a 
 need to install and configure the Splunk TA to consume the Carbon Black event data.   It is recommended that the event
 bridge use a file based output with Splunk universal forwarder configured to monitor the file.   
 
+More information about configuring the Splunk TA can be found [here](http://docs.splunk.com/Documentation/AddOns/latest/Bit9CarbonBlack/About)
+
 ## Logging
 
 The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder`.
