@@ -31,7 +31,7 @@ class bdist_binaryrpm(bdist_rpm):
 
         # Lots TODO here: generate spec file on demand from the rest of this setup.py file, for starters...
         # self._make_spec_file()
-        call(['rpmbuild', '-bb', '%s.spec' % self.distribution.get_name()])
+        call(['rpmbuild', '-bb', '%s.rpm.spec' % self.distribution.get_name()])
 
 
 """This install_cb plugin will install all data files associated with the
@@ -148,7 +148,7 @@ scripts = {
 }
 
 setup(
-    name='python-cb-event-forwarder',
+    name='cb-event-forwarder',
     version='2.0',
     packages=['cbeventforwarder'],
     url='https://github.com/carbonblack/cb-event-forwarder',
