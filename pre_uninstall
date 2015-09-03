@@ -1,5 +1,0 @@
-#!/bin/sh
-
-/etc/init.d/cb-event-forwarder stop
-
-chkconfig --del cb-event-forwarder

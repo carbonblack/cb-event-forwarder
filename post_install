@@ -1,8 +1,0 @@
-#!/bin/sh
-
-chkconfig --add cb-event-forwarder
-
-chkconfig --level 345 cb-event-forwarder on
-
-# not auto-starting because conf needs to be updated
-#/etc/init.d/cb-event-forwarder start
