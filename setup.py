@@ -137,7 +137,7 @@ def get_data_files(rootdir):
 
     return results
 
-data_files = get_data_files("src/root")
+data_files = get_data_files("root")
 data_files.append('cb-event-forwarder.spec')
 data_files.append('scripts/cb-event-forwarder')
 scripts = {
@@ -151,7 +151,6 @@ setup(
     name='python-cb-event-forwarder',
     version=version.__version__,
     packages=['cbeventforwarder'],
-    package_dir={'cbeventforwarder': 'src/cbeventforwarder'},
     url='https://github.com/carbonblack/cb-event-forwarder',
     license='MIT',
     author='Bit9 + Carbon Black Developer Network',
