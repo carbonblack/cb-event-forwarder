@@ -34,8 +34,9 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
         self.forwarder_options = self.options.get("bridge")
         self.debug = False
-        self.retry = 0
-        self.max_retry = 100
+        self.retry_interval = 5
+        self.max_retry_attempts = 1000
+        self.retry_attempts = 0
 
         self.capture_events = None
 
@@ -118,26 +119,25 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.event_processor = EventProcessor(self.forwarder_options)
         self.processor_pool = multiprocessing.Pool(processor_count)
 
-        good = True
-        while good:
+        while True:
             try:
                 self.consume_message_bus(test=self.testing)
             except Exception as e:
+                self.retry_attempts += 1
+                if self.retry_attempts > self.max_retry_attempts:
+                    self.logger.critical("Too many attempts to reconnect (%d). Exiting now." % self.max_retry_attempts)
+                    break
+
                 if isinstance(e, pika.exceptions.AMQPConnectionError) or isinstance(e, pika.exceptions.ConnectionClosed):
-                    self.logger.error("Connection is closed or refused, retrying in %s seconds" % self.retry)
+                    self.logger.error("Connection is closed or refused, retrying in %s seconds" % self.retry_interval)
                 else:
-                    self.logger.exception("An unexpected error occurred, retrying in %s seconds" % self.retry)
+                    self.logger.exception("An unexpected error occurred, retrying in %s seconds" % self.retry_interval)
 
                 if self.connection is not None:
                     self.connection.close()
                     self.connection = None
 
-                if self.retry < self.max_retry:
-                    self.retry += 1
-                    time.sleep(self.retry)
-                elif self.retry >= self.max_retry:
-                    self.logger.error("Too many attempts to connect. Exiting now.")
-                    good = False
+                time.sleep(self.retry_interval)
 
     def on_stopping(self):
         """
@@ -203,6 +203,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.connection = pika.SelectConnection(parameters, self.bus_on_connected,
                                                 on_close_callback=self.bus_on_closed)
         self.logger.info("Starting bus connection")
+        self.retry_attempts = 0
         self.connection.ioloop.start()
 
     def on_bus_message(self, channel, method_frame, header_frame, body):
