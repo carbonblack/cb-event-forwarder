@@ -34,8 +34,9 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
         self.forwarder_options = self.options.get("bridge")
         self.debug = False
-        self.retry = 0
-        self.max_retry = 100
+        self.retry_interval = 5
+        self.max_retry_attempts = 1000
+        self.retry_attempts = 0
 
         self.capture_events = None
 
@@ -118,7 +119,25 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.event_processor = EventProcessor(self.forwarder_options)
         self.processor_pool = multiprocessing.Pool(processor_count)
 
-        self.consume_message_bus(test=self.testing)
+        while True:
+            try:
+                self.consume_message_bus(test=self.testing)
+            except Exception as e:
+                self.retry_attempts += 1
+                if self.retry_attempts > self.max_retry_attempts:
+                    self.logger.critical("Too many attempts to reconnect (%d). Exiting now." % self.max_retry_attempts)
+                    break
+
+                if isinstance(e, pika.exceptions.AMQPConnectionError) or isinstance(e, pika.exceptions.ConnectionClosed):
+                    self.logger.error("Connection is closed or refused, retrying in %s seconds" % self.retry_interval)
+                else:
+                    self.logger.exception("An unexpected error occurred, retrying in %s seconds" % self.retry_interval)
+
+                if self.connection is not None:
+                    self.connection.close()
+                    self.connection = None
+
+                time.sleep(self.retry_interval)
 
     def on_stopping(self):
         """
@@ -128,10 +147,6 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.logger.info("Got a shutdown of service")
 
         try:
-            if self.channel is not None:
-                self.channel.stop_consuming()
-                self.channel = None
-
             if self.connection is not None:
                 self.connection.close()
                 self.connection = None
@@ -165,6 +180,9 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.connection = connection
         connection.channel(self.bus_on_channel_open)
 
+    def bus_on_closed(self, connection, reply_code, reply_text):
+        self.logger.info("Remote end closed the connection: Code %d (%s)" % (reply_code, reply_text))
+
     def consume_message_bus(self, test=False):
         """
         Subscribe to Carbon Black's event bus and begin consuming messages
@@ -182,30 +200,11 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         credentials = pika.PlainCredentials(username, password)
         parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
 
-        try:
-            self.connection = pika.SelectConnection(parameters, self.bus_on_connected)
-            self.logger.info("Starting bus connection")
-            self.connection.ioloop.start()
-
-        except (pika.exceptions.AMQPConnectionError, pika.exceptions.ConnectionClosed):
-            if self.retry < self.max_retry:
-                self.retry += 1
-                self.logger.error("Connection is closed or refused, retrying in %s seconds" % self.retry)
-                time.sleep(self.retry)
-                return self.consume_message_bus()
-            elif self.retry >= self.max_retry:
-                self.logger.error("Too many attempts to connect. Exiting now.")
-                return
-        except:
-            self.logger.exception("An unexpected error occurred")
-
-        if self.channel is not None:
-            self.channel.stop_consuming()
-            self.channel = None
-
-        if self.connection is not None:
-            self.connection.close()
-            self.connection = None
+        self.connection = pika.SelectConnection(parameters, self.bus_on_connected,
+                                                on_close_callback=self.bus_on_closed)
+        self.logger.info("Starting bus connection")
+        self.retry_attempts = 0
+        self.connection.ioloop.start()
 
     def on_bus_message(self, channel, method_frame, header_frame, body):
         """
