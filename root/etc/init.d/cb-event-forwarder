@@ -14,17 +14,9 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-cd /usr/share/cb/integrations/event-forwarder/
-exec="python cb-event-forwarder"
+exec="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder"
 prog="cb-event-forwarder"
 pidfile="/var/run/cb/integrations/cb-event-forwarder.pid"
-
-
-[ -f /etc/cb/cb.conf ] || {
-    echo Carbon Black Enterprise Server setup has not been finalized.
-    echo Run /usr/share/cb/cbinit to initialize the server instance.
-    exit 1
-}
 
 lockfile=/var/lock/subsys/$prog
 

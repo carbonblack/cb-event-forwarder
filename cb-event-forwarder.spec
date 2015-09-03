@@ -1,7 +1,7 @@
 # -*- mode: python -*-
 a = Analysis(['scripts/cb-event-forwarder'],
              pathex=['.'],
-             hiddenimports=['unicodedata'],
+             hiddenimports=['unicodedata', 'pkg_resources'],
              hookspath=None,
              runtime_hooks=None)
 pyz = PYZ(a.pure)

@@ -26,7 +26,7 @@ UNKNOWN
 %setup -n %{name}-%{unmangled_version}
 
 %build
-pyinstaller cb-lastline-connector.spec
+pyinstaller cb-event-forwarder.spec
 
 %install
 python setup.py install_cb --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES

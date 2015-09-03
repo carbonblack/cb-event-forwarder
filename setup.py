@@ -149,7 +149,7 @@ scripts = {
 
 setup(
     name='python-cb-event-forwarder',
-    version=version.__version__,
+    version='2.0',
     packages=['cbeventforwarder'],
     url='https://github.com/carbonblack/cb-event-forwarder',
     license='MIT',
