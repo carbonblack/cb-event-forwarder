@@ -1,4 +1,4 @@
-%define name python-cb-event-forwarder
+%define name cb-event-forwarder
 %define version 2.0
 %define unmangled_version 2.0
 %define release 1
