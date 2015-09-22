@@ -8,6 +8,12 @@ import cbeventforwarder.bridge
 
 if __name__ == "__main__":
     name = "cb-event-forwarder"
+
+    # set the path to the CA certificate PEM file to our local cache
+    cacert_pem_path = "/usr/share/cb/integrations/event-forwarder/cacert.pem"
+    if os.path.isfile(cacert_pem_path):
+        os.environ["REQUESTS_CA_BUNDLE"] = cacert_pem_path
+
     daemon = cbeventforwarder.bridge.CarbonBlackEventForwarder(name, "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:

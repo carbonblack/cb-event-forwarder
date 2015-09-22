@@ -13,9 +13,14 @@ class EventParser(object):
 
         self.cb_server = options.get("server_name", None)
 
-        self.cbapi_url = options.get("cbapi_url", None)
-        self.cbapi_token = options.get("cbapi_token", None)
-        self.cbapi_ssl_verify = options.get("cbapi_ssl_verify", None)
+        self.cbapi_url = options.get("carbonblack_server_url", None)
+        self.cbapi_token = options.get("carbonblack_server_token", None)
+
+        self.cbapi_ssl_verify = False
+        cbapi_ssl_verify = options.get("carbonblack_server_sslverify", None)
+        if isinstance(cbapi_ssl_verify, str) or isinstance(cbapi_ssl_verify, unicode):
+            if cbapi_ssl_verify.lower() in ('true', '1', 'yes'):
+                self.cbapi_ssl_verify = True
 
     def lookup_host_details(self, sensor_id):
         """
@@ -24,7 +29,7 @@ class EventParser(object):
         """
         try:
             # without cbapi access, nothing to do
-            if self.cbapi_url is None or self.cbapi_token is None:
+            if not self.cbapi_url or not self.cbapi_token:
                 return {}
 
             # use the cached copy if available
@@ -55,7 +60,8 @@ class EventParser(object):
 
             return host_simple
 
-        except:
+        except Exception as e:
+            LOGGER.exception("Could not query Cb for sensor id %d" % sensor_id)
             return {}
 
     def parse_event_pb(self, protobuf_bytes, routing_key):

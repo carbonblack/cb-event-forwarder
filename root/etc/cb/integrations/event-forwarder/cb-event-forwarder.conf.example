@@ -24,12 +24,12 @@ debug=0
 # These credentials are used to query the CB server and provide
 # extra sensor data (hostname, sid, ect) to each JSON object
 #
-cbapi_server=https://localhost/
-cbapi_token=
+carbonblack_server_url=https://localhost/
+carbonblack_server_token=
 
 # Force SSL checks to pass when doing API queries to the CB server.
 #    This should be false if the server is using a self-signed key.
-cbapi_ssl_verify=False
+carbonblack_server_sslverify=0
 
 
 #
