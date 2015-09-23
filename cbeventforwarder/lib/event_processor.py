@@ -39,6 +39,7 @@ class FileOutput(EventOutput):
         super(FileOutput, self).__init__("file")
 
         self.outfile = outfile
+        self.start_time_file = os.path.join(os.path.dirname(self.outfile), '.start_time')
         self.lock = multiprocessing.Manager().Lock()
         if rollover_delta:
             self.rollover_delta = datetime.timedelta(seconds=rollover_delta)
@@ -51,6 +52,9 @@ class FileOutput(EventOutput):
         try:
             self.lock.acquire()
             rolled_over = self.prepare_file()
+            if not os.path.isfile(self.outfile):
+                open(self.start_time_file, 'a').close()
+
             fout = open(self.outfile, "a")
             fout.write(str(event_data) + "\n")
             fout.flush()
@@ -71,7 +75,7 @@ class FileOutput(EventOutput):
             return False
 
         last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
-        create_time = datetime.datetime.fromtimestamp(os.path.getctime(self.outfile))
+        create_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.start_time_file))
 
         if self.rollover_at_midnight:
             if last_modified.date() < datetime.datetime.now().date():
