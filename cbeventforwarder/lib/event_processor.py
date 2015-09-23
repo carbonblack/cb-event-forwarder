@@ -96,7 +96,7 @@ class FileOutput(EventOutput):
 
         last_modified_date = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
 
-        rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y%m%d")
+        rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y-%m-%dT%H:%M:%S")
         if os.path.exists(rolled_filename):
             os.remove(rolled_filename)
         if os.path.exists(self.outfile):
@@ -141,7 +141,7 @@ class S3Output(EventOutput):
     log_file_name = "event-forwarder"
 
     def __init__(self, bucket, key, secret, temp_file_location="/var/run/cb/integrations/event-forwarder",
-                 bucket_time_delta=10):           # FIXME: time_delta set to 10s for testing
+                 bucket_time_delta=5*60):
         super(S3Output, self).__init__('s3')
 
         # s3 creds must be defined either in an environment variable, boto config
