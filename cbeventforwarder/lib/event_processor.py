@@ -49,22 +49,22 @@ class FileOutput(EventOutput):
             self.rollover_delta = None
 
     def write(self, event_data):
+        rolled_over = False
         try:
             self.lock.acquire()
             rolled_over = self.prepare_file()
             if not os.path.isfile(self.outfile):
-                open(self.start_time_file, 'a').close()
+                open(self.start_time_file, 'w').close()
 
             fout = open(self.outfile, "a")
             fout.write(str(event_data) + "\n")
             fout.flush()
             fout.close()
-            self.lock.release()
-
-            return rolled_over
         except:
             LOGGER.exception("Unable to output event via File")
-            return False
+        finally:
+            self.lock.release()
+            return rolled_over
 
     def should_rollover(self):
         """
@@ -141,7 +141,7 @@ class S3Output(EventOutput):
     log_file_name = "event-forwarder"
 
     def __init__(self, bucket, key, secret, temp_file_location="/var/run/cb/integrations/event-forwarder",
-                 bucket_time_delta=5*60):
+                 bucket_time_delta=60):
         super(S3Output, self).__init__('s3')
 
         # s3 creds must be defined either in an environment variable, boto config
@@ -157,6 +157,8 @@ class S3Output(EventOutput):
         # upload any files that failed to upload on previous instances of event-forwarder.
         self.upload_stragglers()
         self.last_uploaded_stragglers = datetime.datetime.now()
+
+        self.lock = multiprocessing.Manager().Lock()
 
     def upload_stragglers(self):
         for fn in [x for x in os.listdir(self.temp_file_location)
@@ -188,15 +190,21 @@ class S3Output(EventOutput):
                 return False
 
     def write(self, event_data):
-        rolled_over = self.file_output.write(event_data)
-        if rolled_over:
-            # take the rolled_over file and upload it...
-            filename = unicode(rolled_over)
-            self.upload_one(filename)
+        try:
+            self.lock.acquire()
+            rolled_over = self.file_output.write(event_data)
+            if rolled_over:
+                # take the rolled_over file and upload it...
+                filename = unicode(rolled_over)
+                self.upload_one(filename)
 
-        if datetime.datetime.now() - self.last_uploaded_stragglers > datetime.timedelta(seconds=60):
-            self.upload_stragglers()
-            self.last_uploaded_stragglers = datetime.datetime.now()
+            if datetime.datetime.now() - self.last_uploaded_stragglers > datetime.timedelta(seconds=60):
+                self.upload_stragglers()
+                self.last_uploaded_stragglers = datetime.datetime.now()
+        except Exception:
+            LOGGER.exception("Exception during s3 write")
+        finally:
+            self.lock.release()
 
 
 class EventProcessor(object):
