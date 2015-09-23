@@ -134,7 +134,8 @@ class TcpOutput(EventOutput):
 
 
 class S3Output(EventOutput):
-    def __init__(self, bucket, key, secret, temp_file_location=None, bucket_time_delta=5*60):
+    def __init__(self, bucket, key, secret, temp_file_location="/var/run/cb/integrations/event-forwarder",
+                 bucket_time_delta=10):           # FIXME: time_delta set to 10s for testing
         super(S3Output, self).__init__('s3')
 
         # s3 creds must be defined either in an environment variable, boto config
