@@ -161,7 +161,7 @@ class S3Output(EventOutput):
     def upload_stragglers(self):
         for fn in [x for x in os.listdir(self.temp_file_location)
                    if os.path.isfile(os.path.join(self.temp_file_location, x))]:
-            if fn == S3Output.log_file_name:
+            if fn in [S3Output.log_file_name, '.start_time']:
                 # don't try and upload our current log file
                 continue
             path = os.path.join(self.temp_file_location, fn)
