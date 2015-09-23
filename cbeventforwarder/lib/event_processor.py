@@ -149,10 +149,10 @@ class S3Output(EventOutput):
         self.conn = boto.connect_s3(aws_access_key_id=key, aws_secret_access_key=secret)
 
         self.bucket = self.conn.get_bucket(bucket)
-        self.bucket_time_delta = datetime.timedelta(seconds=bucket_time_delta) # by default, 5 minutes
         self.temp_file_location = temp_file_location
 
-        self.file_output = FileOutput(os.path.join(temp_file_location, S3Output.log_file_name))
+        self.file_output = FileOutput(os.path.join(temp_file_location, S3Output.log_file_name),
+                                      rollover_delta=bucket_time_delta)
 
         # upload any files that failed to upload on previous instances of event-forwarder.
         self.upload_stragglers()
