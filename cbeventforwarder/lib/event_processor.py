@@ -134,6 +134,8 @@ class TcpOutput(EventOutput):
 
 
 class S3Output(EventOutput):
+    log_file_name = "event-forwarder"
+
     def __init__(self, bucket, key, secret, temp_file_location="/var/run/cb/integrations/event-forwarder",
                  bucket_time_delta=10):           # FIXME: time_delta set to 10s for testing
         super(S3Output, self).__init__('s3')
@@ -146,7 +148,7 @@ class S3Output(EventOutput):
         self.bucket_time_delta = datetime.timedelta(seconds=bucket_time_delta) # by default, 5 minutes
         self.temp_file_location = temp_file_location
 
-        self.file_output = FileOutput(os.path.join(temp_file_location, "event-forwarder"))
+        self.file_output = FileOutput(os.path.join(temp_file_location, S3Output.log_file_name))
 
         # upload any files that failed to upload on previous instances of event-forwarder.
         self.upload_stragglers()
@@ -155,6 +157,9 @@ class S3Output(EventOutput):
     def upload_stragglers(self):
         for fn in [x for x in os.listdir(self.temp_file_location)
                    if os.path.isfile(os.path.join(self.temp_file_location, x))]:
+            if fn == S3Output.log_file_name:
+                # don't try and upload our current log file
+                continue
             path = os.path.join(self.temp_file_location, fn)
             self.upload_one(path)
 
