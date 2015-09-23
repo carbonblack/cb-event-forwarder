@@ -9,6 +9,7 @@ import string
 import sys
 import time
 import json
+import boto
 
 from event_parser import EventParser
 
@@ -120,16 +121,12 @@ class S3Output(EventOutput):
     def __init__(self, bucket, key, secret):
         super(S3Output, self).__init__('s3')
 
-        # import boto here so it's only required if s3 output is used
-        import boto
-
         # s3 creds must be defined either in an environment variable, boto config
         # or EC2 instance metadata.
         self.conn = boto.connect_s3(aws_access_key_id=key, aws_secret_access_key=secret)
         self.bucket = self.conn.get_bucket(bucket)
 
     def write(self, event_data):
-        import boto
         # name keys as timestamp-xxxx where xxx is random 4 lowercase chars
         # this (a) keeps a useful and predictable sort order and (b) avoids name collisions
         key_name = "%s-%s" % (time.time(), ''.join(random.sample(string.lowercase, 4)))

@@ -22,6 +22,8 @@ class EventParser(object):
             if cbapi_ssl_verify.lower() in ('true', '1', 'yes'):
                 self.cbapi_ssl_verify = True
 
+        self.session = requests.Session()
+
     def lookup_host_details(self, sensor_id):
         """
         Return a dictionary describing a sensor, as identifed by it's ID, using the configured CB API (if available)
@@ -40,7 +42,7 @@ class EventParser(object):
             # this will fail if the CB server is not available, if the cb
             # api parameters are incorrect, or if the sensor id does not exists
             url = "%s/api/v1/sensor/%s" % (self.cbapi_url, sensor_id)
-            r = requests.get(url, headers={"X-Auth-Token": self.cbapi_token}, verify=self.cbapi_ssl_verify)
+            r = self.session.get(url, headers={"X-Auth-Token": self.cbapi_token}, verify=self.cbapi_ssl_verify)
             r.raise_for_status()
 
             # cache off the result
