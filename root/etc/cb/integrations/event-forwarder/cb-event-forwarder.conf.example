@@ -20,19 +20,6 @@ server_name=None
 debug=0
 
 #
-# CB API Credentials
-# These credentials are used to query the CB server and provide
-# extra sensor data (hostname, sid, ect) to each JSON object
-#
-carbonblack_server_url=https://localhost/
-carbonblack_server_token=
-
-# Force SSL checks to pass when doing API queries to the CB server.
-#    This should be false if the server is using a self-signed key.
-carbonblack_server_sslverify=0
-
-
-#
 #Bus Connection Options
 #   It's recommended to leave these blank.  The service
 #   will use the RabbitMQ credentials in /etc/cb/cb.conf)

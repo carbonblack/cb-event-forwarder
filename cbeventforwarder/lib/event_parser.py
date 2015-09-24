@@ -12,15 +12,6 @@ class EventParser(object):
 
         self.cb_server = options.get("server_name", None)
 
-        self.cbapi_url = options.get("carbonblack_server_url", None)
-        self.cbapi_token = options.get("carbonblack_server_token", None)
-
-        self.cbapi_ssl_verify = False
-        cbapi_ssl_verify = options.get("carbonblack_server_sslverify", None)
-        if isinstance(cbapi_ssl_verify, str) or isinstance(cbapi_ssl_verify, unicode):
-            if cbapi_ssl_verify.lower() in ('true', '1', 'yes'):
-                self.cbapi_ssl_verify = True
-
     def parse_event_pb(self, protobuf_bytes, routing_key):
         """
         Parse a Carbon Black event bus message that is in a protobuf format
