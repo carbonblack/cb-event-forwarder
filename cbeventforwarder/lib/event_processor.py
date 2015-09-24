@@ -2,12 +2,8 @@ import datetime
 import logging
 import multiprocessing
 import os
-import random
 import socket
-import stat
-import string
 import sys
-import time
 import json
 import boto
 
@@ -39,33 +35,55 @@ class StdOutOutput(EventOutput):
 
 
 class FileOutput(EventOutput):
-    def __init__(self, outfile):
+    def __init__(self, outfile, rollover_delta=None):
         super(FileOutput, self).__init__("file")
 
         self.outfile = outfile
+        self.start_time_file = os.path.join(os.path.dirname(self.outfile), '.start_time')
         self.lock = multiprocessing.Manager().Lock()
+        if rollover_delta:
+            self.rollover_delta = datetime.timedelta(seconds=rollover_delta)
+            self.rollover_at_midnight = False
+        else:
+            self.rollover_at_midnight = True
+            self.rollover_delta = None
 
     def write(self, event_data):
+        rolled_over = False
         try:
             self.lock.acquire()
-            self.prepare_file()
+            rolled_over = self.prepare_file()
+            if not os.path.isfile(self.outfile):
+                open(self.start_time_file, 'w').close()
+
             fout = open(self.outfile, "a")
             fout.write(str(event_data) + "\n")
             fout.flush()
             fout.close()
-            self.lock.release()
         except:
             LOGGER.exception("Unable to output event via File")
+        finally:
+            self.lock.release()
+            return rolled_over
 
     def should_rollover(self):
         """
-        Determine if rollover should occur. Rolling occurs at midnight local time
+        Determine if rollover should occur.
         """
 
-        if os.path.exists(self.outfile):
-            last_modified = datetime.datetime.fromtimestamp(os.stat(self.outfile)[stat.ST_MTIME])
+        if not os.path.exists(self.outfile):
+            return False
+
+        last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
+        create_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.start_time_file))
+
+        if self.rollover_at_midnight:
             if last_modified.date() < datetime.datetime.now().date():
                 return True
+        else:
+            if datetime.datetime.now() - create_time > self.rollover_delta:
+                return True
+
         return False
 
     def prepare_file(self):
@@ -74,15 +92,17 @@ class FileOutput(EventOutput):
         """
 
         if not self.should_rollover():
-            return
+            return False
 
-        last_modified_date = datetime.datetime.fromtimestamp(os.stat(self.outfile)[stat.ST_MTIME])
+        last_modified_date = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
 
-        rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y%m%d")
+        rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y-%m-%dT%H:%M:%S")
         if os.path.exists(rolled_filename):
             os.remove(rolled_filename)
         if os.path.exists(self.outfile):
             os.rename(self.outfile, rolled_filename)
+
+        return rolled_filename
 
 
 class UdpOutput(EventOutput):
@@ -118,23 +138,73 @@ class TcpOutput(EventOutput):
 
 
 class S3Output(EventOutput):
-    def __init__(self, bucket, key, secret):
+    log_file_name = "event-forwarder"
+
+    def __init__(self, bucket, key, secret, temp_file_location="/var/run/cb/integrations/event-forwarder",
+                 bucket_time_delta=60):
         super(S3Output, self).__init__('s3')
 
         # s3 creds must be defined either in an environment variable, boto config
         # or EC2 instance metadata.
         self.conn = boto.connect_s3(aws_access_key_id=key, aws_secret_access_key=secret)
+
         self.bucket = self.conn.get_bucket(bucket)
+        self.temp_file_location = temp_file_location
+
+        self.file_output = FileOutput(os.path.join(temp_file_location, S3Output.log_file_name),
+                                      rollover_delta=bucket_time_delta)
+
+        # upload any files that failed to upload on previous instances of event-forwarder.
+        self.upload_stragglers()
+        self.last_uploaded_stragglers = datetime.datetime.now()
+
+        self.lock = multiprocessing.Manager().Lock()
+
+    def upload_stragglers(self):
+        for fn in [x for x in os.listdir(self.temp_file_location)
+                   if os.path.isfile(os.path.join(self.temp_file_location, x))
+                   and x not in [S3Output.log_file_name, '.start_time']]:
+            path = os.path.join(self.temp_file_location, fn)
+            self.upload_one(path)
+
+    def upload_one(self, path):
+        # TODO: make this a background task so we don't block event processing
+        # if the file fails to upload for any reason, we will pick it up later in upload_stragglers()
+
+        key_name = os.path.basename(path)
+        original_file_size = os.path.getsize(path)
+        try:
+            k = boto.s3.key.Key(bucket=self.bucket, name=key_name)
+            upload_size = k.set_contents_from_filename(path)
+        except Exception as e:
+            LOGGER.exception("Exception while uploading file %s" % path)
+            return False
+        else:
+            if upload_size == original_file_size:
+                os.remove(path)
+                return True
+            else:
+                LOGGER.error("File size mismatch while uploading file %s: %d != %d" % (path,
+                                                                                       upload_size,
+                                                                                       original_file_size))
+                return False
 
     def write(self, event_data):
-        # name keys as timestamp-xxxx where xxx is random 4 lowercase chars
-        # this (a) keeps a useful and predictable sort order and (b) avoids name collisions
-        key_name = "%s-%s" % (time.time(), ''.join(random.sample(string.lowercase, 4)))
-        k = boto.s3.key.Key(bucket=self.bucket, name=key_name)
+        try:
+            self.lock.acquire()
+            rolled_over = self.file_output.write(event_data)
+            if rolled_over:
+                # take the rolled_over file and upload it...
+                filename = unicode(rolled_over)
+                self.upload_one(filename)
 
-        # ensure contents of s3 bucket are list of objects, even though this output path is
-        # always only one object per call
-        k.set_contents_from_string("[%s]\n" % event_data)
+            if datetime.datetime.now() - self.last_uploaded_stragglers > datetime.timedelta(seconds=60):
+                self.upload_stragglers()
+                self.last_uploaded_stragglers = datetime.datetime.now()
+        except Exception:
+            LOGGER.exception("Exception during s3 write")
+        finally:
+            self.lock.release()
 
 
 class EventProcessor(object):
