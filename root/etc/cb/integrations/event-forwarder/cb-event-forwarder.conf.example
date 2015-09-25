@@ -59,11 +59,11 @@ udpout=None
 
 # options for S3 support
 # s3out: The s3 bucket name
-# aws_key: The aws access key id
-# aws_scret: The aws secret access key
+# aws_key: The aws access key id. Leave blank to use the boto standard credential search path
+# aws_secret: The aws secret access key. Leave blank to use the boto standard credential search path
 s3out=None
-aws_key=None
-aws_secret=None
+aws_key=
+aws_secret=
 
 #########
 # Configuration for which events are captured
