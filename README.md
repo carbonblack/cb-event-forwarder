@@ -37,16 +37,11 @@ curl -O https://opensource.carbonblack.com/release/x86_64/CbOpenSource.repo
    to enable broadcast of the raw sensor events you wish to export.
 * If you are capturing binary observed events you also need to edit the "EnableSolrBinaryInfoNotifications" setting it to "True".
 * Decide and configure the output type for the connector.   More information can be found in the configuration file.
-* You'll need a service account that can be used by the service to query sensor information from within CB.   Set the "cbapi_token" 
-  configuration option to the token of the service account to use.
 * Start the service with `service cb-event-forwarder start`.
 
 ## Dependencies
 
 Carbon Black Enterprise has to be present on the machine where this package is installed.  Installing it on the master for a cluster is the recommended approach -- you would NOT install this on every minion.
-
-The connector requires an API token in order to query sensor information from the Carbon Black server to populate with each
-JSON event.   That token should be set in the "cbapi_token" configuration value.
 
 ## Configuration
 
@@ -68,4 +63,4 @@ The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder
 
 ## Version
 
-Current version is 1.1.0.
+Current version is 2.1.

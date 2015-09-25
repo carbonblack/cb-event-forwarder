@@ -1,5 +1,4 @@
 import json
-import requests
 import logging
 
 import event_helpers
@@ -13,60 +12,12 @@ class EventParser(object):
 
         self.cb_server = options.get("server_name", None)
 
-        self.cbapi_url = options.get("cbapi_url", None)
-        self.cbapi_token = options.get("cbapi_token", None)
-        self.cbapi_ssl_verify = options.get("cbapi_ssl_verify", None)
-
-    def lookup_host_details(self, sensor_id):
-        """
-        Return a dictionary describing a sensor, as identifed by it's ID, using the configured CB API (if available)
-        and caching the results. An empty dictionary is returned when CB API is not configured or lookup fails
-        """
-        try:
-            # without cbapi access, nothing to do
-            if self.cbapi_url is None or self.cbapi_token is None:
-                return {}
-
-            # use the cached copy if available
-            if sensor_id in self.sensor_id_to_details_map:
-                return self.sensor_id_to_details_map[sensor_id]
-
-            # perform the lookup
-            # this will fail if the CB server is not available, if the cb
-            # api parameters are incorrect, or if the sensor id does not exists
-            url = "%s/api/v1/sensor/%s" % (self.cbapi_url, sensor_id)
-            r = requests.get(url, headers={"X-Auth-Token": self.cbapi_token}, verify=self.cbapi_ssl_verify)
-            r.raise_for_status()
-
-            # cache off the result
-            host_details = r.json()
-
-            # the sensor endpoint provides a lot more detail than is required
-            # strip down to just computer name, computer sid, and sensor id
-            host_simple = {}
-            if "computer_name" in host_details:
-                host_simple["computer_name"] = host_details["computer_name"]
-            if "computer_sid" in host_details:
-                host_simple["computer_sid"] = host_details["computer_sid"]
-            host_simple["sensor_id"] = sensor_id
-
-            # cache off the host details
-            self.sensor_id_to_details_map[sensor_id] = host_simple
-
-            return host_simple
-
-        except:
-            return {}
-
     def parse_event_pb(self, protobuf_bytes, routing_key):
         """
         Parse a Carbon Black event bus message that is in a protobuf format
         """
 
         (sensor_id, event_obj) = event_helpers.protobuf_to_obj_and_host(protobuf_bytes)
-
-        host_info = self.lookup_host_details(sensor_id)
-        event_obj.update(host_info)
 
         # since we have multiple object types
         # we overwrite some fields in the protobuf based
@@ -151,16 +102,14 @@ class EventParser(object):
             #
             if routing_key == "watchlist.storage.hit.process" or routing_key == "watchlist.hit.process":
                 d = event_obj["docs"]
-                if "sensor_id" in d:
-                    host_info = self.lookup_host_details(d["sensor_id"])
-                    d.update(host_info)
+                if "hostname" in d:
+                    d["computer_name"] = d["hostname"]
 
             else:
                 # rather than track the correct objects - just look
                 # for a sensor id
-                if "sensor_id" in event_obj:
-                    host_info = self.lookup_host_details(event_obj["sensor_id"])
-                    event_obj.update(host_info)
+                if "hostname" in event_obj:
+                    event_obj["computer_name"] = event_obj["hostname"]
 
             # fix up terminology on process id/guid so that "process_guid" always
             # refers to the process guid (minus segment)
