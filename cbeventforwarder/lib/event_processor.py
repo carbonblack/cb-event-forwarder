@@ -146,7 +146,10 @@ class S3Output(EventOutput):
 
         # s3 creds must be defined either in an environment variable, boto config
         # or EC2 instance metadata.
-        self.conn = boto.connect_s3(aws_access_key_id=key, aws_secret_access_key=secret)
+        if not key or not secret:
+            self.conn = boto.connect_s3()
+        else:
+            self.conn = boto.connect_s3(aws_access_key_id=key, aws_secret_access_key=secret)
 
         self.bucket = self.conn.get_bucket(bucket)
         self.temp_file_location = temp_file_location
@@ -224,7 +227,7 @@ class EventProcessor(object):
             (host, port) = options.get("udpout").split(":")
             self.output = UdpOutput(host, int(port))
         elif output_type == "s3":
-            self.output = S3Output(options.get("s3out"), options.get("aws_key"), options.get("aws_secret"))
+            self.output = S3Output(options.get("s3out"), options.get("aws_key", None), options.get("aws_secret", None))
         else:
             raise ValueError("Invalid output type: %s" % output_type)
 
