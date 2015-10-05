@@ -102,7 +102,11 @@ class FileOutput(EventOutput):
 
         last_modified_date = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
 
-        rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y-%m-%dT%H:%M:%S")
+        if self.rollover_at_midnight:
+            rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y%m%d")
+        else:
+            rolled_filename = self.outfile + "." + last_modified_date.strftime("%Y-%m-%dT%H:%M:%S")
+
         if os.path.exists(rolled_filename):
             os.remove(rolled_filename)
         if os.path.exists(self.outfile):
