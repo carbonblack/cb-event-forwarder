@@ -41,6 +41,9 @@ class FileOutput(EventOutput):
         self.outfile = outfile
         self.start_time_file = os.path.join(os.path.dirname(self.outfile), '.start_time')
         self.lock = multiprocessing.Manager().Lock()
+
+        open(self.start_time_file, 'w').close()
+
         if rollover_delta:
             self.rollover_delta = datetime.timedelta(seconds=rollover_delta)
             self.rollover_at_midnight = False
@@ -75,7 +78,10 @@ class FileOutput(EventOutput):
             return False
 
         last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(self.outfile))
-        create_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.start_time_file))
+        if os.path.exists(self.start_time_file):
+            create_time = datetime.datetime.fromtimestamp(os.path.getmtime(self.start_time_file))
+        else:
+            create_time = last_modified
 
         if self.rollover_at_midnight:
             if last_modified.date() < datetime.datetime.now().date():
