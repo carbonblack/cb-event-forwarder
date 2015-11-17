@@ -149,7 +149,7 @@ scripts = {
 
 setup(
     name='cb-event-forwarder',
-    version='2.1',
+    version='2.2',
     packages=['cbeventforwarder'],
     url='https://github.com/carbonblack/cb-event-forwarder',
     license='MIT',

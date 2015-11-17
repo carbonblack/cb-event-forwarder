@@ -20,9 +20,20 @@ server_name=None
 debug=0
 
 #
-#Bus Connection Options
-#   It's recommended to leave these blank.  The service
-#   will use the RabbitMQ credentials in /etc/cb/cb.conf)
+# Bus Connection Options
+#
+# There are two deployment options:
+#
+# 1) For small deployments, or for low volume subscriptions (such as new binaries, feed/watchlist hits),
+#    you can install this connector directly on the Carbon Black server. In this case, leave the following
+#    three configuration options blank and the service will connect to the local RabbitMQ instance using
+#    the credentials from the /etc/cb/cb.conf file.
+#
+# 2) For larger deployments, or for high volume subscriptions (such as raw endpoint events), it is recommended
+#    to install this connector on its own dedicated machine. In this case, fill the following three configuration
+#    options with the RabbitMQUser, RabbitMQPassword, and the IP/hostname of the Carbon Black server or master
+#    node respectively. You will have to ensure that your host can connect to TCP port 5004 on the Carbon Black
+#    server.
 #
 rabbit_mq_username=
 rabbit_mq_password=
