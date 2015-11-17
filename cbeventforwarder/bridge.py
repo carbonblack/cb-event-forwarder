@@ -47,6 +47,8 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
         self.processor_pool = None
         self.testing = False
 
+        self.cb_server_hostname = self.forwarder_options.get("cb_server_hostname", "localhost")
+
     def validate_config(self):
         """
         Validate service config:
@@ -78,7 +80,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
             try:
                 username, password = self.get_bus_credentials()
                 credentials = pika.PlainCredentials(username, password)
-                parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
+                parameters = pika.ConnectionParameters(self.cb_server_hostname, 5004, "/", credentials)
                 connection = pika.BlockingConnection(parameters)
                 connection.close()
             except:
@@ -198,7 +200,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
         username, password = self.get_bus_credentials()
         credentials = pika.PlainCredentials(username, password)
-        parameters = pika.ConnectionParameters("localhost", 5004, "/", credentials)
+        parameters = pika.ConnectionParameters(self.cb_server_hostname, 5004, "/", credentials)
 
         self.connection = pika.SelectConnection(parameters, self.bus_on_connected,
                                                 on_close_callback=self.bus_on_closed)

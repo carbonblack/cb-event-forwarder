@@ -1,7 +1,7 @@
 %define name cb-event-forwarder
-%define version 2.1
-%define unmangled_version 2.1
-%define release 2
+%define version 2.2
+%define unmangled_version 2.2
+%define release 1
 %global _enable_debug_package 0
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}

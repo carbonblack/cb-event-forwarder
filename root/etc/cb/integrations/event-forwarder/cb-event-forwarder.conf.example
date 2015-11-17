@@ -26,6 +26,7 @@ debug=0
 #
 rabbit_mq_username=
 rabbit_mq_password=
+cb_server_hostname=
 
 #########
 # Output Options
