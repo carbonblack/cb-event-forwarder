@@ -40,13 +40,28 @@ cd ./src/github.com/carbonblack/cb-event-forwarder && make rpminstall
 %clean
 rm -rf $RPM_BUILD_ROOT
 
+%pretrans
+#!/bin/sh
+# since the "old" cb-event-forwarder controls itself through the file we're about to replace
+# we should stop it before we install anything on upgrade
+
+if [ -x /etc/init.d/cb-event-forwarder ]
+then
+    service cb-event-forwarder stop &> /dev/null || :
+fi
+
+%preun
+#!/bin/sh
+
+if [ "X$1" = "X0" ]
+then
+    initctl stop cb-event-forwarder &> /dev/null || :
+fi
+
 %post
 #!/bin/sh
 mkdir -p /var/log/cb/integrations/cb-event-forwarder
 mkdir -p /var/cb/data
-
-%preun
-#!/bin/sh
 
 
 %files -f MANIFEST
