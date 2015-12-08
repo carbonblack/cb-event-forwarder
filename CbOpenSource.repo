@@ -1,7 +1,0 @@
-[CbOpenSource]
-name=CbOpenSource
-baseurl=https://opensource.carbonblack.com/release/x86_64
-gpgcheck=0
-enabled=1
-metadata_expire=60
-sslverify=1

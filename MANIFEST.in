@@ -1,6 +1,0 @@
-recursive-include cbeventforwarder *
-recursive-include root/etc *
-recursive-include root/usr *
-
-recursive-include scripts
-include cb-event-forwarder.spec

@@ -1,4 +1,0 @@
-pika>=0.10
-protobuf
--e git://github.com/carbonblack/cb-integration.git#egg=cbint
-boto
