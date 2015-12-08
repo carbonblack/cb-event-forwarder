@@ -87,9 +87,12 @@ More information about configuring the Splunk TA can be found [here](http://docs
 
 ## QRadar
 
-The Carbon Black event forwarder can forward Carbon Black events in the LEEF format to QRadar. To enable LEEF
-output: modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
-`udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514) and specify LEEF output format: `output_format=leef`. 
+The Carbon Black event forwarder can forward Carbon Black events in the LEEF format to QRadar. To forward Carbon Black
+events to a QRadar server:
+
+1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
+`udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514)
+2. Change the output format to LEEF in the configuration file: `output_format=leef`. 
 
 ## Logging & Diagnostics
 
@@ -99,7 +102,10 @@ The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder
 2015/12/07 12:57:26 cb-event-forwarder version 3.0.0 starting
 2015/12/07 12:57:26 Interface address 172.22.10.7
 2015/12/07 12:57:26 Interface address fe80::20c:29ff:fe85:bcd0
-2015/12/07 12:57:26 Configured to capture events: [watchlist.hit.# watchlist.storage.hit.# feed.ingress.hit.# feed.storage.hit.# feed.query.hit.# alert.watchlist.hit.# ingress.event.process ingress.event.procstart ingress.event.netconn ingress.event.procend ingress.event.childproc ingress.event.moduleload ingress.event.module ingress.event.filemod ingress.event.regmod binaryinfo.# binarystore.file.added]
+2015/12/07 12:57:26 Configured to capture events: [watchlist.hit.# watchlist.storage.hit.# feed.ingress.hit.# 
+feed.storage.hit.# feed.query.hit.# alert.watchlist.hit.# ingress.event.process ingress.event.procstart 
+ingress.event.netconn ingress.event.procend ingress.event.childproc ingress.event.moduleload 
+ingress.event.module ingress.event.filemod ingress.event.regmod binaryinfo.# binarystore.file.added]
 2015/12/07 12:57:26 Initialized output: File /var/cb/data/event_bridge_output.json
 2015/12/07 12:57:26 Diagnostics available via HTTP at http://cbtest:33706/debug/vars
 2015/12/07 12:57:26 Starting AMQP loop
