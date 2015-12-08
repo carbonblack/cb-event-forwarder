@@ -11,8 +11,8 @@ build:
 	go build
 
 rpmbuild:
+    go generate ./...
 	go get ./...
-	go generate ./...
 	go build -ldflags "-X main.version=${VERSION}"
 
 rpminstall:
