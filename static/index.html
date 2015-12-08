@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>cb-event-forwarder Status</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+
+    <script src="/static/js/jquery-1.11.3.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/moment.min.js"></script>
+    <script src="/static/js/smoothie.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <nav class="navbar navbar-default navbar-inverse">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="#"><img src="/static/images/carbonblack.png"></a>
+            </div>
+        </div>
+
+    </nav>
+
+    <ul class="nav nav-tabs">
+
+    </ul>
+
+    <div class="col-lg-4">
+        <h3>Events Per Second</h3>
+        <canvas id="events_per_second" height="200"></canvas>
+    </div>
+</div>
+
+<script type="application/javascript">
+    var current_data;
+    var previous_data;
+    var smoothieChart;
+    var eventsPerSecond = new TimeSeries();
+
+    function data_callback(data) {
+        if (!current_data) {
+            // first time we're called
+            current_data = data;
+            setTimeout(get_current_data, 1000);
+            return;
+        }
+
+        previous_data = current_data;
+        current_data = data;
+
+        events_per_second = current_data.input_event_count - previous_data.input_event_count;
+        eventsPerSecond.append(new Date().getTime(), events_per_second);
+
+        setTimeout(get_current_data, 1000);
+    }
+
+    function get_current_data() {
+        var info = $.get("/debug/vars");
+
+        info.done(data_callback);
+    }
+
+    $(function() {
+        smoothieChart = new SmoothieChart({ grid: { strokeStyle: 'rgb(125, 0, 0)', fillStyle: 'rgb(60, 0, 0)', lineWidth: 1, millisPerLine: 2000, verticalSections: 6 } });
+        smoothieChart.addTimeSeries(eventsPerSecond);
+        smoothieChart.streamTo(document.getElementById("events_per_second"), 1000);
+
+        get_current_data();
+    });
+
+    $.get("/debug/vars")
+</script>
+</body>
+</html>
