@@ -36,11 +36,16 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the Carbon Blac
 To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system.
 
 1. Install the CbOpenSource repository if it isn't already present:
+
     ```
     cd /etc/yum.repos.d
     curl -O https://opensource.carbonblack.com/release/x86_64/CbOpenSource.repo
     ```
-2. Install the rpm for the CB event bridge connector: `yum install cb-event-forwarder`
+2. Install the RPM via YUM: 
+
+   ```
+   yum install cb-event-forwarder
+   ```
 
 ### Configure the cb-event-forwarder
 2. If installing on a machine *other than* the Carbon Black server, copy the RabbitMQ username and password into the 
