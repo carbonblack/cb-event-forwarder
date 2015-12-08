@@ -187,7 +187,8 @@ output from the JSON status is shown below:
     "binaryinfo.#",
     "binarystore.file.added"
   ]
-}```
+}
+```
 
 ## Changelog
 
