@@ -8,11 +8,12 @@ GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 cb-event-forwarder: build
 
 build:
-	GOOS=linux go build
+	go build
 
 rpmbuild:
-	GOOS=linux go get ./...
-	GOOS=linux go build -ldflags "-X main.version=${VERSION}"
+	go get ./...
+	go generate ./...
+	go build -ldflags "-X main.version=${VERSION}"
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -50,4 +51,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version 3.0.0' --define 'release 1' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
