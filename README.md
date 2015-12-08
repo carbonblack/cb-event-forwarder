@@ -48,15 +48,16 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
    ```
 
 ### Configure the cb-event-forwarder
-2. If installing on a machine *other than* the Carbon Black server, copy the RabbitMQ username and password into the 
+1. If installing on a machine *other than* the Carbon Black server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
 file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Carbon Black server can be reached.
-3. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
+2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
 ### Configure Carbon Black
-By default, Cb publishes the `feed.*` and `watchlist.*` events over the bus (see the event descriptions & format document). 
+By default, Cb publishes the `feed.*` and `watchlist.*` events over the bus (see the [Events documentation](EVENTS.md)
+for more information). 
 If you want to capture raw sensor events or the `binaryinfo.*` notifications, you have to enable those features in 
 `/etc/cb/cb.conf`:
 
@@ -93,6 +94,8 @@ events to a QRadar server:
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
 `udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514)
 2. Change the output format to LEEF in the configuration file: `output_format=leef`. 
+
+For more information on the LEEF format, see the [Events documentation](EVENTS.md).
 
 ## Logging & Diagnostics
 
@@ -132,3 +135,8 @@ ingress.event.module ingress.event.filemod ingress.event.regmod binaryinfo.# bin
 
 In addition to the log file, the service starts an HTTP service for monitoring and debugging. The URL is available in 
 the log file (see the “Diagnostics available” line above).
+
+## Changelog
+
+This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
+See the [Changelog](CHANGES.md) for more information on upgrading from cb-event-forwarder 2.x.
