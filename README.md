@@ -134,7 +134,60 @@ ingress.event.module ingress.event.filemod ingress.event.regmod binaryinfo.# bin
 ```
 
 In addition to the log file, the service starts an HTTP service for monitoring and debugging. The URL is available in 
-the log file (see the “Diagnostics available” line above).
+the log file (see the “Diagnostics available” line above). The port is configurable through the `http_server_port`
+option in the configuration file.
+
+The diagnostics are presented as a JSON formatted string. The diagnostics include operational information on the
+service itself, how long the service has been running, errors, and basic configuration information. An example
+output from the JSON status is shown below:
+
+```
+{
+  "version": "3.0.0",
+  "uptime": 145.617786697,
+  "cmdline": [
+    "/usr/share/cb/integrations/event-forwarder/cb-event-forwarder",
+    "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+  ],
+  "connection_status": {
+    "uptime": 145.471995845,
+    "last_error_time": "0001-01-01T00:00:00Z",
+    "last_error_text": "",
+    "last_connect_time": "2015-12-08T00:22:56.566600876-05:00",
+    "connected": true
+  },
+  "error_count": 0,
+  "input_event_count": 29,
+  "memstats": {...},
+  "output_event_count": 29,
+  "output_status": {
+    "type": "file",
+    "format": "json",
+    "file:/var/cb/data/event_bridge_output.json": {
+      "file_name": "/var/cb/data/event_bridge_output.json",
+      "last_open_time": "2015-12-08T00:22:56.430385291-05:00"
+    }
+  },
+  "subscribed_events": [
+    "watchlist.hit.#",
+    "watchlist.storage.hit.#",
+    "feed.ingress.hit.#",
+    "feed.storage.hit.#",
+    "feed.query.hit.#",
+    "alert.watchlist.hit.#",
+    "ingress.event.process",
+    "ingress.event.procstart",
+    "ingress.event.netconn",
+    "ingress.event.procend",
+    "ingress.event.childproc",
+    "ingress.event.moduleload",
+    "ingress.event.module",
+    "ingress.event.filemod",
+    "ingress.event.regmod",
+    "binaryinfo.#",
+    "binarystore.file.added"
+  ]
+}```
 
 ## Changelog
 
