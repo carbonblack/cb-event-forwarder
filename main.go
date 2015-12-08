@@ -348,7 +348,9 @@ func main() {
 	}
 
 	log.Printf("Diagnostics available via HTTP at http://%s:%d/debug/vars", hostname, config.HTTPServerPort)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+
+	// TODO: disabling /static until we have a better index page
+	// http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	log.Println("Starting AMQP loop")
