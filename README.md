@@ -28,7 +28,7 @@ bus.
 The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
 It can be installed on the same machine as the Carbon Black server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), then installing it on a separate machine is recommended. 
+modifications), or are forwarding events from a Carbon Black cluster, then installing it on a separate machine is recommended. 
 Otherwise, it is acceptable to install the cb-event-forwarder on the Carbon Black server itself.
 
 ### Installation
@@ -48,14 +48,19 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
    ```
 
 ### Configure the cb-event-forwarder
+
 1. If installing on a machine *other than* the Carbon Black server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
 file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Carbon Black server can be reached.
+If the cb-event-forwarder is forwarding events from a Carbon Black cluster, the `cb_server_hostname` should be set
+to the hostname or IP address of the Carbon Black master node.
+   
 2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
 ### Configure Carbon Black
+
 By default, Cb publishes the `feed.*` and `watchlist.*` events over the bus (see the [Events documentation](EVENTS.md)
 for more information). 
 If you want to capture raw sensor events or the `binaryinfo.*` notifications, you have to enable those features in 
@@ -68,6 +73,11 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 
 Carbon Black needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
 `service cb-enterprise restart`. 
+
+If you are configuring the cb-event-forwarder on a Carbon Black cluster, the `DatastoreBroadcastEventTypes` and/or
+`EnableSolrBinaryInfoNotifications` settings
+must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster restarted using
+the `/usr/share/cb/cbcluster restart` command.
 
 ### Starting and Stopping the Service
 
