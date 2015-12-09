@@ -39,3 +39,4 @@ dist/
 build/
 
 *.pb.go
+.DS_Store

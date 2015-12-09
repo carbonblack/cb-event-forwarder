@@ -9,34 +9,74 @@
     <script src="/static/js/bootstrap.min.js"></script>
     <script src="/static/js/moment.min.js"></script>
     <script src="/static/js/smoothie.js"></script>
+    <style>
+        .navbar-brand>img {
+           max-height: 100%;
+           height: 100%;
+           width: auto;
+           margin: 0 auto;
+
+
+           /* probably not needed anymore, but doesn't hurt */
+           -o-object-fit: contain;
+           object-fit: contain;
+
+        }
+    </style>
 </head>
 <body>
 
-<div class="container">
-    <nav class="navbar navbar-default navbar-inverse">
-        <div class="container-fluid">
-            <div class="navbar-header">
-                <a class="navbar-brand" href="#"><img src="/static/images/carbonblack.png"></a>
-            </div>
-        </div>
-
-    </nav>
-
-    <ul class="nav nav-tabs">
-
-    </ul>
-
-    <div class="col-lg-4">
-        <h3>Events Per Second</h3>
-        <canvas id="events_per_second" height="200"></canvas>
-    </div>
-</div>
 
 <script type="application/javascript">
     var current_data;
     var previous_data;
     var smoothieChart;
     var eventsPerSecond = new TimeSeries();
+
+    function setconnected(isconnected){
+      if (isconnected) {
+        $( "#connected").replaceWith('<span class="label label-success">Running</span>')
+      }
+      else {
+        $( "#connected").replaceWith('<span class="label label-danger">Not Running</span>')
+      }
+    }
+
+    function create_key_value_row(table, key, value){
+      var row = document.createElement('tr')
+      var col1 = document.createElement('td')
+      var col2 = document.createElement('td')
+      col1.appendChild(document.createTextNode(key))
+      row.appendChild(col1)
+      col2.appendChild(document.createTextNode(value))
+      row.appendChild(col2)
+
+      table.appendChild(row)
+    }
+
+    function generate_statistics_table(data){
+
+      json_stats = data
+      stats_table = document.getElementById('statistics_table')
+      create_key_value_row(stats_table,
+                           "Connected",
+                           json_stats.connection_status.connected)
+      create_key_value_row(stats_table,
+                           "Last Connect Time",
+                           json_stats.connection_status.last_connect_time)
+      create_key_value_row(stats_table,
+                           "Last Error Text",
+                           json_stats.connection_status.last_error_text)
+      create_key_value_row(stats_table,
+                           "Last Error Time",
+                           json_stats.connection_status.last_error_time)
+      create_key_value_row(stats_table,
+                           "Uptime",
+                           json_stats.connection_status.uptime)
+
+      setconnected(json_stats.connection_status.connected)
+
+    }
 
     function data_callback(data) {
         if (!current_data) {
@@ -69,7 +109,54 @@
         get_current_data();
     });
 
-    $.get("/debug/vars")
+    $.getJSON("/debug/vars", generate_statistics_table);
 </script>
+
+<div class="container">
+  <nav class="navbar navbar-default navbar-inverse" style="margin-top: 20px">
+      <div class="container-fluid">
+          <div class="navbar-header">
+              <a class="navbar-brand" href="#"><img src="images/banner_logo.png"></a>
+          </div>
+          <div class="collapse navbar-collapse navbar-right">
+              <p class="navbar-text" id="status_string">Carbon Black Event Forwarder</p>
+          </div>
+      </div>
+  </nav>
+
+  <h2><div id="connected"></div></h2>
+
+  <br>
+
+  <ul class="nav nav-tabs">
+  <li class="active"><a data-toggle="tab" href="#statistics">Statistics</a></li>
+  <li><a data-toggle="tab" href="#eventspersecond">Events Per Second</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div id="statistics" class="tab-pane fade in active">
+      <table class="table table-condensed">
+        <caption>Statistics</caption>
+          <thead>
+          <tr>
+            <th>Key
+            </th>
+            <th>Value
+            </th>
+          </tr>
+          </thead>
+          <tbody id= "statistics_table">
+          </tbody>
+      </table>
+    </div>
+    <div id="eventspersecond" class="tab-pane fade">
+      <br>
+      <canvas id="events_per_second" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
+
+
