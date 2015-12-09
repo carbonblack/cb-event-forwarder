@@ -54,6 +54,20 @@
       table.appendChild(row)
     }
 
+    function secondsToUptime(secs)
+    {
+        var hours = Math.floor(secs / (60 * 60));
+
+        var divisor_for_minutes = secs % (60 * 60);
+        var minutes = Math.floor(divisor_for_minutes / 60);
+
+        var divisor_for_seconds = divisor_for_minutes % 60;
+        var seconds = Math.ceil(divisor_for_seconds);
+
+        var obj = hours + " Hours " + minutes + " Minutes " + seconds + " seconds";
+        return obj;
+    }
+
     function generate_statistics_table(data){
 
       json_stats = data
@@ -72,7 +86,7 @@
                            json_stats.connection_status.last_error_time)
       create_key_value_row(stats_table,
                            "Uptime",
-                           json_stats.connection_status.uptime)
+                           secondsToUptime(Math.round(json_stats.connection_status.uptime)))
 
       setconnected(json_stats.connection_status.connected)
 
@@ -126,7 +140,7 @@
       </div>
   </nav>
 
-  <h2><div id="connected"></div></h2>
+  <h2>Current Status: <div id="connected"></div></h2>
 
   <br>
 
@@ -138,7 +152,7 @@
   <div class="tab-content">
     <div id="statistics" class="tab-pane fade in active">
       <table class="table table-condensed">
-        <caption>Statistics</caption>
+        <caption>Connection Statistics</caption>
           <thead>
           <tr>
             <th>Key
