@@ -54,8 +54,7 @@
       table.appendChild(row)
     }
 
-    function secondsToUptime(secs)
-    {
+    function secondsToUptime(secs){
         var hours = Math.floor(secs / (60 * 60));
 
         var divisor_for_minutes = secs % (60 * 60);
@@ -69,9 +68,10 @@
     }
 
     function generate_statistics_table(data){
-
       json_stats = data
+      $("#statistics_table tr").remove()
       stats_table = document.getElementById('statistics_table')
+
       create_key_value_row(stats_table,
                            "Connected",
                            json_stats.connection_status.connected)
@@ -79,11 +79,31 @@
                            "Last Connect Time",
                            json_stats.connection_status.last_connect_time)
       create_key_value_row(stats_table,
+                           "Error Count",
+                           json_stats.error_count)
+      create_key_value_row(stats_table,
+                           "Input Event Count",
+                           json_stats.input_event_count)
+      create_key_value_row(stats_table,
+                           "Output Event Count",
+                           json_stats.output_event_count)
+
+      if (json_stats.connection_status.last_error_text == ""){
+        var last_error_text = "No Errors"
+        var last_error_time = ""
+      }
+      else{
+        var last_error_text = json_stats.connection_status.last_error_text
+        var last_error_time = json_stats.connection_status.last_error_time
+      }
+      create_key_value_row(stats_table,
                            "Last Error Text",
-                           json_stats.connection_status.last_error_text)
+                           last_error_text)
+
       create_key_value_row(stats_table,
                            "Last Error Time",
-                           json_stats.connection_status.last_error_time)
+                           last_error_time)
+
       create_key_value_row(stats_table,
                            "Uptime",
                            secondsToUptime(Math.round(json_stats.connection_status.uptime)))
@@ -111,7 +131,6 @@
 
     function get_current_data() {
         var info = $.get("/debug/vars");
-
         info.done(data_callback);
     }
 
@@ -123,9 +142,14 @@
         get_current_data();
     });
 
-    $.getJSON("/debug/vars", generate_statistics_table);
+    $(function(){
+      $.getJSON("/debug/vars", generate_statistics_table)
 
-    setTimeout(function () { location.reload(true); }, 5000);
+      setInterval(function () {
+        $.getJSON("/debug/vars", generate_statistics_table);
+      }, 5000);
+    });
+
 </script>
 
 <div class="container">
