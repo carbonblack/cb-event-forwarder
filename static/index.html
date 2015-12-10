@@ -36,23 +36,23 @@
     function setconnected(isconnected){
       isconnected = Boolean(isconnected)
       if (isconnected) {
-        $( "#connected").replaceWith('<span class="label label-success">Running</span>')
+        $( "#connected").replaceWith('<span class="label label-success">Connected</span>');
       }
       else {
-        $( "#connected").replaceWith('<span class="label label-danger">Not Running</span>')
+        $( "#connected").replaceWith('<span class="label label-danger">Not Connected</span>');
       }
     }
 
     function create_key_value_row(table, key, value){
-      var row = document.createElement('tr')
-      var col1 = document.createElement('td')
-      var col2 = document.createElement('td')
-      col1.appendChild(document.createTextNode(key))
-      row.appendChild(col1)
-      col2.appendChild(document.createTextNode(value))
-      row.appendChild(col2)
+      var row = document.createElement('tr');
+      var col1 = document.createElement('td');
+      var col2 = document.createElement('td');
+      col1.appendChild(document.createTextNode(key));
+      row.appendChild(col1);
+      col2.appendChild(document.createTextNode(value));
+      row.appendChild(col2);
 
-      table.appendChild(row)
+      table.appendChild(row);
     }
 
     function secondsToUptime(secs){
@@ -139,7 +139,7 @@
         previous_data = current_data;
         current_data = data;
 
-        events_per_second = current_data.input_event_count - previous_data.input_event_count;
+        events_per_second = current_data.events_per_second;
         eventsPerSecond.append(new Date().getTime(), events_per_second);
 
         setTimeout(get_current_data, 1000);
