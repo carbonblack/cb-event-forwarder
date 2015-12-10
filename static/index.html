@@ -34,6 +34,7 @@
     var eventsPerSecond = new TimeSeries();
 
     function setconnected(isconnected){
+      isconnected = Boolean(isconnected)
       if (isconnected) {
         $( "#connected").replaceWith('<span class="label label-success">Running</span>')
       }
@@ -55,16 +56,15 @@
     }
 
     function secondsToUptime(secs){
-        var hours = Math.floor(secs / (60 * 60));
-
-        var divisor_for_minutes = secs % (60 * 60);
-        var minutes = Math.floor(divisor_for_minutes / 60);
-
-        var divisor_for_seconds = divisor_for_minutes % 60;
-        var seconds = Math.ceil(divisor_for_seconds);
-
-        var obj = hours + " Hours " + minutes + " Minutes " + seconds + " seconds";
-        return obj;
+        var temp = Math.floor(secs)
+        var seconds = Math.floor(temp % 60)
+        temp /= 60
+        var minutes = Math.floor(temp % 60)
+        temp /= 60
+        var hours = Math.floor(temp % 24)
+        temp /= 24
+        var days = Math.floor(temp)
+        return days + " Days " + hours + " Hours " + minutes + " Minutes " + seconds + " seconds";
     }
 
     function generate_statistics_table(data){
@@ -112,6 +112,22 @@
 
     }
 
+    function simple_moving_averager(period) {
+      var nums = [];
+      return function(num) {
+        nums.push(num);
+        if (nums.length > period)
+            nums.splice(0,1);  // remove the first element of the array
+        var sum = 0;
+        for (var i in nums)
+            sum += nums[i];
+        var n = period;
+        if (nums.length < period)
+            n = nums.length;
+        return(sum/n);
+      }
+    }
+
     function data_callback(data) {
         if (!current_data) {
             // first time we're called
@@ -143,10 +159,16 @@
     });
 
     $(function(){
-      $.getJSON("/debug/vars", generate_statistics_table)
+      $.getJSON("/debug/vars", function(data) {
+        generate_statistics_table(data);
+        $('#rawdata').html(JSON.stringify(data, null, 2))
+      })
 
       setInterval(function () {
-        $.getJSON("/debug/vars", generate_statistics_table);
+        $.getJSON("/debug/vars", function(data) {
+          generate_statistics_table(data);
+          $('#rawdata').html(JSON.stringify(data, null, 2))
+        })
       }, 5000);
     });
 
@@ -171,6 +193,7 @@
   <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#statistics">Statistics</a></li>
   <li><a data-toggle="tab" href="#eventspersecond">Events Per Second</a></li>
+  <li><a data-toggle="tab" href="#rawdiagnostics">Raw Diagnostics</a></li>
   </ul>
 
   <div class="tab-content">
@@ -192,6 +215,10 @@
     <div id="eventspersecond" class="tab-pane fade">
       <br>
       <canvas id="events_per_second" height="200"></canvas>
+    </div>
+    <div id="rawdiagnostics" class="tab-pane fade">
+      <br>
+      <pre id="rawdata"></pre>
     </div>
   </div>
 </div>
