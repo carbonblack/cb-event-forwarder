@@ -92,6 +92,8 @@ func TestEventProcessing(t *testing.T) {
 			continue
 		}
 
+		fp.Close()
+
 		for _, info := range infos {
 			if !info.IsDir() {
 				continue
@@ -112,6 +114,9 @@ func TestEventProcessing(t *testing.T) {
 				log.Printf("Could not enumerate directory %s", routingDir)
 				continue
 			}
+
+			fp.Close()
+
 			for _, fn := range files {
 				if fn.IsDir() {
 					continue
@@ -127,6 +132,8 @@ func TestEventProcessing(t *testing.T) {
 					log.Printf("Could not read %s", path.Join(routingDir, fn.Name()))
 					continue
 				}
+
+				fp.Close()
 
 				out, err := format.process(routingKey, b)
 				if err != nil {
