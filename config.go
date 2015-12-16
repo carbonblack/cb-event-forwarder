@@ -32,6 +32,11 @@ type Configuration struct {
 	OutputParameters string
 	EventTypes       []string
 	HTTPServerPort   int
+
+	// this is a hack for S3 specific configuration
+	S3ServerSideEncryption  *string
+	S3CredentialProfileName *string
+	S3ACLPolicy             *string
 }
 
 type ConfigurationError struct {
@@ -142,6 +147,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.AMQPHostname = "localhost"
 	config.HTTPServerPort = 33706
 
+	config.S3ACLPolicy = nil
+	config.S3ServerSideEncryption = nil
+	config.S3CredentialProfileName = nil
+
 	// required values
 	val, ok := input.Get("bridge", "server_name")
 	if !ok {
@@ -219,6 +228,22 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "s3":
 			parameterKey = "s3out"
 			config.OutputType = S3OutputType
+
+			profileName, ok := input.Get("s3", "credential_profile")
+			if ok {
+				config.S3CredentialProfileName = &profileName
+			}
+
+			aclPolicy, ok := input.Get("s3", "acl_policy")
+			if ok {
+				config.S3ACLPolicy = &aclPolicy
+			}
+
+			sseType, ok := input.Get("s3", "server_side_encryption")
+			if ok {
+				config.S3ServerSideEncryption = &sseType
+			}
+
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}

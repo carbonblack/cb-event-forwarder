@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
@@ -52,6 +53,8 @@ type S3Statistics struct {
 	LastErrorTime time.Time   `json:"last_error_time"`
 	LastErrorText string      `json:"last_error_text"`
 	HoldingArea   interface{} `json:"file_holding_area"`
+
+	EncryptionEnabled bool `json:"encryption_enabled"`
 }
 
 func (o *S3Output) uploadOne(fileName string) {
@@ -63,9 +66,11 @@ func (o *S3Output) uploadOne(fileName string) {
 	baseName := filepath.Base(fileName)
 
 	_, err = o.out.PutObject(&s3.PutObjectInput{
-		Body:   fp,
-		Bucket: &o.bucketName,
-		Key:    &baseName,
+		Body:                 fp,
+		Bucket:               &o.bucketName,
+		Key:                  &baseName,
+		ServerSideEncryption: config.S3ServerSideEncryption,
+		ACL:                  config.S3ACLPolicy,
 	})
 	fp.Close()
 
@@ -136,6 +141,12 @@ func (o *S3Output) Initialize(connString string) error {
 	}
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
+	if config.S3CredentialProfileName != nil {
+		creds := credentials.NewCredentials(
+			&credentials.SharedCredentialsProvider{Profile: *config.S3CredentialProfileName})
+		awsConfig.Credentials = creds
+	}
+
 	sess := session.New(awsConfig)
 	o.out = s3.New(sess)
 
@@ -196,13 +207,14 @@ func (o *S3Output) String() string {
 
 func (o *S3Output) Statistics() interface{} {
 	return S3Statistics{
-		BucketName:    o.bucketName,
-		Region:        o.region,
-		FilesUploaded: o.successfulUploads,
-		LastErrorTime: o.lastUploadErrorTime,
-		LastErrorText: o.lastUploadError,
-		UploadErrors:  o.uploadErrors,
-		HoldingArea:   o.tempFileOutput.Statistics(),
+		BucketName:        o.bucketName,
+		Region:            o.region,
+		FilesUploaded:     o.successfulUploads,
+		LastErrorTime:     o.lastUploadErrorTime,
+		LastErrorText:     o.lastUploadError,
+		UploadErrors:      o.uploadErrors,
+		HoldingArea:       o.tempFileOutput.Statistics(),
+		EncryptionEnabled: config.S3ServerSideEncryption != nil,
 	}
 }
 
