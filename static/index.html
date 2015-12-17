@@ -22,6 +22,14 @@
            object-fit: contain;
 
         }
+
+        #events_per_second_canvas {
+            max-height: 200px;
+        }
+
+        #events_per_second {
+            font-size: 48px;
+        }
     </style>
 </head>
 <body>
@@ -36,23 +44,23 @@
     function setconnected(isconnected){
       isconnected = Boolean(isconnected)
       if (isconnected) {
-        $( "#connected").replaceWith('<span class="label label-success">Running</span>')
+        $( "#connected").html('<span class="label label-success">Connected</span>');
       }
       else {
-        $( "#connected").replaceWith('<span class="label label-danger">Not Running</span>')
+        $( "#connected").html('<span class="label label-danger">Not Connected</span>');
       }
     }
 
     function create_key_value_row(table, key, value){
-      var row = document.createElement('tr')
-      var col1 = document.createElement('td')
-      var col2 = document.createElement('td')
-      col1.appendChild(document.createTextNode(key))
-      row.appendChild(col1)
-      col2.appendChild(document.createTextNode(value))
-      row.appendChild(col2)
+      var row = document.createElement('tr');
+      var col1 = document.createElement('td');
+      var col2 = document.createElement('td');
+      col1.appendChild(document.createTextNode(key));
+      row.appendChild(col1);
+      col2.appendChild(document.createTextNode(value));
+      row.appendChild(col2);
 
-      table.appendChild(row)
+      table.appendChild(row);
     }
 
     function secondsToUptime(secs){
@@ -68,6 +76,11 @@
     }
 
     function generate_statistics_table(data){
+
+        events_per_second = data.events_per_second;
+        eventsPerSecond.append(new Date().getTime(), events_per_second);
+        $('#events_per_second').html(events_per_second);
+
       json_stats = data
       $("#statistics_table tr").remove()
       stats_table = document.getElementById('statistics_table')
@@ -112,48 +125,34 @@
 
     }
 
-    function simple_moving_averager(period) {
-      var nums = [];
-      return function(num) {
-        nums.push(num);
-        if (nums.length > period)
-            nums.splice(0,1);  // remove the first element of the array
-        var sum = 0;
-        for (var i in nums)
-            sum += nums[i];
-        var n = period;
-        if (nums.length < period)
-            n = nums.length;
-        return(sum/n);
-      }
-    }
-
     function data_callback(data) {
         if (!current_data) {
             // first time we're called
             current_data = data;
-            setTimeout(get_current_data, 1000);
             return;
         }
 
         previous_data = current_data;
         current_data = data;
 
-        events_per_second = current_data.input_event_count - previous_data.input_event_count;
-        eventsPerSecond.append(new Date().getTime(), events_per_second);
 
-        setTimeout(get_current_data, 1000);
+    }
+
+    function error_callback(jqXHR, textStatus, errorThrown) {
+        $( "#connected").html('<span class="label label-danger">Unreachable</span>');
     }
 
     function get_current_data() {
         var info = $.get("/debug/vars");
         info.done(data_callback);
+        info.fail(error_callback);
     }
 
     $(function() {
-        smoothieChart = new SmoothieChart({ grid: { strokeStyle: 'rgb(125, 0, 0)', fillStyle: 'rgb(60, 0, 0)', lineWidth: 1, millisPerLine: 2000, verticalSections: 6 } });
-        smoothieChart.addTimeSeries(eventsPerSecond);
-        smoothieChart.streamTo(document.getElementById("events_per_second"), 1000);
+        smoothieChart = new SmoothieChart({ millisPerPixel:100,grid:{fillStyle:'transparent',strokeStyle:'transparent'},
+        labels:{fillStyle:'#000000',precision:0},timestampFormatter:SmoothieChart.timeFormatter} );
+        smoothieChart.addTimeSeries(eventsPerSecond, {lineWidth:2.4,strokeStyle:'#000000'});
+        smoothieChart.streamTo(document.getElementById("events_per_second_canvas"), 1000);
 
         get_current_data();
     });
@@ -162,15 +161,22 @@
       $.getJSON("/debug/vars", function(data) {
         generate_statistics_table(data);
         $('#rawdata').html(JSON.stringify(data, null, 2))
-      })
+      }).error(error_callback);
 
       setInterval(function () {
         $.getJSON("/debug/vars", function(data) {
           generate_statistics_table(data);
           $('#rawdata').html(JSON.stringify(data, null, 2))
-        })
-      }, 5000);
+        }).error(error_callback)
+      }, 1000);
     });
+
+    $(document).ready(function() {
+        var canvas = document.getElementById("events_per_second_canvas");
+        canvas.width = $("#canvas_container").width();
+        canvas.height = $("#canvas_container").height();
+    });
+
 
 </script>
 
@@ -186,20 +192,30 @@
       </div>
   </nav>
 
-  <h2>Current Status: <div id="connected"></div></h2>
+  <span style="font-size: 24px">Current Status: <div id="connected"></div></span>
 
   <br>
 
   <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#statistics">Statistics</a></li>
-  <li><a data-toggle="tab" href="#eventspersecond">Events Per Second</a></li>
   <li><a data-toggle="tab" href="#rawdiagnostics">Raw Diagnostics</a></li>
   </ul>
 
   <div class="tab-content">
     <div id="statistics" class="tab-pane fade in active">
+        <div class="col-lg-12">
+            <h2>Real-time Events</h2>
+            </div>
+        <div class="col-lg-8" id="canvas_container">
+            <canvas id="events_per_second_canvas" height="200"></canvas>
+        </div>
+        <div class="col-lg-4">
+            <div id="events_per_second"></div> events per second in the past minute
+        </div>
+
+        <div class="col-lg-12">
+            <h2>Connection Statistics</h2>
       <table class="table table-condensed">
-        <caption>Connection Statistics</caption>
           <thead>
           <tr>
             <th>Key
@@ -211,10 +227,7 @@
           <tbody id= "statistics_table">
           </tbody>
       </table>
-    </div>
-    <div id="eventspersecond" class="tab-pane fade">
-      <br>
-      <canvas id="events_per_second" height="200"></canvas>
+        </div>
     </div>
     <div id="rawdiagnostics" class="tab-pane fade">
       <br>
