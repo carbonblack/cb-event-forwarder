@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	//	_ "net/http/pprof"          // DEBUG: profiling support
+	"github.com/paulbellamy/ratecounter"
 	"os"
 	"runtime"
 	"sync"
@@ -40,7 +41,8 @@ type Status struct {
 	LastConnectError string
 	ErrorTime        time.Time
 
-	//	EventCounter *ratecounter.RateCounter
+	EventCounter *ratecounter.RateCounter
+	sync.RWMutex
 }
 
 var status Status
@@ -61,10 +63,10 @@ func init() {
 	exportedVersion := expvar.NewString("version")
 	exportedVersion.Set(version)
 
-	// TODO: get this working
-	//	status.EventCounter = new(ratecounter.RateCounter)
-	//	expvar.Publish("events_per_second",
-	//		expvar.Func(func() interface{} { return status.EventCounter.Rate() }))
+	status.EventCounter = ratecounter.NewRateCounter(5 * time.Second)
+	expvar.Publish("events_per_second",
+		expvar.Func(func() interface{} { return float64(status.EventCounter.Rate()) / 5.0 }))
+
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
@@ -123,6 +125,7 @@ func reportError(d string, errmsg string, err error) {
 
 func processMessage(body []byte, routingKey, contentType string) {
 	status.InputEventCount.Add(1)
+	status.EventCounter.Incr(1)
 
 	msgs := make([]map[string]interface{}, 0, 1)
 	var err error
@@ -347,10 +350,12 @@ func main() {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
 
-	log.Printf("Diagnostics available via HTTP at http://%s:%d/debug/vars", hostname, config.HTTPServerPort)
+	log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
 
-	// TODO: disabling /static until we have a better index page
-	// http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/static/", 301)
+	})
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	log.Println("Starting AMQP loop")
