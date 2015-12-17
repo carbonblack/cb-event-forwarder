@@ -456,6 +456,6 @@ func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]inter
 
 	if blocked.LocalIpAddress != nil {
 		kv["local_ip"] = GetIPv4Address(blocked.GetLocalIpAddress())
-		kv["local_port"] = ntohs(uint16(blocked.GetRemotePort()))
+		kv["local_port"] = ntohs(uint16(blocked.GetLocalPort()))
 	}
 }
