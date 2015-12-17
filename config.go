@@ -98,6 +98,11 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 			"ingress.event.module",
 			"ingress.event.filemod",
 			"ingress.event.regmod",
+			"ingress.event.tamper",
+			"ingress.event.crossprocopen",
+			"ingress.event.remotethread",
+			"ingress.event.processblock",
+			"ingress.event.emetmitigation",
 		}},
 		{"events_binary_observed", []string{
 			"binaryinfo.#",
