@@ -73,7 +73,7 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 	msgs := make([]map[string]interface{}, 0, 1)
 
 	// explode watchlist hit messages
-	if strings.HasPrefix(routingKey, "watchlist.hit.") {
+	if strings.HasPrefix(routingKey, "watchlist.hit.") || strings.HasPrefix(routingKey, "watchlist.storage.hit.") {
 		if val, ok := msg["docs"]; ok {
 			subdocs := deepcopy.Iface(val).([]interface{})
 			delete(msg, "docs")
@@ -83,6 +83,7 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 				newMsg := deepcopy.Iface(msg).(map[string]interface{})
 				newSlice := make([]map[string]interface{}, 0, 1)
 				newDoc := deepcopy.Iface(submsg).(map[string]interface{})
+				fixupMessage(newDoc)
 				newSlice = append(newSlice, newDoc)
 				newMsg["docs"] = newSlice
 				msgs = append(msgs, newMsg)
