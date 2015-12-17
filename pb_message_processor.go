@@ -229,17 +229,15 @@ func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	// to be there (b/c we have an older sensor) or in some cases we cannot
 	// determine them
 
-	if (message.OriginalMessage.Network.RemoteIpAddress != nil) {
+	if message.OriginalMessage.Network.RemoteIpAddress != nil {
 		kv["remote_ip"] = GetIPv4Address(message.OriginalMessage.Network.GetRemoteIpAddress())
 		kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Network.GetRemotePort()))
 	}
 
-	if (message.OriginalMessage.Network.LocalIpAddress != nil){
+	if message.OriginalMessage.Network.LocalIpAddress != nil {
 		kv["local_ip"] = GetIPv4Address(message.OriginalMessage.Network.GetLocalIpAddress())
-		kv["local_port"] = ntohs(uint16(message.OriginalMessage.Network.GetRemotePort()))
+		kv["local_port"] = ntohs(uint16(message.OriginalMessage.Network.GetLocalPort()))
 	}
-
-
 }
 
 func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -294,7 +292,6 @@ func emetMitigationType(a *sensor_events.CbEmetMitigationAction) string {
 		return "DeepHooks"
 	case sensor_events.CbEmetMitigationAction_actionAntiDetours:
 		return "AntiDetours"
-
 	}
 	return fmt.Sprintf("unknown (%d)", int32(mitigation))
 }
@@ -323,7 +320,7 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 
 	om := message.OriginalMessage
 
-	if message.OriginalMessage.Crossproc.Open != nil{
+	if message.OriginalMessage.Crossproc.Open != nil {
 		open := message.OriginalMessage.Crossproc.Open
 
 		kv["cross_process_type"] = crossprocOpenType(open.GetType())
@@ -336,9 +333,7 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 
 		pid32 := int32(open.GetTargetPid() & 0xffffffff)
 		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), pid32, int64(open.GetTargetProcCreateTime()))
-
-
-	}else {
+	} else {
 		rt := message.OriginalMessage.Crossproc.Remotethread
 
 		kv["cross_process_type"] = "remote_thread"
@@ -349,7 +344,6 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 
 		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(rt.GetRemoteProcPid()), int64(rt.GetRemoteProcCreateTime()))
 	}
-
 }
 
 func tamperAlertType(a sensor_events.CbTamperAlertMsg_CbTamperAlertType) string {
@@ -373,8 +367,7 @@ func WriteTamperAlertMsg(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["tamper_type"] = tamperAlertType((message.OriginalMessage.TamperAlert.GetType()))
 }
 
-func blockedProcessEventType(a sensor_events.CbProcessBlockedMsg_BlockEvent) string{
-
+func blockedProcessEventType(a sensor_events.CbProcessBlockedMsg_BlockEvent) string {
 	switch a {
 	case sensor_events.CbProcessBlockedMsg_ProcessCreate:
 		return "ProcessCreate"
@@ -385,7 +378,6 @@ func blockedProcessEventType(a sensor_events.CbProcessBlockedMsg_BlockEvent) str
 }
 
 func blockedProcessResult(a sensor_events.CbProcessBlockedMsg_BlockResult) string {
-
 	switch a {
 	case sensor_events.CbProcessBlockedMsg_ProcessTerminated:
 		return "ProcessTerminated"
@@ -405,14 +397,13 @@ func blockedProcessResult(a sensor_events.CbProcessBlockedMsg_BlockResult) strin
 	return fmt.Sprintf("unknown (%d)", int32(a))
 }
 
-func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface{}){
-
+func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface{}) {
 	block := message.OriginalMessage.Blocked
 	kv["event_type"] = "blocked_process"
 
-	if block.GetBlockedType() == sensor_events.CbProcessBlockedMsg_MD5Hash{
+	if block.GetBlockedType() == sensor_events.CbProcessBlockedMsg_MD5Hash {
 		kv["blocked_reason"] = "Md5Hash"
-	}else {
+	} else {
 		kv["blocked_reason"] = fmt.Sprintf("unknown (%d)", int32(block.GetBlockedType()))
 	}
 
@@ -422,11 +413,11 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 	kv["blocked_result"] = blockedProcessResult(block.GetBlockResult())
 
 	if block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_NotTerminatedOpenProcessError ||
-	    block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_NotTerminatedTerminateError {
+		block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_NotTerminatedTerminateError {
 		kv["blocked_error"] = block.GetBlockError()
 	}
 
-	if block.BlockedPid != nil{
+	if block.BlockedPid != nil {
 		kv["blocked_pid"] = block.GetBlockedPid()
 		kv["blocked_process_createtime"] = block.GetBlockedProcCreateTime()
 
@@ -436,13 +427,12 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 
 	kv["blocked_commandline"] = block.GetBlockedCmdline()
 
-	if (block.GetBlockedEvent() == sensor_events.CbProcessBlockedMsg_ProcessCreate &&
-	    block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_ProcessTerminated) {
+	if block.GetBlockedEvent() == sensor_events.CbProcessBlockedMsg_ProcessCreate &&
+		block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_ProcessTerminated {
 		kv["blocked_uid"] = block.GetBlockedUid()
 		kv["blocked_username"] = block.GetBlockedUsername()
 	}
 }
-
 
 func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "blocked_netconn"
@@ -459,16 +449,13 @@ func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]inter
 	} else {
 		kv["direction"] = "inbound"
 	}
-	if (blocked.RemoteIpAddress != nil) {
+	if blocked.RemoteIpAddress != nil {
 		kv["remote_ip"] = GetIPv4Address(blocked.GetRemoteIpAddress())
 		kv["remote_port"] = ntohs(uint16(blocked.GetRemotePort()))
 	}
 
-	if (blocked.LocalIpAddress != nil) {
+	if blocked.LocalIpAddress != nil {
 		kv["local_ip"] = GetIPv4Address(blocked.GetLocalIpAddress())
 		kv["local_port"] = ntohs(uint16(blocked.GetRemotePort()))
 	}
 }
-
-
-// TODO: WriteNetconnBlockedMessage
