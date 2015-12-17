@@ -350,12 +350,23 @@ func main() {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
 
-	log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+	dirs := [...]string{
+		"/usr/share/cb/integrations/event-forwarder/content",
+		"./static",
+	}
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/static/", 301)
-	})
+	for _, dirname := range dirs {
+		finfo, err := os.Stat(dirname)
+		if err == nil && finfo.IsDir() {
+			http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
+			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/static/", 301)
+			})
+			log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+			break
+		}
+	}
+
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	log.Println("Starting AMQP loop")
