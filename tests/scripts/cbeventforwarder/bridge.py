@@ -297,6 +297,11 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
                     "ingress.event.module",
                     "ingress.event.filemod",
                     "ingress.event.regmod"
+                	"ingress.event.tamper",
+               		"ingress.event.crossprocopen",
+               		"ingress.event.remotethread",
+               		"ingress.event.processblock",
+               		"ingress.event.emetmitigation",
                 ],
                 "options": self.forwarder_options.get("rawsensnotifenabled", "0")
             },
