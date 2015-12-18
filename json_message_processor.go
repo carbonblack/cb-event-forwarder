@@ -103,7 +103,7 @@ func fixupMessage(msg map[string]interface{}) {
 		case key == "comms_ip" || key == "interface_ip":
 			if value, ok := value.(json.Number); ok {
 				ipaddr, err := strconv.ParseInt(value.String(), 10, 32)
-				if err != nil {
+				if err == nil {
 					msg[key] = GetIPv4AddressSigned(int32(ipaddr))
 				}
 			}
