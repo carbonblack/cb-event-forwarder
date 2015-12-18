@@ -294,6 +294,7 @@ func startOutputs() error {
 		case FileOutputType:
 			ret["type"] = "file"
 		case UDPOutputType:
+			ret["type"] = "net"
 		case TCPOutputType:
 			ret["type"] = "net"
 		case S3OutputType:

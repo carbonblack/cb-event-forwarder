@@ -36,15 +36,15 @@ func parseFullGuid(v string) (string, int, error) {
 func fixupMessage(msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 	for key, value := range msg {
-		switch key {
-		case "highlights":
+		switch {
+		case key == "highlights":
 			delete(msg, "highlights")
-		case "event_timestamp":
+		case key == "event_timestamp":
 			msg["timestamp"] = value
 			delete(msg, "event_timestamp")
-		case "hostname":
+		case key == "hostname":
 			msg["computer_name"] = value
-		case "process_id":
+		case key == "process_id":
 			msg["process_guid"] = value
 
 			if uniqueId, ok := value.(string); ok {
@@ -59,7 +59,7 @@ func fixupMessage(msg map[string]interface{}) {
 					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
 				}
 			}
-		case "unique_id":
+		case key == "unique_id":
 			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, _ := parseFullGuid(uniqueId)
 				msg["process_guid"] = processGuid
@@ -68,7 +68,7 @@ func fixupMessage(msg map[string]interface{}) {
 					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
 				}
 			}
-		case "parent_unique_id":
+		case key == "parent_unique_id":
 			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, _ := parseFullGuid(uniqueId)
 				msg["parent_guid"] = processGuid
@@ -77,9 +77,7 @@ func fixupMessage(msg map[string]interface{}) {
 					msg["link_parent"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
 				}
 			}
-		case "md5":
-		case "parent_md5":
-		case "process_md5":
+		case key == "md5" || key == "parent_md5" || key == "process_md5":
 			if md5, ok := value.(string); ok {
 				if len(md5) == 32 {
 					msg[key] = strings.ToUpper(md5)
@@ -89,7 +87,7 @@ func fixupMessage(msg map[string]interface{}) {
 					}
 				}
 			}
-		case "ioc_type":
+		case key == "ioc_type":
 			// if the ioc_type is a map and it contains a key of "md5", uppercase it
 			v := reflect.ValueOf(value)
 			if v.Kind() == reflect.Map && v.Type().Key().Kind() == reflect.String {
@@ -102,15 +100,14 @@ func fixupMessage(msg map[string]interface{}) {
 					}
 				}
 			}
-		case "comms_ip":
-		case "interface_ip":
+		case key == "comms_ip" || key == "interface_ip":
 			if value, ok := value.(json.Number); ok {
 				ipaddr, err := strconv.ParseInt(value.String(), 10, 32)
 				if err != nil {
 					msg[key] = GetIPv4AddressSigned(int32(ipaddr))
 				}
 			}
-		case "sensor_id":
+		case key == "sensor_id":
 			if value, ok := value.(json.Number); ok {
 				hostId, err := strconv.ParseInt(value.String(), 10, 32)
 				if err == nil && config.CbServerURL != "" {
