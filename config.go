@@ -32,6 +32,7 @@ type Configuration struct {
 	OutputParameters string
 	EventTypes       []string
 	HTTPServerPort   int
+	CbServerURL      string
 }
 
 type ConfigurationError struct {
@@ -194,6 +195,14 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
+	}
+
+	val, ok = input.Get("bridge", "cb_server_url")
+	if ok {
+		if !strings.HasSuffix(val, "/") {
+			val = val + "/"
+		}
+		config.CbServerURL = val
 	}
 
 	val, ok = input.Get("bridge", "output_format")

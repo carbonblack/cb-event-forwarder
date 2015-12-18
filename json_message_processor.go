@@ -2,14 +2,35 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/deepcopy"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-func stripSegmentId(v string) string {
-	return v[:36]
+func parseFullGuid(v string) (string, int, error) {
+	var segmentNumber int64
+	var err error
+
+	segmentNumber = 1
+
+	switch {
+	case len(v) < 36:
+		return v, int(segmentNumber), errors.New("Truncated GUID")
+	case len(v) == 36:
+		return v, int(segmentNumber), nil
+	case len(v) == 45:
+		segmentNumber, err = strconv.ParseInt(v[37:], 16, 32)
+		if err != nil {
+			segmentNumber = 1
+		}
+	default:
+		err = errors.New("Truncated GUID")
+	}
+
+	return v[:36], int(segmentNumber), err
 }
 
 func fixupMessage(msg map[string]interface{}) {
@@ -25,13 +46,36 @@ func fixupMessage(msg map[string]interface{}) {
 			msg["computer_name"] = value
 		case "process_id":
 			msg["process_guid"] = value
+
+			if uniqueId, ok := value.(string); ok {
+				processGuid, segment, _ := parseFullGuid(uniqueId)
+
+				// TODO: not happy about reaching in to the "config" object for this
+				// Only add the link to the process if we haven't already done so. The "unique_id" (below)
+				// should always take precedence since it will include a segment number whereas the "process_id"
+				// does not.
+				_, ok := msg["link_process"]
+				if config.CbServerURL != "" && !ok {
+					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
+				}
+			}
 		case "unique_id":
 			if uniqueId, ok := value.(string); ok {
-				msg["process_guid"] = stripSegmentId(uniqueId)
+				processGuid, segment, _ := parseFullGuid(uniqueId)
+				msg["process_guid"] = processGuid
+				// TODO: not happy about reaching in to the "config" object for this
+				if config.CbServerURL != "" {
+					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
+				}
 			}
 		case "parent_unique_id":
 			if uniqueId, ok := value.(string); ok {
-				msg["parent_guid"] = stripSegmentId(uniqueId)
+				processGuid, segment, _ := parseFullGuid(uniqueId)
+				msg["parent_guid"] = processGuid
+				// TODO: not happy about reaching in to the "config" object for this
+				if config.CbServerURL != "" {
+					msg["link_parent"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
+				}
 			}
 		case "md5":
 		case "parent_md5":
@@ -39,6 +83,10 @@ func fixupMessage(msg map[string]interface{}) {
 			if md5, ok := value.(string); ok {
 				if len(md5) == 32 {
 					msg[key] = strings.ToUpper(md5)
+					if config.CbServerURL != "" {
+						keyName := "link_" + key
+						msg[keyName] = fmt.Sprintf("%s#/binary/%s", config.CbServerURL, msg[key])
+					}
 				}
 			}
 		case "ioc_type":
@@ -60,6 +108,14 @@ func fixupMessage(msg map[string]interface{}) {
 				ipaddr, err := strconv.ParseInt(value.String(), 10, 32)
 				if err != nil {
 					msg[key] = GetIPv4AddressSigned(int32(ipaddr))
+				}
+			}
+		case "sensor_id":
+			if value, ok := value.(json.Number); ok {
+				hostId, err := strconv.ParseInt(value.String(), 10, 32)
+				if err == nil && config.CbServerURL != "" {
+					// TODO: not happy about reaching in to the "config" object for this
+					msg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, hostId)
 				}
 			}
 		}
@@ -93,11 +149,6 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 		}
 	} else {
 		msgs = append(msgs, msg)
-	}
-
-	// fix up output msgs
-	for _, msg := range msgs {
-		fixupMessage(msg)
 	}
 
 	return msgs, nil
