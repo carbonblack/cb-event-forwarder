@@ -436,8 +436,8 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 	}
 
 	kv["blocked_event"] = blockedProcessEventType(block.GetBlockedEvent())
-	kv["blocked_md5"] = GetMd5Hexdigest(block.GetBlockedmd5Hash())
-	kv["blocked_path"] = block.GetBlockedPath()
+	kv["md5"] = GetMd5Hexdigest(block.GetBlockedmd5Hash())
+	kv["path"] = block.GetBlockedPath()
 	kv["blocked_result"] = blockedProcessResult(block.GetBlockResult())
 
 	if block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_NotTerminatedOpenProcessError ||
@@ -446,23 +446,23 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 	}
 
 	if block.BlockedPid != nil {
-		kv["blocked_pid"] = block.GetBlockedPid()
-		kv["blocked_process_createtime"] = block.GetBlockedProcCreateTime()
+		kv["pid"] = block.GetBlockedPid()
+		kv["process_create_time"] = block.GetBlockedProcCreateTime()
 
 		om := message.OriginalMessage
-		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
+		kv["process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
 		// add link to process in the Cb UI if the Cb hostname is set
 		if config.CbServerURL != "" {
 			kv["link_target"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["target_process_guid"])
 		}
 	}
 
-	kv["blocked_commandline"] = block.GetBlockedCmdline()
+	kv["command_line"] = block.GetBlockedCmdline()
 
 	if block.GetBlockedEvent() == sensor_events.CbProcessBlockedMsg_ProcessCreate &&
 		block.GetBlockResult() == sensor_events.CbProcessBlockedMsg_ProcessTerminated {
-		kv["blocked_uid"] = block.GetBlockedUid()
-		kv["blocked_username"] = block.GetBlockedUsername()
+		kv["uid"] = block.GetBlockedUid()
+		kv["username"] = block.GetBlockedUsername()
 	}
 }
 
