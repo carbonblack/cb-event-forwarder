@@ -77,9 +77,9 @@
 
     function generate_statistics_table(data){
 
-        events_per_second = data.events_per_second;
-        eventsPerSecond.append(new Date().getTime(), events_per_second);
-        $('#events_per_second').html(events_per_second);
+//        events_per_second = data.events_per_second;
+//        eventsPerSecond.append(new Date().getTime(), events_per_second);
+//        $('#events_per_second').html(events_per_second);
 
       json_stats = data
       $("#statistics_table tr").remove()
@@ -148,14 +148,14 @@
         info.fail(error_callback);
     }
 
-    $(function() {
-        smoothieChart = new SmoothieChart({ millisPerPixel:100,grid:{fillStyle:'transparent',strokeStyle:'transparent'},
-        labels:{fillStyle:'#000000',precision:0},timestampFormatter:SmoothieChart.timeFormatter} );
-        smoothieChart.addTimeSeries(eventsPerSecond, {lineWidth:2.4,strokeStyle:'#000000'});
-        smoothieChart.streamTo(document.getElementById("events_per_second_canvas"), 1000);
-
-        get_current_data();
-    });
+//    $(function() {
+//        smoothieChart = new SmoothieChart({ millisPerPixel:100,grid:{fillStyle:'transparent',strokeStyle:'transparent'},
+//        labels:{fillStyle:'#000000',precision:0},timestampFormatter:SmoothieChart.timeFormatter} );
+//        smoothieChart.addTimeSeries(eventsPerSecond, {lineWidth:2.4,strokeStyle:'#000000'});
+//        smoothieChart.streamTo(document.getElementById("events_per_second_canvas"), 1000);
+//
+//        get_current_data();
+//    });
 
     $(function(){
       $.getJSON("/debug/vars", function(data) {
@@ -171,11 +171,11 @@
       }, 1000);
     });
 
-    $(document).ready(function() {
-        var canvas = document.getElementById("events_per_second_canvas");
-        canvas.width = $("#canvas_container").width();
-        canvas.height = $("#canvas_container").height();
-    });
+//    $(document).ready(function() {
+//        var canvas = document.getElementById("events_per_second_canvas");
+//        canvas.width = $("#canvas_container").width();
+//        canvas.height = $("#canvas_container").height();
+//    });
 
 
 </script>
@@ -203,15 +203,15 @@
 
   <div class="tab-content">
     <div id="statistics" class="tab-pane fade in active">
-        <div class="col-lg-12">
-            <h2>Real-time Events</h2>
-            </div>
-        <div class="col-lg-8" id="canvas_container">
-            <canvas id="events_per_second_canvas" height="200"></canvas>
-        </div>
-        <div class="col-lg-4">
-            <div id="events_per_second"></div> events per second in the past minute
-        </div>
+        <!--<div class="col-lg-12">-->
+            <!--<h2>Real-time Events</h2>-->
+            <!--</div>-->
+        <!--<div class="col-lg-8" id="canvas_container">-->
+            <!--<canvas id="events_per_second_canvas" height="200"></canvas>-->
+        <!--</div>-->
+        <!--<div class="col-lg-4">-->
+            <!--<div id="events_per_second"></div> events per second in the past minute-->
+        <!--</div>-->
 
         <div class="col-lg-12">
             <h2>Connection Statistics</h2>

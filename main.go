@@ -131,7 +131,7 @@ func reportError(d string, errmsg string, err error) {
 
 func processMessage(body []byte, routingKey, contentType string) {
 	status.InputEventCount.Add(1)
-	status.EventCounter.Incr(1)
+	//	status.EventCounter.Incr(1)
 
 	msgs := make([]map[string]interface{}, 0, 1)
 	var err error
@@ -188,7 +188,7 @@ func processMessage(body []byte, routingKey, contentType string) {
 
 		if len(outmsg) > 0 && err == nil {
 			status.OutputEventCount.Add(1)
-			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
+			//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
 			results <- string(outmsg)
 		} else {
 			reportError(string(body), "Error marshaling message", err)
