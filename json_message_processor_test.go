@@ -1,7 +1,6 @@
-package forwarder_tests
+package main
 
 import (
-	fwd ".."
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -23,7 +22,7 @@ func TestJsonProcessing(t *testing.T) {
 		return
 	}
 
-	msgs, err := fwd.ProcessJSONMessage(msg, "watchlist.hit.test")
+	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err == nil {
 		for _, msg := range msgs {
 			out, _ := json.Marshal(msg)

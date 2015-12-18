@@ -1,8 +1,7 @@
-package forwarder_tests
+package main
 
 import (
-	fwd ".."
-	leef "../leef"
+	leef "./leef"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -22,7 +21,7 @@ func generateLeefOutput(exampleJsonInput string) error {
 		return err
 	}
 
-	msgs, err := fwd.ProcessJSONMessage(msg, "watchlist.hit.test")
+	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err != nil {
 		return err
 	}

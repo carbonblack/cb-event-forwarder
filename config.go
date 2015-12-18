@@ -32,6 +32,7 @@ type Configuration struct {
 	OutputParameters string
 	EventTypes       []string
 	HTTPServerPort   int
+	CbServerURL      string
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
@@ -103,6 +104,11 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 			"ingress.event.module",
 			"ingress.event.filemod",
 			"ingress.event.regmod",
+			"ingress.event.tamper",
+			"ingress.event.crossprocopen",
+			"ingress.event.remotethread",
+			"ingress.event.processblock",
+			"ingress.event.emetmitigation",
 		}},
 		{"events_binary_observed", []string{
 			"binaryinfo.#",
@@ -198,6 +204,14 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
+	}
+
+	val, ok = input.Get("bridge", "cb_server_url")
+	if ok {
+		if !strings.HasSuffix(val, "/") {
+			val = val + "/"
+		}
+		config.CbServerURL = val
 	}
 
 	val, ok = input.Get("bridge", "output_format")

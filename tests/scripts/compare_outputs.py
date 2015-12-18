@@ -5,22 +5,32 @@ import os
 
 
 def compare_json(gold_root, other_root, path, errors):
-    if type(gold_root) == dict and type(other_root) == dict:
-        for key, value in gold_root.iteritems():
+    if type(gold_root) != type(other_root):
+        errors.append("%s: type mismatch. expected type(%s), got type(%s)" % (path, type(gold_root).__name__,
+                                                                              type(other_root).__name__))
+
+    if type(gold_root) == dict:
+        for key in gold_root.keys():
             newpath = "%s.%s" % (path, key)
-            if type(value) != type(gold_root[key]):
-                errors.append("%s: type mismatch. expected %s, got %s" % (newpath, type(value), type(gold_root[key])))
-            elif type(value) == dict:
-                return compare_json(value, gold_root[key], newpath, errors)
-            elif type(value) == list:
-                if len(value) != len(gold_root[key]):
-                    errors.append("%s: length mismatch. expected %d, got %d" % (newpath, len(value), len(gold_root[key])))
-                    return
-                for i in range(len(value)):
-                    newpath = "%s.%s[%d]" % (path, key, i)
-                    return compare_json(value[i], gold_root[key][i], newpath, errors)
-            elif other_root[key] != value:
-                errors.append("%s: expected %s, got %s" % (newpath, value, other_root[key]))
+            if key not in other_root:
+                errors.append("%s: not found. should have value %s" % (newpath, gold_root[key]))
+            else:
+                compare_json(gold_root[key], other_root[key], newpath, errors)
+
+        for key in other_root.keys():
+            newpath = "%s.%s" % (path, key)
+            if key not in gold_root:
+                errors.append("%s: now has value %s in the new output" % (newpath, other_root[key]))
+    elif type(gold_root) == list:
+        if len(gold_root) != len(other_root):
+            errors.append("%s: length mismatch. expected %d, got %d" % (path, len(gold_root), len(other_root)))
+            return
+        for i in range(len(gold_root)):
+            newpath = "%s[%d]" % (path, i)
+            compare_json(gold_root[i], other_root[i], newpath, errors)
+    else:
+        if gold_root != other_root:
+            errors.append("%s: (%s) expected %s, got %s" % (path, type(gold_root).__name__, gold_root, other_root))
 
 
 def compare_files(fn, gold, other):

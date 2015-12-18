@@ -22,13 +22,15 @@ rpminstall:
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
 	cp -p init-scripts/cb-event-forwarder.conf ${RPM_BUILD_ROOT}/etc/init/cb-event-forwarder.conf
+	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
+	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
 	rm -rf tests/gold_output
 	rm -rf tests/go_output
 	mkdir tests/gold_output
 	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
-	(cd tests && go test)
+	go test
 	(cd tests/scripts && python compare_outputs.py > ../output.txt)
 
 clean:

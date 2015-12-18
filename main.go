@@ -41,7 +41,9 @@ type Status struct {
 	LastConnectError string
 	ErrorTime        time.Time
 
-	EventCounter *ratecounter.RateCounter
+	EventCounter         *ratecounter.RateCounter
+	OutputBytesPerSecond *ratecounter.RateCounter
+
 	sync.RWMutex
 }
 
@@ -64,8 +66,12 @@ func init() {
 	exportedVersion.Set(version)
 
 	status.EventCounter = ratecounter.NewRateCounter(5 * time.Second)
-	expvar.Publish("events_per_second",
+	status.OutputBytesPerSecond = ratecounter.NewRateCounter(5 * time.Second)
+
+	expvar.Publish("input_events_per_second",
 		expvar.Func(func() interface{} { return float64(status.EventCounter.Rate()) / 5.0 }))
+	expvar.Publish("output_bytes_per_second",
+		expvar.Func(func() interface{} { return float64(status.OutputBytesPerSecond.Rate()) / 5.0 }))
 
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
@@ -182,6 +188,7 @@ func processMessage(body []byte, routingKey, contentType string) {
 
 		if len(outmsg) > 0 && err == nil {
 			status.OutputEventCount.Add(1)
+			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
 			results <- string(outmsg)
 		} else {
 			reportError(string(body), "Error marshaling message", err)
@@ -294,6 +301,7 @@ func startOutputs() error {
 		case FileOutputType:
 			ret["type"] = "file"
 		case UDPOutputType:
+			ret["type"] = "net"
 		case TCPOutputType:
 			ret["type"] = "net"
 		case S3OutputType:
@@ -350,12 +358,23 @@ func main() {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
 
-	log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+	dirs := [...]string{
+		"/usr/share/cb/integrations/event-forwarder/content",
+		"./static",
+	}
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/static/", 301)
-	})
+	for _, dirname := range dirs {
+		finfo, err := os.Stat(dirname)
+		if err == nil && finfo.IsDir() {
+			http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
+			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/static/", 301)
+			})
+			log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+			break
+		}
+	}
+
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	log.Println("Starting AMQP loop")
