@@ -11,6 +11,9 @@ The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:
     variable to the base URL of the Carbon Black web UI. **If this variable is not set, then no links are generated.**
   * The new links are available in the `link_process`, `link_child` (in child process events), `link_md5` and 
     `link_sensor` keys of the JSON or LEEF output.
+  * Note that links to processes and binaries may result in 404 errors until the process and binary data is committed
+    to disk on the Carbon Black server. Process events received via the event-forwarder may take up to 15 minutes or 
+    longer before they're visible on the Carbon Black web UI.
 * All Carbon Black 5.1 event types are now supported
   * Microsoft EMET
   * Carbon Black Tamper events
