@@ -24,7 +24,10 @@ The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:
   * By default, these statistics are available via HTTP on port 33706 of the system running the cb-event-forwarder.
 * Fix regressions on output from cb-event-forwarder 2.x on some JSON message types
   * cb-event-forwarder 3.0.0 was missing the `computer_name` field from some JSON messages
-
+* New Amazon S3 options; see the `[s3]` section of the configuration file
+  * Specify whether the files uploaded to S3 should be encrypted with server-side encryption (see `server_side_encryption`)
+  * Define an ACL policy to apply to files uploaded to S3 (see `acl_policy`)
+  * Specify the credential profile used when connecting to S3 (see `credential_profile`)
 
 # Changes from the cb-event-forwarder 2.x to 3.x
 
