@@ -4,7 +4,7 @@
 
 The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:
 
-* "Deep links" the Cb server UI are now optionally available in the output
+* "Deep links" into the Cb server UI are now optionally available in the output
   * These links allow you to directly access the relevant sensor, binary, or process context for each event output
     by the cb-event-forwarder.
   * The new variable `cb_server_url` has been added to the configuration file to support this new feature. Set this
