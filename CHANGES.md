@@ -1,3 +1,31 @@
+# Changelog
+
+## cb-event-forwarder 3.1.0
+
+The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:
+
+* "Deep links" the Cb server UI are now optionally available in the output
+  * These links allow you to directly access the relevant sensor, binary, or process context for each event output
+    by the cb-event-forwarder.
+  * The new variable `cb_server_url` has been added to the configuration file to support this new feature. Set this
+    variable to the base URL of the Carbon Black web UI. **If this variable is not set, then no links are generated.**
+  * The new links are available in the `link_process`, `link_child` (in child process events), `link_md5` and 
+    `link_sensor` keys of the JSON or LEEF output.
+* All Carbon Black 5.1 event types are now supported
+  * Microsoft EMET
+  * Carbon Black Tamper events
+  * Cross-process (process open/thread create) events
+  * Carbon Black process/network blocking events
+* Network events now include the local IP and port number of the network connection (available on Carbon Black 5.1 
+  servers and sensors)
+  * The IP four-tuple is now available as (`local_ip`, `local_port`, `remote_ip`, and `remote_port`) in the JSON/LEEF
+    output
+* Provide a human-readable status page for statistics
+  * By default, these statistics are available via HTTP on port 33706 of the system running the cb-event-forwarder.
+* Fix regressions on output from cb-event-forwarder 2.x on some JSON message types
+  * cb-event-forwarder 3.0.0 was missing the `computer_name` field from some JSON messages
+
+
 # Changes from the cb-event-forwarder 2.x to 3.x
 
 In general, the new cb-event-forwarder 3.0 is designed to be a drop-in replacement for previous versions of the
