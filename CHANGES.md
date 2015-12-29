@@ -88,5 +88,5 @@ The following changes have been made to the configuration file in version 3.0:
   * When configured with an `s3` output, `SIGHUP` will immediately roll over the current log and flush the logs to S3
 
 * The cb-event-forwarder now starts an HTTP server on port 33706 with configuration and status reporting. A raw JSON
-  output is available on http://<hostname>:33706/debug/vars. Note that this port may have to be opened via iptables
+  output is available on http://yourhost:33706/debug/vars. Note that this port may have to be opened via iptables
   for it to be accessed remotely.
