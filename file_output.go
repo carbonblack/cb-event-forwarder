@@ -90,7 +90,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				}
 
 			case <-refreshTicker.C:
-				if o.lastRolledOver.Day() < time.Now().Day() {
+				if o.lastRolledOver.Day() != time.Now().Day() {
 					if _, err := o.rollOverFile("20060102"); err != nil {
 						errorChan <- err
 						return

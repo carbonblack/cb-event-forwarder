@@ -1,5 +1,10 @@
 # Changelog
 
+## cb-event-forwarder 3.1.1
+
+The 3.1.1 release of cb-event-forwarder fixes a critical bug when rolling over files. Previous versions of the
+cb-event-forwarder would stop rolling over files after the first of a new month. This release fixes that bug.
+
 ## cb-event-forwarder 3.1.0
 
 The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:

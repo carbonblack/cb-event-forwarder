@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.1.0
-VERSION := 3.1.0
+GIT_VERSION := 3.1.1
+VERSION := 3.1.1
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
 cb-event-forwarder: build
