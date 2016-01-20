@@ -22,6 +22,7 @@ import (
 
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
+	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
 var version = "NOT FOR RELEASE"
@@ -62,8 +63,6 @@ func init() {
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
-	exportedVersion := expvar.NewString("version")
-	exportedVersion.Set(version)
 
 	status.EventCounter = ratecounter.NewRateCounter(5 * time.Second)
 	status.OutputBytesPerSecond = ratecounter.NewRateCounter(5 * time.Second)
@@ -163,38 +162,48 @@ func processMessage(body []byte, routingKey, contentType string) {
 
 		msgs, err = ProcessJSONMessage(msg, routingKey)
 	} else {
-		reportError(string(body), "Unknown content-type:", errors.New(contentType))
+		reportError(string(body), "Unknown content-type", errors.New(contentType))
 		return
 	}
+
+	for _, msg := range msgs {
+		err = outputMessage(msg)
+		if err != nil {
+			reportError(string(body), "Error marshaling message", err)
+		}
+	}
+}
+
+func outputMessage(msg map[string]interface{}) error {
+	var err error
 
 	//
 	// Marshal result into the correct output format
 	//
-	for _, msg := range msgs {
-		msg["cb_server"] = config.ServerName
+	msg["cb_server"] = config.ServerName
 
-		var outmsg string
+	var outmsg string
 
-		switch config.OutputFormat {
-		case JSONOutputFormat:
-			var b []byte
-			b, err = json.Marshal(msg)
-			outmsg = string(b)
-		case LEEFOutputFormat:
-			outmsg, err = leef.Encode(msg)
-		default:
-			panic("Impossible: invalid output_format, exiting immediately")
-		}
-
-		if len(outmsg) > 0 && err == nil {
-			status.OutputEventCount.Add(1)
-			//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
-			results <- string(outmsg)
-		} else {
-			reportError(string(body), "Error marshaling message", err)
-			return
-		}
+	switch config.OutputFormat {
+	case JSONOutputFormat:
+		var b []byte
+		b, err = json.Marshal(msg)
+		outmsg = string(b)
+	case LEEFOutputFormat:
+		outmsg, err = leef.Encode(msg)
+	default:
+		panic("Impossible: invalid output_format, exiting immediately")
 	}
+
+	if len(outmsg) > 0 && err == nil {
+		status.OutputEventCount.Add(1)
+		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
+		results <- string(outmsg)
+	} else {
+		return err
+	}
+
+	return nil
 }
 
 func worker(deliveries <-chan amqp.Delivery) {
@@ -347,6 +356,16 @@ func main() {
 
 	log.Printf("cb-event-forwarder version %s starting", version)
 
+	exportedVersion := expvar.NewString("version")
+	if *debug {
+		exportedVersion.Set(version + " (debugging on)")
+		log.Printf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
+			hostname, config.HTTPServerPort)
+	} else {
+		exportedVersion.Set(version)
+	}
+	expvar.Publish("debug", expvar.Func(func() interface{} { return *debug }))
+
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			log.Printf("Interface address %s", ipnet.IP.String())
@@ -373,6 +392,43 @@ func main() {
 			log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
 			break
 		}
+	}
+
+	if *debug {
+		http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				msg := make([]byte, r.ContentLength)
+				_, err := r.Body.Read(msg)
+				var parsedMsg map[string]interface{}
+
+				err = json.Unmarshal(msg, &parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+
+				err = outputMessage(parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+			} else {
+				err = outputMessage(map[string]interface{}{
+					"type":    "debug.message",
+					"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
+				})
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+			}
+
+			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
+			_, _ = w.Write(errMsg)
+		})
 	}
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
