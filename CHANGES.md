@@ -1,5 +1,11 @@
 # Changelog
 
+## cb-event-forwarder 3.1.2
+
+The 3.1.2 release of cb-event-forwarder adds a debugging function to send arbitrary test messages through
+the forwarder to the output. This is only available when the cb-event-forwarder is started with the `-debug`
+command line switch.
+
 ## cb-event-forwarder 3.1.1
 
 The 3.1.1 release of cb-event-forwarder fixes a critical bug when rolling over files. Previous versions of the
