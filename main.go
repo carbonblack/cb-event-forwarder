@@ -414,6 +414,7 @@ func main() {
 					_, _ = w.Write(errMsg)
 					return
 				}
+				log.Printf("Sent test message: %s\n", string(msg))
 			} else {
 				err = outputMessage(map[string]interface{}{
 					"type":    "debug.message",
@@ -424,6 +425,7 @@ func main() {
 					_, _ = w.Write(errMsg)
 					return
 				}
+				log.Println("Sent test debugging message")
 			}
 
 			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
