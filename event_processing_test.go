@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"testing"
 )
 
-func processJson(routingKey string, indata []byte) (string, error) {
+func processJson(routingKey string, indata []byte) ([]map[string]interface{}, error) {
 	var msg map[string]interface{}
-	var ret string
 
 	decoder := json.NewDecoder(bytes.NewReader(indata))
 
@@ -20,13 +18,19 @@ func processJson(routingKey string, indata []byte) (string, error) {
 	decoder.UseNumber()
 
 	if err := decoder.Decode(&msg); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	msgs, err := ProcessJSONMessage(msg, routingKey)
 	if err != nil {
-		return "", err
+		return nil, err
+	} else {
+		return msgs, nil
 	}
+}
+
+func marshalJson(msgs []map[string]interface{}) (string, error) {
+	var ret string
 
 	for _, msg := range msgs {
 		msg["cb_server"] = "cbserver"
@@ -40,15 +44,15 @@ func processJson(routingKey string, indata []byte) (string, error) {
 	return ret, nil
 }
 
-func processProtobuf(routingKey string, indata []byte) (string, error) {
+func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}, error) {
 	msg, err := ProcessProtobufMessage(routingKey, indata)
 	if err != nil {
-		return "", err
+		return nil, err
+	} else {
+		msgs := make([]map[string]interface{}, 0, 1)
+		msgs = append(msgs, msg)
+		return msgs, nil
 	}
-	msg["cb_server"] = "cbserver"
-	marshaled, err := json.Marshal(msg)
-
-	return string(marshaled), err
 }
 
 func BenchmarkProtobufEventProcessing(b *testing.B) {
@@ -71,10 +75,17 @@ func BenchmarkJsonEventProcessing(b *testing.B) {
 	}
 }
 
+type outputMessageFunc func([]map[string]interface{}) (string, error)
+
 func TestEventProcessing(t *testing.T) {
+	t.Log("Generating JSON output to go_output...")
+	processTestEvents(t, "go_output", marshalJson)
+}
+
+func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageFunc) {
 	formats := [...]struct {
 		formatType string
-		process    func(string, []byte) (string, error)
+		process    func(string, []byte) ([]map[string]interface{}, error)
 	}{{"json", processJson}, {"protobuf", processProtobuf}}
 
 	config.CbServerURL = "https://cbtests/"
@@ -83,14 +94,14 @@ func TestEventProcessing(t *testing.T) {
 		pathname := path.Join("./tests/raw_data", format.formatType)
 		fp, err := os.Open(pathname)
 		if err != nil {
-			log.Printf("Could not open %s", pathname)
-			continue
+			t.Logf("Could not open %s", pathname)
+			t.FailNow()
 		}
 
 		infos, err := fp.Readdir(0)
 		if err != nil {
-			log.Printf("Could not enumerate directory %s", pathname)
-			continue
+			t.Logf("Could not enumerate directory %s", pathname)
+			t.FailNow()
 		}
 
 		fp.Close()
@@ -101,18 +112,19 @@ func TestEventProcessing(t *testing.T) {
 			}
 
 			routingKey := info.Name()
-			os.MkdirAll(path.Join("./tests/go_output", format.formatType, routingKey), 0755)
+			os.MkdirAll(path.Join("./tests", outputDir, format.formatType, routingKey), 0755)
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())
 			fp, err := os.Open(routingDir)
 			if err != nil {
-				log.Printf("Could not open directory %s", routingDir)
+				t.Logf("Could not open directory %s", routingDir)
+				t.FailNow()
 			}
 
 			files, err := fp.Readdir(0)
 			if err != nil {
-				log.Printf("Could not enumerate directory %s", routingDir)
+				t.Errorf("Could not enumerate directory %s; continuing", routingDir)
 				continue
 			}
 
@@ -125,26 +137,32 @@ func TestEventProcessing(t *testing.T) {
 
 				fp, err := os.Open(path.Join(routingDir, fn.Name()))
 				if err != nil {
-					log.Printf("Could not open %s for reading", path.Join(routingDir, fn.Name()))
+					t.Errorf("Could not open %s for reading", path.Join(routingDir, fn.Name()))
 					continue
 				}
 				b, err := ioutil.ReadAll(fp)
 				if err != nil {
-					log.Printf("Could not read %s", path.Join(routingDir, fn.Name()))
+					t.Errorf("Could not read %s", path.Join(routingDir, fn.Name()))
 					continue
 				}
 
 				fp.Close()
 
-				out, err := format.process(routingKey, b)
+				msgs, err := format.process(routingKey, b)
 				if err != nil {
-					log.Printf("Error processing %s: %s", path.Join(routingDir, fn.Name()), err)
+					t.Errorf("Error processing %s: %s", path.Join(routingDir, fn.Name()), err)
 					continue
 				}
 
-				outfp, err := os.Create(path.Join("./tests/go_output", format.formatType, routingKey, fn.Name()))
+				out, err := outputFunc(msgs)
 				if err != nil {
-					log.Printf("Error creating file: %s", err)
+					t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
+					continue
+				}
+
+				outfp, err := os.Create(path.Join("./tests", outputDir, format.formatType, routingKey, fn.Name()))
+				if err != nil {
+					t.Errorf("Error creating file: %s", err)
 					continue
 				}
 

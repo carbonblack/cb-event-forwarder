@@ -4,8 +4,8 @@ import (
 	leef "./leef"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -26,16 +26,9 @@ func generateLeefOutput(exampleJsonInput string) error {
 		return err
 	}
 
-	log.Printf("Received %d messages", len(msgs))
-
 	for i, msg := range msgs {
-		log.Printf("working on %d message", i)
-		log.Printf("message['docs'] = %v\n", msg["docs"])
-		if leefString, err := leef.Encode(msg); err == nil {
-			fmt.Println(leefString)
-		} else {
-			log.Printf("Error encountered: %s", err)
-			return err
+		if _, err := leef.Encode(msg); err != nil {
+			return errors.New(fmt.Sprintf("Error encoding message %s [index %d]: %s", msg, i, err))
 		}
 	}
 
@@ -55,7 +48,7 @@ func TestLeefEncoder(t *testing.T) {
 
 	for _, jsonInput := range jsonInputs {
 		if err := generateLeefOutput(jsonInput); err != nil {
-			t.Error(err)
+			t.Errorf("Error generating LEEF output for %s: %s", jsonInput, err.Error())
 		}
 	}
 }

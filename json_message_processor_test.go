@@ -25,10 +25,9 @@ func TestJsonProcessing(t *testing.T) {
 	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err == nil {
 		for _, msg := range msgs {
-			out, _ := json.Marshal(msg)
-			fmt.Println(string(out))
+			_, _ = json.Marshal(msg)
 		}
 	} else {
-		t.Error(err)
+		t.Error(fmt.Sprintf("Error marshaling %s to JSON: %s", msg, err))
 	}
 }
