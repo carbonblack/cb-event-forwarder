@@ -142,8 +142,17 @@ func (o *S3Output) Initialize(connString string) error {
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
 	if config.S3CredentialProfileName != nil {
-		creds := credentials.NewCredentials(
-			&credentials.SharedCredentialsProvider{Profile: *config.S3CredentialProfileName})
+		parts = strings.SplitN(*config.S3CredentialProfileName, ":", 2)
+		credentialProvider := credentials.SharedCredentialsProvider{}
+
+		if len(parts) == 2 {
+			credentialProvider.Filename = parts[0]
+			credentialProvider.Profile = parts[1]
+		} else {
+			credentialProvider.Profile = parts[0]
+		}
+
+		creds := credentials.NewCredentials(&credentialProvider)
 		awsConfig.Credentials = creds
 	}
 
