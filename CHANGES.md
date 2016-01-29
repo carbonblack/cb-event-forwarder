@@ -2,9 +2,15 @@
 
 ## cb-event-forwarder 3.1.2
 
-The 3.1.2 release of cb-event-forwarder adds a debugging function to send arbitrary test messages through
-the forwarder to the output. This is only available when the cb-event-forwarder is started with the `-debug`
-command line switch.
+The 3.1.2 release of cb-event-forwarder adds two features:
+ 
+* You can now send arbitrary messages for debugging/testing purposes through the forwarder to the output location.
+  This is only available when the cb-event-forwarder is started with the `-debug` command line switch. Messages
+  sent via this mechanism are also logged for audit purposes.
+* S3: You can now explicitly specify the location of the AWS credential file to use for authentication in the
+  `credential_profile` option in the `[s3]` section of the configuration file. To search for the credential profile
+  `production` in the credentials stored in the file `/etc/cb/aws.creds`, set the `credential_profile` option to
+  `/etc/cb/aws.creds:production`.
 
 ## cb-event-forwarder 3.1.1
 
