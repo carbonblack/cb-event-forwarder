@@ -58,12 +58,22 @@ type S3Statistics struct {
 }
 
 func (o *S3Output) uploadOne(fileName string) {
+	var baseName string
+
 	fp, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
 	}
 
-	baseName := filepath.Base(fileName)
+	//
+	// If a prefix is specified then concatenate it with the Base of the filename
+	//
+	if config.S3ObjectPrefix != nil {
+		s := []string{*config.S3ObjectPrefix, filepath.Base(fileName)}
+		baseName = strings.Join(s, "/")
+	} else {
+		baseName = filepath.Base(fileName)
+	}
 
 	_, err = o.out.PutObject(&s3.PutObjectInput{
 		Body:                 fp,
