@@ -38,6 +38,7 @@ type Configuration struct {
 	S3ServerSideEncryption  *string
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
+	S3ObjectPrefix          *string
 }
 
 type ConfigurationError struct {
@@ -256,6 +257,11 @@ func ParseConfig(fn string) (Configuration, error) {
 			sseType, ok := input.Get("s3", "server_side_encryption")
 			if ok {
 				config.S3ServerSideEncryption = &sseType
+			}
+
+			objectPrefix, ok := input.Get("s3", "object_prefix")
+			if ok {
+				config.S3ObjectPrefix = &objectPrefix
 			}
 
 		default:
