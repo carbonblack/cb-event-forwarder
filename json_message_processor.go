@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/deepcopy"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -31,6 +32,36 @@ func parseFullGuid(v string) (string, int, error) {
 	}
 
 	return v[:36], int(segmentNumber), err
+}
+
+func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsedQuery string, err error) {
+	err = nil
+
+	queryIndex, ok := encodedQuery["index_type"]
+	if !ok {
+		err = errors.New("no index_type included in query")
+		return
+	}
+
+	rawQuery, ok := encodedQuery["search_query"]
+	if !ok {
+		err = errors.New("no search_query included in query")
+		return
+	}
+
+	query, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return
+	}
+
+	queryArray, ok := query["q"]
+	if !ok {
+		err = errors.New("no 'q' query parameter provided")
+		return
+	}
+
+	parsedQuery = queryArray[0]
+	return
 }
 
 func fixupMessage(msg map[string]interface{}) {
@@ -96,6 +127,21 @@ func fixupMessage(msg map[string]interface{}) {
 					if md5, ok := md5value.(string); ok {
 						if len(md5) == 32 {
 							ioc_type["md5"] = strings.ToUpper(md5)
+						}
+					}
+				}
+			} else {
+				if ioc_type, ok := value.(string); ok {
+					if ioc_type == "query" {
+						// decode the IOC query
+						if raw_ioc_value, ok := msg["ioc_value"].(string); ok {
+							var ioc_value map[string]string
+							if json.Unmarshal([]byte(raw_ioc_value), &ioc_value) == nil {
+								if queryIndex, rawQuery, err := parseQueryString(ioc_value); err == nil {
+									msg["ioc_query_index"] = queryIndex
+									msg["ioc_query_string"] = rawQuery
+								}
+							}
 						}
 					}
 				}
