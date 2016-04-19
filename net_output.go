@@ -70,7 +70,8 @@ func (o *NetOutput) Initialize(netConn string) error {
 
 	// we need a way to ensure that we don't block on the output. We will disconnect and reconnect if this timeout
 	// occurs
-	o.outputSocket.SetWriteDeadline(time.Duration(500 * time.Millisecond))
+	// TODO: Make sure this is correct!
+	o.outputSocket.SetWriteDeadline(time.Time{}.Add(time.Duration(500 * time.Millisecond)))
 
 	return nil
 }
@@ -84,7 +85,7 @@ func (o *NetOutput) closeAndScheduleReconnection() {
 	}
 
 	// try reconnecting in 30 seconds
-	o.reconnectTime = time.Now() + time.Duration(30*time.Second)
+	o.reconnectTime = time.Now().Add(time.Duration(30*time.Second))
 }
 
 func (o *NetOutput) Key() string {
@@ -121,7 +122,7 @@ func (o *NetOutput) output(m string) error {
 
 	if !o.connected {
 		// drop this event on the floor...
-		atomic.AddInt64(o.droppedEventCount, 1)
+		atomic.AddInt64(&o.droppedEventCount, 1)
 		return nil
 	}
 
@@ -165,7 +166,7 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				}
 
 			case <-refreshTicker.C:
-				if !o.connected && time.Now() > o.reconnectTime {
+				if !o.connected && time.Now().After(o.reconnectTime) {
 					err := o.Initialize(o.netConn)
 					if err != nil {
 						o.closeAndScheduleReconnection()
