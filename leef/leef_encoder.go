@@ -26,8 +26,10 @@ func init() {
 	productVersion = "5.1"
 	leefVersion = "1.0"
 
-	formatter = strings.NewReplacer("\\", "\\\\",
+	formatter = strings.NewReplacer(
+		"\\", "\\\\",
 		"\n", "\\n",
+		"\r", "\\r",
 		"\t", "\\t",
 		"=", "\\=",
 	)

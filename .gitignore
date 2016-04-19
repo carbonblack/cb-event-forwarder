@@ -29,6 +29,7 @@ scratch/
 # these are automatically created during "make test"
 tests/go_output
 tests/gold_output
+tests/leef_output
 tests/output.txt
 
 # Compiled python module files
