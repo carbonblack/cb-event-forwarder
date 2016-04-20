@@ -71,7 +71,7 @@ func (o *NetOutput) Initialize(netConn string) error {
 	// we need a way to ensure that we don't block on the output. We will disconnect and reconnect if this timeout
 	// occurs
 	// TODO: Make sure this is correct!
-	o.outputSocket.SetWriteDeadline(time.Time{}.Add(time.Duration(500 * time.Millisecond)))
+	//o.outputSocket.SetWriteDeadline(time.Now().Add(time.Duration(500 * time.Millisecond)))
 
 	return nil
 }
