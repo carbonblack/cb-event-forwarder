@@ -103,7 +103,8 @@ events to a QRadar server:
 
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
 `udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514)
-2. Change the output format to LEEF in the configuration file: `output_format=leef`. 
+2. Change the output format to LEEF in the configuration file: `output_format=leef`.
+3. Change the output type to UDP in the configuration file: `output_type=udp`.
 
 For more information on the LEEF format, see the [Events documentation](EVENTS.md).
 
