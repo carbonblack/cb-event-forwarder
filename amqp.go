@@ -17,12 +17,16 @@ func NewConsumer(amqpURI, queueName, ctag string, routingKeys []string) (*Consum
 		tag:     ctag,
 	}
 
-	exchange := "api.events"
-	exchangeType := "topic"
+	//exchange := "api.events"
+	exchange := "api.rawsensordata"
+
+	//exchangeType := "topic"
+	exchangeType := "fanout"
 
 	var err error
 
 	log.Println("Connecting to message bus...")
+	log.Printf("Connecting to exchange: %s", exchange)
 	c.conn, err = amqp.Dial(amqpURI)
 
 	if err != nil {
@@ -59,13 +63,21 @@ func NewConsumer(amqpURI, queueName, ctag string, routingKeys []string) (*Consum
 		return nil, nil, fmt.Errorf("Queue declare: %s", err)
 	}
 
+	err = c.channel.QueueBind(queueName, "#", exchange, false, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("QueueBind: %s", err)
+	}
+
+	/*
 	for _, key := range routingKeys {
-		err = c.channel.QueueBind(queueName, key, exchange, false, nil)
+		err = c.channel.QueueBind(queueName, "#", exchange, false, nil)
+		//err = c.channel.QueueBind(queueName, key, exchange, false, nil)
 		if err != nil {
 			return nil, nil, fmt.Errorf("QueueBind: %s", err)
 		}
 		log.Printf("Subscribed to %s", key)
 	}
+	*/
 
 	deliveries, err := c.channel.Consume(
 		queue.Name,

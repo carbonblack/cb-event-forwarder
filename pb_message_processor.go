@@ -6,6 +6,15 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/golang/protobuf/proto"
 	"strings"
+	"log"
+	"bytes"
+	//"encoding/hex"
+	"archive/zip"
+	"io/ioutil"
+	//"encoding/hex"
+	//"unsafe"
+	"encoding/hex"
+	"encoding/binary"
 )
 
 func GetProcessGUID(m *sensor_events.CbEventMsg) string {
@@ -34,11 +43,71 @@ func (inmsg *ConvertedCbMessage) getStringByGuid(guid int64) (string, error) {
 	return "", errors.New(fmt.Sprintf("Could not find string for id %d", guid))
 }
 
+func ProcessRawZipBundle(routingKey string, body []byte) ([]map[string]interface{}, error) {
+	log.Println("ENTER ProcessRawZipBundle")
+
+	msgs := make([]map[string]interface{}, 0, 1)
+
+	//fmt.Print(hex.Dump(body))
+
+	bodyReader := bytes.NewReader(body)
+
+	zipReader, err := zip.NewReader(bodyReader, (int64)(len(body)))
+	if err != nil {
+		log.Println("Error on zip decompress")
+		return nil, err
+	}
+
+	for _, zf := range zipReader.File {
+		src, err := zf.Open()
+		if err != nil {
+			continue
+		}
+		defer src.Close()
+
+
+		unzippedFile, err := ioutil.ReadAll(src)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		totalLength := len(unzippedFile)
+		fmt.Printf("totalLength = %d\n", totalLength)
+
+		for bytesRead := 0; bytesRead < totalLength;  {
+
+			fmt.Printf("bytesRead = %d\n", bytesRead)
+
+			length := (int)(binary.LittleEndian.Uint32(unzippedFile[bytesRead:bytesRead + 4]))
+			fmt.Printf("length = %d\n", length)
+			fmt.Print(hex.Dump(unzippedFile[bytesRead + 4 : bytesRead + length + 12]))
+
+			msg, err := ProcessProtobufMessage(routingKey, unzippedFile[bytesRead + 4 : bytesRead + length + 4])
+			if err != nil {
+				log.Println("Error in ProcessProtobufMessage")
+				log.Print(err)
+			} else if msg != nil{
+				msgs = append(msgs, msg)
+			}
+
+			bytesRead += length + 4
+		}
+	}
+	fmt.Println(msgs)
+	return msgs, nil
+}
+
 func ProcessProtobufMessage(routingKey string, body []byte) (map[string]interface{}, error) {
 	cbMessage := new(sensor_events.CbEventMsg)
 	err := proto.Unmarshal(body, cbMessage)
 	if err != nil {
 		return nil, err
+	}
+
+	fmt.Println(cbMessage.Env)
+	if cbMessage.Env == nil {
+		return nil, nil
 	}
 
 	inmsg := &ConvertedCbMessage{

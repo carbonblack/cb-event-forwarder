@@ -135,10 +135,21 @@ func processMessage(body []byte, routingKey, contentType string) {
 	msgs := make([]map[string]interface{}, 0, 1)
 	var err error
 
+	fmt.Printf("contentType: %s\n", contentType)
+
 	//
 	// Process message based on ContentType
 	//
-	if contentType == "application/protobuf" {
+	if contentType == "application/zip" {
+		tempMsgs, err := ProcessRawZipBundle(routingKey, body)
+		if err != nil {
+			reportError(routingKey, "Could not process raw zip bundle", err)
+			return
+		}
+
+		msgs = append(msgs, tempMsgs...)
+
+	} else if contentType == "application/protobuf" {
 		msg, err := ProcessProtobufMessage(routingKey, body)
 		if err != nil {
 			reportError(routingKey, "Could not process body", err)
