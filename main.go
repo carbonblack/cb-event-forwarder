@@ -128,20 +128,18 @@ func reportError(d string, errmsg string, err error) {
 	log.Printf("%s when processing %s: %s", errmsg, d, err)
 }
 
-func processMessage(body []byte, routingKey, contentType string) {
+func processMessage(body []byte, routingKey, contentType string, headers amqp.Table) {
 	status.InputEventCount.Add(1)
 	//	status.EventCounter.Incr(1)
 
 	msgs := make([]map[string]interface{}, 0, 1)
 	var err error
 
-	fmt.Printf("contentType: %s\n", contentType)
-
 	//
 	// Process message based on ContentType
 	//
 	if contentType == "application/zip" {
-		tempMsgs, err := ProcessRawZipBundle(routingKey, body)
+		tempMsgs, err := ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
 			reportError(routingKey, "Could not process raw zip bundle", err)
 			return
@@ -150,7 +148,7 @@ func processMessage(body []byte, routingKey, contentType string) {
 		msgs = append(msgs, tempMsgs...)
 
 	} else if contentType == "application/protobuf" {
-		msg, err := ProcessProtobufMessage(routingKey, body)
+		msg, err := ProcessProtobufMessage(routingKey, body, headers)
 		if err != nil {
 			reportError(routingKey, "Could not process body", err)
 			return
@@ -221,7 +219,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType)
+		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers)
 	}
 
 	log.Printf("Worker exiting")
@@ -230,7 +228,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	connection_error := make(chan *amqp.Error, 1)
 
-	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.EventTypes)
+	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
 	if err != nil {
 		status.LastConnectError = err.Error()
 		status.ErrorTime = time.Now()

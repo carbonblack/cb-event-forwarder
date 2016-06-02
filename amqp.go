@@ -10,23 +10,17 @@ import (
  * AMQP bookkeeping
  */
 
-func NewConsumer(amqpURI, queueName, ctag string, routingKeys []string) (*Consumer, <-chan amqp.Delivery, error) {
+func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
+	routingKeys []string) (*Consumer, <-chan amqp.Delivery, error) {
 	c := &Consumer{
 		conn:    nil,
 		channel: nil,
 		tag:     ctag,
 	}
 
-	//exchange := "api.events"
-	exchange := "api.rawsensordata"
-
-	//exchangeType := "topic"
-	exchangeType := "fanout"
-
 	var err error
 
 	log.Println("Connecting to message bus...")
-	log.Printf("Connecting to exchange: %s", exchange)
 	c.conn, err = amqp.Dial(amqpURI)
 
 	if err != nil {
@@ -38,17 +32,30 @@ func NewConsumer(amqpURI, queueName, ctag string, routingKeys []string) (*Consum
 		return nil, nil, fmt.Errorf("Channel: %s", err)
 	}
 
-	err = c.channel.ExchangeDeclare(
-		exchange,
-		exchangeType,
+	if err = c.channel.ExchangeDeclare(
+		"api.events",
+		"topic",
 		true,  // durable
 		false, // delete when complete
 		false, // internal
 		false, // nowait
 		nil,   // arguments
-	)
-	if err != nil {
+	); err != nil {
 		return nil, nil, fmt.Errorf("Exchange declare: %s", err)
+	}
+
+	if bindToRawExchange {
+		if err = c.channel.ExchangeDeclare(
+			"api.rawsensordata",
+			"fanout",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		); err != nil {
+			return nil, nil, fmt.Errorf("Exchange declare: %s", err)
+		}
 	}
 
 	queue, err := c.channel.QueueDeclare(
@@ -63,21 +70,25 @@ func NewConsumer(amqpURI, queueName, ctag string, routingKeys []string) (*Consum
 		return nil, nil, fmt.Errorf("Queue declare: %s", err)
 	}
 
-	err = c.channel.QueueBind(queueName, "#", exchange, false, nil)
+	err = c.channel.QueueBind(queueName, "#", "api.events", false, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("QueueBind: %s", err)
 	}
+	if bindToRawExchange {
+		err = c.channel.QueueBind(queueName, "", "api.rawsensordata", false, nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("QueueBind: %s", err)
+		}
+		log.Println("Subscribed to bulk raw sensor event exchange")
+	}
 
-	/*
 	for _, key := range routingKeys {
-		err = c.channel.QueueBind(queueName, "#", exchange, false, nil)
-		//err = c.channel.QueueBind(queueName, key, exchange, false, nil)
+		err = c.channel.QueueBind(queueName, key, "api.events", false, nil)
 		if err != nil {
 			return nil, nil, fmt.Errorf("QueueBind: %s", err)
 		}
 		log.Printf("Subscribed to %s", key)
 	}
-	*/
 
 	deliveries, err := c.channel.Consume(
 		queue.Name,
