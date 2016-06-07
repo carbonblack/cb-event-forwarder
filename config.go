@@ -176,7 +176,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "http_server_port")
 	if ok {
 		port, err := strconv.Atoi(val)
-		if err != nil {
+		if err == nil {
 			config.HTTPServerPort = port
 		}
 	}
