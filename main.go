@@ -251,12 +251,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	for {
 		select {
 		case output_error := <-output_errors:
-			log.Printf("ERROR during output: %s. Exiting the program", output_error.Error())
+			log.Printf("ERROR during output: %s", output_error.Error())
 
-			// TODO what should we do in this case? Right now we'll exit the program entirely
-			c.Shutdown()
-			wg.Wait()
-			os.Exit(1)
+			//c.Shutdown()
+			//wg.Wait()
+			//os.Exit(1)
 		case close_error := <-connection_error:
 			status.IsConnected = false
 			status.LastConnectError = close_error.Error()
@@ -279,7 +278,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 func startOutputs() error {
 	// Configure the specific output.
-	// Valid options are: 'udp', 'tcp', 'file', 's3'
+	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog'
 	var outputHandler OutputHandler
 
 	parameters := config.OutputParameters
@@ -295,6 +294,8 @@ func startOutputs() error {
 		parameters = "udp:" + parameters
 	case S3OutputType:
 		outputHandler = &S3Output{}
+	case SyslogOutputType:
+		outputHandler = &SyslogOutput{}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}

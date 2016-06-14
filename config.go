@@ -15,6 +15,7 @@ const (
 	S3OutputType
 	TCPOutputType
 	UDPOutputType
+	SyslogOutputType
 )
 
 const (
@@ -279,6 +280,9 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
 			}
+		case "syslog":
+			parameterKey = "syslogout"
+			config.OutputType = SyslogOutputType
 
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
