@@ -1,10 +1,16 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/golang/protobuf/proto"
+	"github.com/streadway/amqp"
+	"io/ioutil"
+	"log"
 	"strings"
 )
 
@@ -34,11 +40,100 @@ func (inmsg *ConvertedCbMessage) getStringByGuid(guid int64) (string, error) {
 	return "", errors.New(fmt.Sprintf("Could not find string for id %d", guid))
 }
 
-func ProcessProtobufMessage(routingKey string, body []byte) (map[string]interface{}, error) {
+func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]map[string]interface{}, error) {
+	msgs := make([]map[string]interface{}, 0, 1)
+
+	bodyReader := bytes.NewReader(body)
+	zipReader, err := zip.NewReader(bodyReader, (int64)(len(body)))
+	if err != nil {
+		return nil, err
+	}
+
+	for i, zf := range zipReader.File {
+		src, err := zf.Open()
+		if err != nil {
+			log.Printf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
+			continue
+		}
+		defer src.Close()
+
+		unzippedFile, err := ioutil.ReadAll(src)
+		if err != nil {
+			log.Printf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
+			continue
+		}
+
+		totalLength := len(unzippedFile)
+		for bytesRead := 0; bytesRead < totalLength; {
+			length := (int)(binary.LittleEndian.Uint32(unzippedFile[bytesRead : bytesRead+4]))
+
+			msg, err := ProcessProtobufMessage(routingKey, unzippedFile[bytesRead+4:bytesRead+length+4], headers)
+			if err != nil {
+				log.Printf("Error in ProcessProtobufMessage for event file id %d: %s", i, err.Error())
+			} else if msg != nil {
+				msgs = append(msgs, msg)
+			}
+
+			bytesRead += length + 4
+		}
+	}
+	return msgs, nil
+}
+
+func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, error) {
+	endpointMsg := &sensor_events.CbEndpointEnvironmentMsg{}
+	if hostId, ok := headers["hostId"]; ok {
+		if val, ok := hostId.(int64); ok {
+			endpointMsg.HostId = &val
+		} else {
+			return nil, errors.New("Could not parse hostId from message header")
+		}
+	}
+	if hostName, ok := headers["sensorHostName"]; ok {
+		if val, ok := hostName.(string); !ok {
+			return nil, errors.New("Could not parse sensor host name from message header")
+		} else {
+			endpointMsg.SensorHostName = &val
+		}
+	}
+	if sensorId, ok := headers["sensorId"]; ok {
+		if val, ok := sensorId.(int64); !ok {
+			return nil, errors.New("Could not parse sensorId from message header")
+		} else {
+			sensorId := int32(val)
+			endpointMsg.SensorId = &sensorId
+		}
+	}
+
+	serverMsg := &sensor_events.CbServerEnvironmentMsg{}
+	if nodeId, ok := headers["nodeId"]; ok {
+		if val, ok := nodeId.(int32); !ok {
+			return nil, errors.New("Could not parse nodeId from message header")
+		} else {
+			serverMsg.NodeId = &val
+		}
+	}
+
+	return &sensor_events.CbEnvironmentMsg{
+		Endpoint: endpointMsg,
+		Server:   serverMsg,
+	}, nil
+}
+
+func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) (map[string]interface{}, error) {
 	cbMessage := new(sensor_events.CbEventMsg)
 	err := proto.Unmarshal(body, cbMessage)
 	if err != nil {
 		return nil, err
+	}
+
+	if cbMessage.Env == nil {
+		// if the Env is nil, try to fill it in using the headers from the AMQP message
+		// (the raw sensor exchange does not fill in the SensorEnv or ServerEnv messages)
+		cbMessage.Env, err = createEnvMessage(headers)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	inmsg := &ConvertedCbMessage{

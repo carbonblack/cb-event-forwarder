@@ -128,7 +128,7 @@ func reportError(d string, errmsg string, err error) {
 	log.Printf("%s when processing %s: %s", errmsg, d, err)
 }
 
-func processMessage(body []byte, routingKey, contentType string) {
+func processMessage(body []byte, routingKey, contentType string, headers amqp.Table) {
 	status.InputEventCount.Add(1)
 	//	status.EventCounter.Incr(1)
 
@@ -138,8 +138,17 @@ func processMessage(body []byte, routingKey, contentType string) {
 	//
 	// Process message based on ContentType
 	//
-	if contentType == "application/protobuf" {
-		msg, err := ProcessProtobufMessage(routingKey, body)
+	if contentType == "application/zip" {
+		tempMsgs, err := ProcessRawZipBundle(routingKey, body, headers)
+		if err != nil {
+			reportError(routingKey, "Could not process raw zip bundle", err)
+			return
+		}
+
+		msgs = append(msgs, tempMsgs...)
+
+	} else if contentType == "application/protobuf" {
+		msg, err := ProcessProtobufMessage(routingKey, body, headers)
 		if err != nil {
 			reportError(routingKey, "Could not process body", err)
 			return
@@ -210,7 +219,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType)
+		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers)
 	}
 
 	log.Printf("Worker exiting")
@@ -219,7 +228,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	connection_error := make(chan *amqp.Error, 1)
 
-	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.EventTypes)
+	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
 	if err != nil {
 		status.LastConnectError = err.Error()
 		status.ErrorTime = time.Now()
@@ -242,12 +251,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	for {
 		select {
 		case output_error := <-output_errors:
-			log.Printf("ERROR during output: %s. Exiting the program", output_error.Error())
+			log.Printf("ERROR during output: %s", output_error.Error())
 
-			// TODO what should we do in this case? Right now we'll exit the program entirely
-			c.Shutdown()
-			wg.Wait()
-			os.Exit(1)
+			//c.Shutdown()
+			//wg.Wait()
+			//os.Exit(1)
 		case close_error := <-connection_error:
 			status.IsConnected = false
 			status.LastConnectError = close_error.Error()
@@ -270,7 +278,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 func startOutputs() error {
 	// Configure the specific output.
-	// Valid options are: 'udp', 'tcp', 'file', 's3'
+	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog'
 	var outputHandler OutputHandler
 
 	parameters := config.OutputParameters
@@ -286,6 +294,8 @@ func startOutputs() error {
 		parameters = "udp:" + parameters
 	case S3OutputType:
 		outputHandler = &S3Output{}
+	case SyslogOutputType:
+		outputHandler = &SyslogOutput{}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}

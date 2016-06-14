@@ -70,8 +70,8 @@ func (o *NetOutput) Initialize(netConn string) error {
 
 	// we need a way to ensure that we don't block on the output. We will disconnect and reconnect if this timeout
 	// occurs
-	// TODO: this is broken in golang 1.6.1. Why do they require an absolute time for a "deadline"?
-	// o.outputSocket.SetWriteDeadline(time.Time{}.Add(time.Duration(500 * time.Millisecond)))
+	// TODO: Make sure this is correct!
+	//o.outputSocket.SetWriteDeadline(time.Now().Add(time.Duration(500 * time.Millisecond)))
 
 	return nil
 }
@@ -85,7 +85,7 @@ func (o *NetOutput) closeAndScheduleReconnection() {
 	}
 
 	// try reconnecting in 30 seconds
-	o.reconnectTime = time.Now().Add(time.Duration(30 * time.Second))
+	o.reconnectTime = time.Now().Add(time.Duration(30*time.Second))
 }
 
 func (o *NetOutput) Key() string {

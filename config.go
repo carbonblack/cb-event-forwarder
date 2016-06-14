@@ -5,6 +5,7 @@ import (
 	_ "expvar"
 	"fmt"
 	"github.com/vaughan0/go-ini"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -14,6 +15,7 @@ const (
 	S3OutputType
 	TCPOutputType
 	UDPOutputType
+	SyslogOutputType
 )
 
 const (
@@ -22,17 +24,19 @@ const (
 )
 
 type Configuration struct {
-	ServerName       string
-	AMQPHostname     string
-	DebugFlag        bool
-	OutputType       int
-	OutputFormat     int
-	AMQPUsername     string
-	AMQPPassword     string
-	OutputParameters string
-	EventTypes       []string
-	HTTPServerPort   int
-	CbServerURL      string
+	ServerName           string
+	AMQPHostname         string
+	DebugFlag            bool
+	OutputType           int
+	OutputFormat         int
+	AMQPUsername         string
+	AMQPPassword         string
+	AMQPPort             int
+	OutputParameters     string
+	EventTypes           []string
+	HTTPServerPort       int
+	CbServerURL          string
+	UseRawSensorExchange bool
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
@@ -47,7 +51,7 @@ type ConfigurationError struct {
 }
 
 func (c *Configuration) AMQPURL() string {
-	return fmt.Sprintf("amqp://%s:%s@%s:5004", c.AMQPUsername, c.AMQPPassword, c.AMQPHostname)
+	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
 }
 
 func (e ConfigurationError) Error() string {
@@ -120,6 +124,11 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 	}
 
 	for _, eventType := range eventTypes {
+		if eventType.configKey == "events_raw_sensor" && c.UseRawSensorExchange {
+			// skip the sensor event section if we're consuming from the firehose anyway
+			// we will be forwarding everything in that case
+			continue
+		}
 		val, ok := input.Get("bridge", eventType.configKey)
 		if ok {
 			val = strings.ToLower(val)
@@ -152,7 +161,9 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.OutputFormat = JSONOutputFormat
 	config.OutputType = FileOutputType
 	config.AMQPHostname = "localhost"
+	config.AMQPUsername = "cb"
 	config.HTTPServerPort = 33706
+	config.AMQPPort = 5004
 
 	config.S3ACLPolicy = nil
 	config.S3ServerSideEncryption = nil
@@ -182,9 +193,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	val, ok = input.Get("bridge", "rabbit_mq_username")
-	if !ok {
-		errs.addErrorString("Missing required rabbit_mq_username section")
-	} else {
+	if ok {
 		config.AMQPUsername = val
 	}
 
@@ -195,7 +204,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPPassword = val
 	}
 
-	if len(config.AMQPUsername) == 0 && len(config.AMQPPassword) == 0 {
+	val, ok = input.Get("bridge", "rabbit_mq_port")
+	if ok {
+		port, err := strconv.Atoi(val)
+		if err != nil {
+			config.AMQPPort = port
+		}
+	}
+
+	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
 		config.AMQPUsername, config.AMQPPassword, err = parseCbConf()
 		if err != nil {
 			errs.addError(err)
@@ -263,6 +280,9 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
 			}
+		case "syslog":
+			parameterKey = "syslogout"
+			config.OutputType = SyslogOutputType
 
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
@@ -274,6 +294,20 @@ func ParseConfig(fn string) (Configuration, error) {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s", val, outType))
 		} else {
 			config.OutputParameters = val
+		}
+	}
+
+	val, ok = input.Get("bridge", "use_raw_sensor_exchange")
+	if ok {
+		boolval, err := strconv.ParseBool(val)
+		if err == nil && boolval {
+			log.Println("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
+			log.Println("- This will result in a *large* number of messages output via the event forwarder!")
+			log.Println("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
+			log.Println("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
+			config.UseRawSensorExchange = boolval
+		} else {
+			errs.addErrorString("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
 		}
 	}
 
