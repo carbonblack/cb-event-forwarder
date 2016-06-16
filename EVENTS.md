@@ -16,26 +16,26 @@ message are pulled by the cb-event-forwarder to populate the output JSON or LEEF
 
 |Event ID|Description|
 |---    |---    |
-|watchlist.hit.process|This event occurs when the watchlist first matches the document. Note that the process may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
-|watchlist.storage.hit.process|This event occurs when the match that was found in watchlist.hit.process is committed in SOLR.  The data has been committed to disk by Cb and the data is available via the Cb UI or API|
-|watchlist.hit.binary|This event happens when the watchlist first matches the document. Note that the binary may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
-|watchlist.storage.hit.binary|This event occurs when the match that was found in watchlist.hit.binary is committed in SOLR.  The data has been committed to disk by Cb and the data is available via the Cb UI or API|
-|feed.ingress.hit.binary|This event happens when an intelligence feed indicator matches a new binary upon ingest. Note that the binary may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
-|feed.ingress.hit.process|This event occurs when an intelligence feed indicator matches a new process upon ingest. Note that the process may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
-|feed.ingress.hit.host|This event happens when an intelligence feed indicator matches a host.|
-|feed.storage.hit.process|Same as feed.ingress.hit.process, but now the data has been committed to disk by Cb and the data is available via the Cb UI or API|
-|feed.storage.hit.binary|Same as feed.ingress.hit.binary, but now the data has been committed to disk by Cb and the data is available via the Cb UI or API|
-|feed.query.hit.process|This event happens when an intelligence feed query matches a process. The process is visible in Carbon Black UI immediately.|
-|feed.query.hit.binary|This event happens when an intelligence feed query matches a binary. The process is visible in Carbon Black UI immediately.|
+|alert.watchlist.hit.ingress.host|This event happens when an alert is triggered as a result of a watchlist indicator matching a host|
+|alert.watchlist.hit.ingress.binary|This event happens when an alert is triggered as a result of a watchlist indicator matching a binary|
+|alert.watchlist.hit.ingress.process|This event happens when an alert is triggered as a result of a watchlist indicator matching a process|
+|alert.watchlist.hit.query.binary|This event happens when an alert is triggered as a result of a watchlist query matching a binary|
+|alert.watchlist.hit.query.process|This event happens when an alert is triggered as a result of a watchlist query matching a process|
 |binaryinfo.host.observed|This event happens when a new binary is observed for the first time on a specific host|
 |binaryinfo.group.observed|This event happens when a new binary is observed for the first time in a sensor group|
 |binaryinfo.observed|This event happens when a new binary is observed for the first time anywhere in the environment|
 |binarystore.file.added|This event happens when a copy of a new binary has arrived at the Carbon Black server. It can be used to trigger external services, such as binary analysis or signature matching|
-|alert.watchlist.hit.query.process|This event happens when an alert is triggered as a result of a watchlist query matching a process|
-|alert.watchlist.hit.query.binary|This event happens when an alert is triggered as a result of a watchlist query matching a binary|
-|alert.watchlist.hit.ingress.process|This event happens when an alert is triggered as a result of a watchlist indicator matching a process|
-|alert.watchlist.hit.ingress.binary|This event happens when an alert is triggered as a result of a watchlist indicator matching a binary|
-|alert.watchlist.hit.ingress.host|This event happens when an alert is triggered as a result of a watchlist indicator matching a host|
+|feed.ingress.hit.host|This event happens when an intelligence feed indicator matches a host. This triggers on 3 IOCs `IPv4 addresses`, `domain names`, and `md5s` described in the developer documentation https://developer.carbonblack.com/reference/enterprise-response/5.1/threat-intelligence-feeds/ |
+|feed.ingress.hit.binary|This event happens when an intelligence feed indicator matches a new binary upon ingest. Note that the binary may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes). As above, this triggers 3 IOCs `IPv4 addresses`, `domain names`, and `md5s` |
+|feed.ingress.hit.process|This event occurs when an intelligence feed indicator matches a new process upon ingest. Note that the process may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
+|feed.query.hit.binary|This event happens when an intelligence feed query matches a binary. The process is visible in Carbon Black UI immediately. This covers the `query` IOC *only* described in the developer documentation https://developer.carbonblack.com/reference/enterprise-response/5.1/threat-intelligence-feeds/|
+|feed.query.hit.process|This event happens when an intelligence feed query matches a process. This is the same as above in terms of triggers and IOCs |
+|feed.storage.hit.binary|Same as feed.ingress.hit.binary, but now the data has been committed to disk by Cb and the data is available via the Cb UI or API|
+|feed.storage.hit.process|Same as feed.ingress.hit.process, but now the data has been committed to disk by Cb and the data is available via the Cb UI or API|
+|watchlist.hit.process|This event occurs when the watchlist first matches the document. Note that the process may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
+|watchlist.hit.binary|This event happens when the watchlist first matches the document. Note that the binary may not be visible in the Carbon Black UI or searches until it’s been committed in SOLR (may take ~15 minutes)|
+|watchlist.storage.hit.binary|This event occurs when the match that was found in watchlist.hit.binary is committed in SOLR.  The data has been committed to disk by Cb and the data is available via the Cb UI or API|
+|watchlist.storage.hit.process|This event occurs when the match that was found in watchlist.hit.process is committed in SOLR.  The data has been committed to disk by Cb and the data is available via the Cb UI or API|
 
 ## Raw endpoint events
 
