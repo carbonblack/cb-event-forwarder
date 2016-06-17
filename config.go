@@ -43,6 +43,12 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+
+	// Syslog-specific configuration
+	SyslogTLSClientKey  *string
+	SyslogTLSClientCert *string
+	SyslogTLSCACert     *string
+	SyslogTLSVerify     bool
 }
 
 type ConfigurationError struct {
@@ -283,6 +289,29 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
+
+			clientKeyFilename, ok := input.Get("syslog", "client_key")
+			if ok {
+				config.SyslogTLSClientKey = &clientKeyFilename
+			}
+
+			clientCertFilename, ok := input.Get("syslog", "client_cert")
+			if ok {
+				config.SyslogTLSClientCert = &clientCertFilename
+			}
+
+			caCertFilename, ok := input.Get("syslog", "ca_cert")
+			if ok {
+				config.SyslogTLSCACert = &caCertFilename
+			}
+
+			config.SyslogTLSVerify = true
+			tlsVerify, ok := input.Get("syslog", "tls_verify")
+			if ok {
+				if tlsVerify == "false" {
+					config.SyslogTLSVerify = false
+				}
+			}
 
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
