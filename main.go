@@ -253,9 +253,13 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 		case output_error := <-output_errors:
 			log.Printf("ERROR during output: %s", output_error.Error())
 
-			//c.Shutdown()
-			//wg.Wait()
-			//os.Exit(1)
+			// hack to exit if the error happens while we are writing to a file
+			if config.OutputType == FileOutputType {
+				log.Println("File output error; exiting immediately.")
+				c.Shutdown()
+				wg.Wait()
+				os.Exit(1)
+			}
 		case close_error := <-connection_error:
 			status.IsConnected = false
 			status.LastConnectError = close_error.Error()

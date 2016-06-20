@@ -141,7 +141,7 @@ func (o *SyslogOutput) closeAndScheduleReconnection() {
 		o.outputSocket.Close()
 		o.connected = false
 	}
-	// try reconnecting in 30 seconds
+	// try reconnecting in 5 seconds
 	o.reconnectTime = time.Now().Add(time.Duration(5 * time.Second))
 
 	log.Printf("Lost connection to %s. Will try to reconnect at %s.", o.hostnamePort, o.reconnectTime)

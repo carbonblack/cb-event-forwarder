@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -20,10 +21,11 @@ type NetOutput struct {
 	outputSocket   net.Conn
 	addNewline     bool
 
-	connectTime       time.Time
-	reconnectTime     time.Time
-	connected         bool
-	droppedEventCount int64
+	connectTime                 time.Time
+	reconnectTime               time.Time
+	connected                   bool
+	droppedEventCount           int64
+	droppedEventSinceConnection int64
 
 	sync.RWMutex
 }
@@ -65,15 +67,20 @@ func (o *NetOutput) Initialize(netConn string) error {
 		return errors.New(fmt.Sprintf("Error connecting to '%s': %s", netConn, err))
 	}
 
-	o.connectTime = time.Now()
-	o.connected = true
-
-	// we need a way to ensure that we don't block on the output. We will disconnect and reconnect if this timeout
-	// occurs
-	// TODO: Make sure this is correct!
-	//o.outputSocket.SetWriteDeadline(time.Now().Add(time.Duration(500 * time.Millisecond)))
+	o.markConnected()
 
 	return nil
+}
+
+func (o *NetOutput) markConnected() {
+	o.connectTime = time.Now()
+	log.Printf("Connected to %s at %s.", o.netConn, o.connectTime)
+	o.connected = true
+	if o.droppedEventCount != o.droppedEventSinceConnection {
+		log.Printf("Dropped %d events since the last reconnection.",
+			o.droppedEventCount-o.droppedEventSinceConnection)
+		o.droppedEventSinceConnection = o.droppedEventCount
+	}
 }
 
 func (o *NetOutput) closeAndScheduleReconnection() {
@@ -82,10 +89,13 @@ func (o *NetOutput) closeAndScheduleReconnection() {
 
 	if o.connected {
 		o.outputSocket.Close()
+		o.connected = false
 	}
 
-	// try reconnecting in 30 seconds
-	o.reconnectTime = time.Now().Add(time.Duration(30*time.Second))
+	// try reconnecting in 5 seconds
+	o.reconnectTime = time.Now().Add(time.Duration(5 * time.Second))
+
+	log.Printf("Lost connection to %s. Will try to reconnect at %s.", o.netConn, o.reconnectTime)
 }
 
 func (o *NetOutput) Key() string {
@@ -128,17 +138,7 @@ func (o *NetOutput) output(m string) error {
 
 	_, err := o.outputSocket.Write([]byte(m))
 	if err != nil {
-		// try to reconnect and send again
-		err = o.Initialize(o.netConn)
-		if err != nil {
-			return err
-		}
-		_, err = o.outputSocket.Write([]byte(m))
-		// if we still have an error...
-		if err != nil {
-			o.closeAndScheduleReconnection()
-		}
-		return err
+		o.closeAndScheduleReconnection()
 	}
 	return err
 }
@@ -162,7 +162,6 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case message := <-messages:
 				if err := o.output(message); err != nil {
 					errorChan <- err
-					return
 				}
 
 			case <-refreshTicker.C:
