@@ -70,10 +70,6 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		return nil, nil, fmt.Errorf("Queue declare: %s", err)
 	}
 
-	err = c.channel.QueueBind(queueName, "#", "api.events", false, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("QueueBind: %s", err)
-	}
 	if bindToRawExchange {
 		err = c.channel.QueueBind(queueName, "", "api.rawsensordata", false, nil)
 		if err != nil {
