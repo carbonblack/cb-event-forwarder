@@ -4,10 +4,11 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	"github.com/vaughan0/go-ini"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/vaughan0/go-ini"
 )
 
 const (
@@ -329,7 +330,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "use_raw_sensor_exchange")
 	if ok {
 		boolval, err := strconv.ParseBool(val)
-		if err == nil && boolval {
+		if err == nil {
 			log.Println("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
 			log.Println("- This will result in a *large* number of messages output via the event forwarder!")
 			log.Println("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
