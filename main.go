@@ -350,8 +350,7 @@ func main() {
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-	//configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
-	configLocation := "/Users/crothe/Code/go_work/src/github.com/carbonblack/cb-event-forwarder/conf/cb-event-forwarder.conf"
+	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	log.Printf("configLocation: %s", configLocation)
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)

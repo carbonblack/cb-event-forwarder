@@ -53,6 +53,7 @@ type Configuration struct {
 
 	// Kafka-specific configuration
 	KafkaBrokers        *string
+	KafkaTopicSuffix    *string
 	// TODO: May want some more options for batch size, etc.
 }
 
@@ -323,6 +324,11 @@ func ParseConfig(fn string) (Configuration, error) {
 			kafkaBrokers, ok := input.Get("kafka", "brokers")
 			if ok {
 				config.KafkaBrokers = &kafkaBrokers
+			}
+
+			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
+			if ok {
+				config.KafkaTopicSuffix = &kafkaTopicSuffix
 			}
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))

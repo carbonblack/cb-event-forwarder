@@ -17,6 +17,7 @@ import (
 
 type KafkaOutput struct {
 	brokers     			[]string
+	topicSuffix			string
 	producer   			sarama.AsyncProducer
 	droppedEventCount           	int64
 	eventSentCount			int64
@@ -34,6 +35,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	defer o.Unlock()
 
 	o.brokers = strings.Split(*config.KafkaBrokers, ",")
+	o.topicSuffix = *config.KafkaTopicSuffix
 
 	kafkaConfig := sarama.NewConfig()
 
@@ -45,13 +47,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 	o.producer = producer
 
-	// TODO: Somewhere in here we need to put this close
-	//defer func() {
-	//	if err := producer.Close(); err != nil {
-	//		log.Fatalln(err)
-	//	}
-	//}()
-
 	return nil
 }
 
@@ -59,6 +54,12 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
+
+		defer func() {
+			if err := o.producer.Close(); err != nil {
+				log.Fatalln(err)
+			}
+		}()
 
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
@@ -73,24 +74,14 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				json.Unmarshal([]byte(message), &parsedMsg)
 				topic := parsedMsg["type"]
 				if topicString, ok := topic.(string); ok {
-					topicString += "-test"
 					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-
+					topicString += o.topicSuffix
 					atomic.AddInt64(&o.eventSentCount, 1)
 
 					o.output(topicString, message)
 				} else {
 					log.Printf("ERROR: Topic was not a string")
 				}
-
-
-			//case <-refreshTicker.C:
-			//	if !o.connected && time.Now().After(o.reconnectTime) {
-			//		err := o.Initialize(o.String())
-			//		if err != nil {
-			//			o.closeAndScheduleReconnection()
-			//		}
-			//	}
 			}
 		}
 
