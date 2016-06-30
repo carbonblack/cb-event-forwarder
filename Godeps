@@ -1,0 +1,7 @@
+github.com/RackSec/srslog
+github.com/aws/aws-sdk-go/aws
+github.com/golang/protobuf/proto
+github.com/paulbellamy/ratecounter
+github.com/streadway/amqp
+github.com/vaughan0/go-ini
+github.com/Shopify/sarama

@@ -16,6 +16,7 @@ const (
 	TCPOutputType
 	UDPOutputType
 	SyslogOutputType
+	KafkaOutputType
 )
 
 const (
@@ -49,6 +50,10 @@ type Configuration struct {
 	SyslogTLSClientCert *string
 	SyslogTLSCACert     *string
 	SyslogTLSVerify     bool
+
+	// Kafka-specific configuration
+	KafkaBrokers        *string
+	// TODO: May want some more options for batch size, etc.
 }
 
 type ConfigurationError struct {
@@ -312,7 +317,13 @@ func ParseConfig(fn string) (Configuration, error) {
 					config.SyslogTLSVerify = false
 				}
 			}
+		case "kafka":
+			config.OutputType = KafkaOutputType
 
+			kafkaBrokers, ok := input.Get("kafka", "brokers")
+			if ok {
+				config.KafkaBrokers = &kafkaBrokers
+			}
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}

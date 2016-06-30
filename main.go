@@ -300,6 +300,8 @@ func startOutputs() error {
 		outputHandler = &S3Output{}
 	case SyslogOutputType:
 		outputHandler = &SyslogOutput{}
+	case KafkaOutputType:
+		outputHandler = &KafkaOutput{}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}
@@ -329,6 +331,8 @@ func startOutputs() error {
 			ret["type"] = "net"
 		case S3OutputType:
 			ret["type"] = "s3"
+		case KafkaOutputType:
+			ret["type"] = "kafka"
 		}
 
 		return ret
@@ -346,7 +350,9 @@ func main() {
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	//configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	configLocation := "/Users/crothe/Code/go_work/src/github.com/carbonblack/cb-event-forwarder/conf/cb-event-forwarder.conf"
+	log.Printf("configLocation: %s", configLocation)
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
