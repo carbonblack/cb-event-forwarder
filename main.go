@@ -454,10 +454,23 @@ func main() {
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
-	log.Println("Starting AMQP loop")
+	numConsumers := 1
+	if runtime.NumCPU() > 1 {
+		numConsumers = runtime.NumCPU() / 2
+	}
+
+	for i := 0; i < numConsumers; i++ {
+		go func(consumerNumber int) {
+			log.Printf("Starting AMQP loop %d", consumerNumber)
+
+			for {
+				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+				log.Printf("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+				time.Sleep(30 * time.Second)
+			}
+		}(i)
+	}
 	for {
-		err := messageProcessingLoop(config.AMQPURL(), queueName, "go-event-consumer")
-		log.Printf("AMQP loop exited: %s. Sleeping for 30 seconds then retrying.", err)
 		time.Sleep(30 * time.Second)
 	}
 }

@@ -38,6 +38,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topicSuffix = *config.KafkaTopicSuffix
 
 	kafkaConfig := sarama.NewConfig()
+	kafkaConfig.Producer.Return.Successes = true
 
 	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)
 
@@ -76,7 +77,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				if topicString, ok := topic.(string); ok {
 					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
 					topicString += o.topicSuffix
-					atomic.AddInt64(&o.eventSentCount, 1)
+
 
 					o.output(topicString, message)
 				} else {
@@ -85,6 +86,12 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			}
 		}
 
+	}()
+
+	go func() {
+		for range o.producer.Successes() {
+			atomic.AddInt64(&o.eventSentCount, 1)
+		}
 	}()
 
 	go func() {
