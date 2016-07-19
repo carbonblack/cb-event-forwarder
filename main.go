@@ -281,65 +281,75 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 }
 
 func startOutputs() error {
-	// Configure the specific output.
-	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog'
-	var outputHandler OutputHandler
-
-	parameters := config.OutputParameters
-
-	switch config.OutputType {
-	case FileOutputType:
-		outputHandler = &FileOutput{}
-	case TCPOutputType:
-		outputHandler = &NetOutput{}
-		parameters = "tcp:" + parameters
-	case UDPOutputType:
-		outputHandler = &NetOutput{}
-		parameters = "udp:" + parameters
-	case S3OutputType:
-		outputHandler = &S3Output{}
-	case SyslogOutputType:
-		outputHandler = &SyslogOutput{}
-	case KafkaOutputType:
-		outputHandler = &KafkaOutput{}
-	default:
-		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
+	numOutputs := 1
+	if runtime.NumCPU() > 1 {
+		numOutputs = runtime.NumCPU() / 2
 	}
 
-	err := outputHandler.Initialize(parameters)
-	if err != nil {
-		return err
-	}
+	for i := 0; i < numOutputs; i++ {
+		// Configure the specific output.
+		// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog'
+		var outputHandler OutputHandler
 
-	expvar.Publish("output_status", expvar.Func(func() interface{} {
-		ret := make(map[string]interface{})
-		ret[outputHandler.Key()] = outputHandler.Statistics()
-
-		switch config.OutputFormat {
-		case LEEFOutputFormat:
-			ret["format"] = "leef"
-		case JSONOutputFormat:
-			ret["format"] = "json"
-		}
+		parameters := config.OutputParameters
 
 		switch config.OutputType {
 		case FileOutputType:
-			ret["type"] = "file"
-		case UDPOutputType:
-			ret["type"] = "net"
+			outputHandler = &FileOutput{}
 		case TCPOutputType:
-			ret["type"] = "net"
+			outputHandler = &NetOutput{}
+			parameters = "tcp:" + parameters
+		case UDPOutputType:
+			outputHandler = &NetOutput{}
+			parameters = "udp:" + parameters
 		case S3OutputType:
-			ret["type"] = "s3"
+			outputHandler = &S3Output{}
+		case SyslogOutputType:
+			outputHandler = &SyslogOutput{}
 		case KafkaOutputType:
-			ret["type"] = "kafka"
+			outputHandler = &KafkaOutput{}
+		default:
+			return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 		}
 
-		return ret
-	}))
+		err := outputHandler.Initialize(parameters)
+		if err != nil {
+			return err
+		}
 
-	log.Printf("Initialized output: %s\n", outputHandler.String())
-	return outputHandler.Go(results, output_errors)
+		//expvar.Publish("output_status", expvar.Func(func() interface{} {
+		//	ret := make(map[string]interface{})
+		//	ret[outputHandler.Key()] = outputHandler.Statistics()
+		//
+		//	switch config.OutputFormat {
+		//	case LEEFOutputFormat:
+		//		ret["format"] = "leef"
+		//	case JSONOutputFormat:
+		//		ret["format"] = "json"
+		//	}
+		//
+		//	switch config.OutputType {
+		//	case FileOutputType:
+		//		ret["type"] = "file"
+		//	case UDPOutputType:
+		//		ret["type"] = "net"
+		//	case TCPOutputType:
+		//		ret["type"] = "net"
+		//	case S3OutputType:
+		//		ret["type"] = "s3"
+		//	case KafkaOutputType:
+		//		ret["type"] = "kafka"
+		//	}
+		//
+		//	return ret
+		//}))
+		log.Printf("Initialized output #%d: %s\n", i, outputHandler.String())
+		go func(outputNumber int) {
+			outputHandler.Go(results, output_errors)
+		}(i)
+	}
+
+	return nil
 }
 
 func main() {
@@ -350,7 +360,8 @@ func main() {
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	//configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	configLocation := "/Users/crothe/Code/go_work/src/github.com/carbonblack/cb-event-forwarder/conf/cb-event-forwarder.conf"
 	log.Printf("configLocation: %s", configLocation)
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
