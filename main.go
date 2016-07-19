@@ -317,32 +317,32 @@ func startOutputs() error {
 			return err
 		}
 
-		//expvar.Publish("output_status", expvar.Func(func() interface{} {
-		//	ret := make(map[string]interface{})
-		//	ret[outputHandler.Key()] = outputHandler.Statistics()
-		//
-		//	switch config.OutputFormat {
-		//	case LEEFOutputFormat:
-		//		ret["format"] = "leef"
-		//	case JSONOutputFormat:
-		//		ret["format"] = "json"
-		//	}
-		//
-		//	switch config.OutputType {
-		//	case FileOutputType:
-		//		ret["type"] = "file"
-		//	case UDPOutputType:
-		//		ret["type"] = "net"
-		//	case TCPOutputType:
-		//		ret["type"] = "net"
-		//	case S3OutputType:
-		//		ret["type"] = "s3"
-		//	case KafkaOutputType:
-		//		ret["type"] = "kafka"
-		//	}
-		//
-		//	return ret
-		//}))
+		expvar.Publish(fmt.Sprintf("output_status_%d", i), expvar.Func(func() interface{} {
+			ret := make(map[string]interface{})
+			ret[outputHandler.Key()] = outputHandler.Statistics()
+
+			switch config.OutputFormat {
+			case LEEFOutputFormat:
+				ret["format"] = "leef"
+			case JSONOutputFormat:
+				ret["format"] = "json"
+			}
+
+			switch config.OutputType {
+			case FileOutputType:
+				ret["type"] = "file"
+			case UDPOutputType:
+				ret["type"] = "net"
+			case TCPOutputType:
+				ret["type"] = "net"
+			case S3OutputType:
+				ret["type"] = "s3"
+			case KafkaOutputType:
+				ret["type"] = "kafka"
+			}
+
+			return ret
+		}))
 		log.Printf("Initialized output #%d: %s\n", i, outputHandler.String())
 		go func(outputNumber int) {
 			outputHandler.Go(results, output_errors)
