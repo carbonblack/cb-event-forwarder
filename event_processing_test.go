@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/streadway/amqp"
 	"io/ioutil"
 	"os"
 	"path"
@@ -45,7 +46,9 @@ func marshalJson(msgs []map[string]interface{}) (string, error) {
 }
 
 func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}, error) {
-	msg, err := ProcessProtobufMessage(routingKey, indata)
+	emptyHeaders := new(amqp.Table)
+
+	msg, err := ProcessProtobufMessage(routingKey, indata, *emptyHeaders)
 	if err != nil {
 		return nil, err
 	} else {
