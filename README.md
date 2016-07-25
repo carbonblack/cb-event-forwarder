@@ -204,4 +204,5 @@ output from the JSON status is shown below:
 ## Changelog
 
 This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
-See the [Changelog](CHANGES.md) for more information on upgrading from cb-event-forwarder 2.x.
+See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) 
+for more information on new features introduced with each new version and upgrading from cb-event-forwarder 2.x.
