@@ -12,9 +12,9 @@ import (
 
 var (
 	productVendorName string
-	productName string
-	productVersion string
-	leefVersion string
+	productName       string
+	productVersion    string
+	leefVersion       string
 	formatter         *strings.Replacer
 )
 
@@ -44,19 +44,31 @@ func generateHeader(cbVersion, eventType string) string {
 }
 
 func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
+	outboundConnections := map[string]string{
+		"local_ip":    "src",
+		"remote_ip":   "dst",
+		"protocol":    "proto",
+		"local_port":  "srcPort",
+		"remote_port": "dstPort",
+	}
+	inboundConnections := map[string]string{
+		"local_ip":    "dst",
+		"remote_ip":   "src",
+		"protocol":    "proto",
+		"local_port":  "dstPort",
+		"remote_port": "srcPort",
+	}
+
+	leefMap := outboundConnections
+	if directionality, ok := temp["direction"]; ok {
+		if directionality == "inbound" {
+			leefMap = inboundConnections
+		}
+	}
+
 	for key, value := range temp {
-		switch key {
-		// break is implicit in golang
-		case "local_ip":
-			msg["src"] = value
-		case "remote_ip":
-			msg["dst"] = value
-		case "protocol":
-			msg["proto"] = value
-		case "local_port":
-			msg["srcPort"] = value
-		case "remote_port":
-			msg["dstPort"] = value
+		if newKey, ok := leefMap[key]; ok {
+			msg[newKey] = value
 		}
 	}
 }
@@ -144,7 +156,6 @@ func Encode(msg map[string]interface{}) (string, error) {
 			}
 		}
 	}
-
 
 	//
 	// For netconns we want to map remote and local ports to QRadar normalized fields
