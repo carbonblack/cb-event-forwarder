@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/deepcopy"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -132,8 +131,6 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 					msg["process_guid"] = processGuid
 					msg["segment_id"] = fmt.Sprintf("%v", segment)
 					hasProcessGUID = true
-				} else {
-					log.Printf("wtf? %v", value)
 				}
 			}
 		}
