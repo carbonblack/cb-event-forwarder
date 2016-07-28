@@ -230,5 +230,10 @@ func Encode(msg map[string]interface{}) (string, error) {
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
 
+	// override "procstart" with "process" as this is what the LEEF decoder in QRadar is expecting
+	if messageType == "ingress.event.procstart" {
+		messageType = "ingress.event.process"
+	}
+
 	return fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "\t")), nil
 }
