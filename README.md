@@ -13,8 +13,8 @@ configuration file for the connector is stored in `/etc/cb/integrations/event-fo
 
 ## Support
 
-The pre-built RPM is supported via our [User eXchange (Jive)](https://community.bit9.com/groups/developer-relations) 
-and via email to dev-support@bit9.com.  
+The pre-built RPM is supported via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
+and via email to dev-support@carbonblack.com.  
 
 ## Raw Sensor Events 
 
