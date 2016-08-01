@@ -195,6 +195,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		// TODO: not happy about reaching in to the "config" object for this
 		if config.CbServerURL != "" {
 			outmsg["link_process"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, processGuid)
+			outmsg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, cbMessage.Env.Endpoint.GetSensorId())
 		}
 	}
 

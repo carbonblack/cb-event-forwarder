@@ -1,8 +1,8 @@
-# Carbon Black Event Forwarder
+# Cb Response Event Forwarder
 
 ## Overview
 
-Carbon Black Event Forwarder is a standalone service that will listen on the Carbon Black enterprise bus and export
+The Cb Response Event Forwarder is a standalone service that will listen on the Cb Response enterprise bus and export
 events (both watchlist/feed hits as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
@@ -26,10 +26,10 @@ bus.
 ## Quickstart Guide
 
 The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
-It can be installed on the same machine as the Carbon Black server, or another machine. 
+It can be installed on the same machine as the Cb Response server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), or are forwarding events from a Carbon Black cluster, then installing it on a separate machine is recommended. 
-Otherwise, it is acceptable to install the cb-event-forwarder on the Carbon Black server itself.
+modifications), or are forwarding events from a Cb Response cluster, then installing it on a separate machine is recommended. 
+Otherwise, it is acceptable to install the cb-event-forwarder on the Cb Response server itself.
 
 ### Installation
 
@@ -49,17 +49,17 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
 
 ### Configure the cb-event-forwarder
 
-1. If installing on a machine *other than* the Carbon Black server, copy the RabbitMQ username and password into the 
+1. If installing on a machine *other than* the Cb Response server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
-file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Carbon Black server can be reached.
-If the cb-event-forwarder is forwarding events from a Carbon Black cluster, the `cb_server_hostname` should be set
-to the hostname or IP address of the Carbon Black master node.
+file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Cb Response server can be reached.
+If the cb-event-forwarder is forwarding events from a Cb Response cluster, the `cb_server_hostname` should be set
+to the hostname or IP address of the Cb Response master node.
    
 2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
-### Configure Carbon Black
+### Configure Cb Response
 
 By default, Cb publishes the `feed.*` and `watchlist.*` events over the bus (see the [Events documentation](EVENTS.md)
 for more information). 
@@ -71,10 +71,10 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 
-Carbon Black needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
+Cb Response needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
 `service cb-enterprise restart`. 
 
-If you are configuring the cb-event-forwarder on a Carbon Black cluster, the `DatastoreBroadcastEventTypes` and/or
+If you are configuring the cb-event-forwarder on a Cb Response cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
 must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster restarted using
 the `/usr/share/cb/cbcluster restart` command.
@@ -90,15 +90,15 @@ Once the service is installed, it is configured to start automatically on system
 
 ## Splunk
 
-The Carbon Black event forwarder can be used to export Carbon Black events in a way easily configured for Splunk.  You'll
-need to install and configure the Splunk TA to consume the Carbon Black event data.   It is recommended that the event
+The Cb Response event forwarder can be used to export Cb Response events in a way easily configured for Splunk.  You'll
+need to install and configure the Splunk TA to consume the Cb Response event data.   It is recommended that the event
 bridge use a file based output with Splunk universal forwarder configured to monitor the file.   
 
 More information about configuring the Splunk TA can be found [here](http://docs.splunk.com/Documentation/AddOns/latest/Bit9CarbonBlack/About)
 
 ## QRadar
 
-The Carbon Black event forwarder can forward Carbon Black events in the LEEF format to QRadar. To forward Carbon Black
+The Cb Response event forwarder can forward Cb Response events in the LEEF format to QRadar. To forward Cb Response
 events to a QRadar server:
 
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
