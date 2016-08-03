@@ -28,6 +28,7 @@ rpminstall:
 test:
 	rm -rf tests/gold_output
 	rm -rf tests/go_output
+	rm -rf tests/leef_output
 	mkdir tests/gold_output
 	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
 	go test
