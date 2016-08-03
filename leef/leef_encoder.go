@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -176,37 +176,30 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 	sort.Strings(keyNames)
 	for _, key := range keyNames {
+
 		var val string
 
+		// remove all invalid values from the output
+		if !reflect.ValueOf(msg[key]).IsValid() {
+			continue
+		}
+
 		switch reflect.ValueOf(msg[key]).Type().Kind() {
-		case reflect.Uint:
-			val = strconv.FormatUint(uint64(msg[key].(uint)), 10)
-		case reflect.Uint8:
-			val = strconv.FormatUint(uint64(msg[key].(uint8)), 10)
-		case reflect.Uint16:
-			val = strconv.FormatUint(uint64(msg[key].(uint16)), 10)
-		case reflect.Uint32:
-			val = strconv.FormatUint(uint64(msg[key].(uint32)), 10)
-		case reflect.Uint64:
-			val = strconv.FormatUint(msg[key].(uint64), 10)
 
-		case reflect.Int:
-			val = strconv.FormatInt(int64(msg[key].(int)), 10)
-		case reflect.Int8:
-			val = strconv.FormatInt(int64(msg[key].(int8)), 10)
-		case reflect.Int16:
-			val = strconv.FormatInt(int64(msg[key].(int16)), 10)
-		case reflect.Int32:
-			val = strconv.FormatInt(int64(msg[key].(int32)), 10)
-		case reflect.Int64:
-			val = strconv.FormatInt(msg[key].(int64), 10)
-
-		case reflect.Float32:
-			val = strconv.FormatFloat(float64(msg[key].(float32)), 'f', -1, 32)
-		case reflect.Float64:
-			val = strconv.FormatFloat(msg[key].(float64), 'f', -1, 64)
+		case reflect.Map:
+		case reflect.Array:
+		case reflect.Slice:
+			// if the value is a map, array or slice, then format as JSON
+			t, err := json.Marshal(msg[key])
+			if err != nil {
+				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+				continue
+			}
+			val = string(t)
 
 		case reflect.String:
+			// make sure to format strings with the appropriate character escaping
+			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
 			if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
 				val = msg[key].(json.Number).String()
 			} else {
@@ -220,13 +213,10 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = formatter.Replace(val)
 
 		default:
-			t, err := json.Marshal(msg[key])
-			if err != nil {
-				// TODO: error condition
-				continue
-			}
-			val = string(t)
+			// simplify and use fmt.Sprintf to format the output
+			val = fmt.Sprintf("%v", msg[key])
 		}
+
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
 

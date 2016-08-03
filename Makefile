@@ -32,7 +32,7 @@ test:
 	mkdir tests/gold_output
 	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
 	go test
-	(cd tests/scripts && python compare_outputs.py > ../output.txt)
+	python tests/scripts/compare_outputs.py tests/gold_output tests/go_output > tests/output.txt
 
 clean:
 	rm -f cb-event-forwarder
