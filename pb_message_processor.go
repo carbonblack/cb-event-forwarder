@@ -40,13 +40,45 @@ func (inmsg *ConvertedCbMessage) getStringByGuid(guid int64) (string, error) {
 	return "", errors.New(fmt.Sprintf("Could not find string for id %d", guid))
 }
 
+func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) ([]map[string]interface{}, error) {
+	msgs := make([]map[string]interface{}, 0, 1)
+	var err error
+
+	err = nil
+	totalLength := len(body)
+	i := 0
+
+	for bytesRead := 0; bytesRead < totalLength; {
+		length := (int)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+
+		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead+4:bytesRead+length+4], headers)
+		if err != nil {
+			log.Printf("Error in ProcessProtobufMessage for event index %d: %s", i, err.Error())
+		} else if msg != nil {
+			msgs = append(msgs, msg)
+		}
+
+		bytesRead += length + 4
+		i += 1
+	}
+
+	return msgs, err
+}
+
 func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]map[string]interface{}, error) {
 	msgs := make([]map[string]interface{}, 0, 1)
 
 	bodyReader := bytes.NewReader(body)
 	zipReader, err := zip.NewReader(bodyReader, (int64)(len(body)))
+
+	// there are code revisions where the message body is not actually a zip file but rather a series of
+	// <length><protobuf> messages. Fixed as of 5.2.0 P4.
+
+	// assume that if zip.NewReader can't recognize the message body as a proper zip file, the body is
+	// a protobuf bundle instead.
+
 	if err != nil {
-		return nil, err
+		return ProcessProtobufBundle(routingKey, body, headers)
 	}
 
 	for i, zf := range zipReader.File {
@@ -63,19 +95,11 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 			continue
 		}
 
-		totalLength := len(unzippedFile)
-		for bytesRead := 0; bytesRead < totalLength; {
-			length := (int)(binary.LittleEndian.Uint32(unzippedFile[bytesRead : bytesRead+4]))
-
-			msg, err := ProcessProtobufMessage(routingKey, unzippedFile[bytesRead+4:bytesRead+length+4], headers)
-			if err != nil {
-				log.Printf("Error in ProcessProtobufMessage for event file id %d: %s", i, err.Error())
-			} else if msg != nil {
-				msgs = append(msgs, msg)
-			}
-
-			bytesRead += length + 4
+		newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
+		if err != nil {
+			log.Printf("Errors above from processing zip filename %s", zf.Name)
 		}
+		msgs = append(msgs, newMsgs...)
 	}
 	return msgs, nil
 }
