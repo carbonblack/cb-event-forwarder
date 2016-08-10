@@ -64,8 +64,9 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 	return
 }
 
-func fixupMessage(msg map[string]interface{}) {
+func fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
+
 	for key, value := range msg {
 		switch {
 		case key == "highlights":
@@ -75,47 +76,10 @@ func fixupMessage(msg map[string]interface{}) {
 			delete(msg, "event_timestamp")
 		case key == "hostname":
 			msg["computer_name"] = value
-		case key == "process_id":
-			msg["process_guid"] = value
-
-			if uniqueId, ok := value.(string); ok {
-				processGuid, segment, _ := parseFullGuid(uniqueId)
-
-				// TODO: not happy about reaching in to the "config" object for this
-				// Only add the link to the process if we haven't already done so. The "unique_id" (below)
-				// should always take precedence since it will include a segment number whereas the "process_id"
-				// does not.
-				_, ok := msg["link_process"]
-				if config.CbServerURL != "" && !ok {
-					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
-				}
-			}
-		case key == "unique_id":
-			if uniqueId, ok := value.(string); ok {
-				processGuid, segment, _ := parseFullGuid(uniqueId)
-				msg["process_guid"] = processGuid
-				// TODO: not happy about reaching in to the "config" object for this
-				if config.CbServerURL != "" {
-					msg["link_process"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
-				}
-			}
-		case key == "parent_unique_id":
-			if uniqueId, ok := value.(string); ok {
-				processGuid, segment, _ := parseFullGuid(uniqueId)
-				msg["parent_guid"] = processGuid
-				// TODO: not happy about reaching in to the "config" object for this
-				if config.CbServerURL != "" {
-					msg["link_parent"] = fmt.Sprintf("%s#analyze/%s/%d", config.CbServerURL, processGuid, segment)
-				}
-			}
 		case key == "md5" || key == "parent_md5" || key == "process_md5":
 			if md5, ok := value.(string); ok {
 				if len(md5) == 32 {
 					msg[key] = strings.ToUpper(md5)
-					if config.CbServerURL != "" {
-						keyName := "link_" + key
-						msg[keyName] = fmt.Sprintf("%s#/binary/%s", config.CbServerURL, msg[key])
-					}
 				}
 			}
 		case key == "ioc_type":
@@ -153,42 +117,113 @@ func fixupMessage(msg map[string]interface{}) {
 					msg[key] = GetIPv4AddressSigned(int32(ipaddr))
 				}
 			}
-		case key == "sensor_id":
-			if value, ok := value.(json.Number); ok {
-				hostId, err := strconv.ParseInt(value.String(), 10, 32)
-				if err == nil && config.CbServerURL != "" {
-					// TODO: not happy about reaching in to the "config" object for this
-					msg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, hostId)
+		}
+	}
+
+	hasProcessGUID := false
+
+	// figure out the canonical process guid associated with this message
+	if !strings.HasPrefix(messageType, "alert.") {
+		if value, ok := msg["unique_id"]; ok {
+			if uniqueId, ok := value.(string); ok {
+				processGuid, segment, err := parseFullGuid(uniqueId)
+				if err == nil {
+					msg["process_guid"] = processGuid
+					msg["segment_id"] = fmt.Sprintf("%v", segment)
+					hasProcessGUID = true
 				}
 			}
+		}
+	}
+
+	// fall back to process_id in the message
+	if !hasProcessGUID {
+		if value, ok := msg["process_id"]; ok {
+			if uniqueId, ok := value.(string); ok {
+				processGuid, segment, _ := parseFullGuid(uniqueId)
+				msg["process_guid"] = processGuid
+				msg["segment_id"] = fmt.Sprintf("%v", segment)
+				hasProcessGUID = true
+			}
+		}
+	}
+
+	// also deal with parent links
+	if value, ok := msg["parent_unique_id"]; ok {
+		if uniqueId, ok := value.(string); ok {
+			processGuid, segment, _ := parseFullGuid(uniqueId)
+			msg["parent_guid"] = processGuid
+			msg["parent_segment_id"] = fmt.Sprintf("%v", segment)
+		}
+	}
+
+	// add deep links back into the Cb web UI if configured
+	if config.CbServerURL != "" {
+		AddLinksToMessage(messageType, config.CbServerURL, msg)
+	}
+}
+
+func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}) {
+	// add sensor links when applicable
+	if value, ok := msg["sensor_id"]; ok {
+		if value, ok := value.(json.Number); ok {
+			hostId, err := strconv.ParseInt(value.String(), 10, 32)
+			if err == nil {
+				msg["link_sensor"] = fmt.Sprintf("%s#/host/%d", serverURL, hostId)
+			}
+		}
+	}
+
+	// add binary links when applicable
+	for _, key := range [...]string{"md5", "parent_md5", "process_md5"} {
+		if value, ok := msg[key]; ok {
+			if md5, ok := value.(string); ok {
+				if len(md5) == 32 {
+					keyName := "link_" + key
+					msg[keyName] = fmt.Sprintf("%s#/binary/%s", serverURL, msg[key])
+				}
+			}
+		}
+	}
+
+	// add process links
+	if processGuid, ok := msg["process_guid"]; ok {
+		if segmentId, ok := msg["segment_id"]; ok {
+			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGuid, segmentId)
+		} else {
+			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGuid, 1)
+		}
+	}
+
+	if parentGuid, ok := msg["parent_guid"]; ok {
+		if segmentId, ok := msg["parent_segment_id"]; ok {
+			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGuid, segmentId)
+		} else {
+			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGuid, 1)
 		}
 	}
 }
 
 func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
 	msg["type"] = routingKey
-	fixupMessage(msg)
+	fixupMessage(routingKey, msg)
 
 	msgs := make([]map[string]interface{}, 0, 1)
 
-	// explode watchlist hit messages
-	if strings.HasPrefix(routingKey, "watchlist.hit.") || strings.HasPrefix(routingKey, "watchlist.storage.hit.") {
-		if val, ok := msg["docs"]; ok {
-			subdocs := deepcopy.Iface(val).([]interface{})
-			delete(msg, "docs")
+	// explode watchlist/feed hit messages that include a "docs" array
+	if val, ok := msg["docs"]; ok {
+		subdocs := deepcopy.Iface(val).([]interface{})
+		delete(msg, "docs")
 
-			for _, submsg := range subdocs {
-				submsg := submsg.(map[string]interface{})
-				newMsg := deepcopy.Iface(msg).(map[string]interface{})
-				newSlice := make([]map[string]interface{}, 0, 1)
-				newDoc := deepcopy.Iface(submsg).(map[string]interface{})
-				fixupMessage(newDoc)
-				newSlice = append(newSlice, newDoc)
-				newMsg["docs"] = newSlice
-				msgs = append(msgs, newMsg)
-			}
-		} else {
-			// TODO: error condition: "docs" doesn't exist
+		for _, submsg := range subdocs {
+			submsg := submsg.(map[string]interface{})
+			newMsg := deepcopy.Iface(msg).(map[string]interface{})
+			newSlice := make([]map[string]interface{}, 0, 1)
+			newDoc := deepcopy.Iface(submsg).(map[string]interface{})
+			fixupMessage(routingKey, newDoc)
+			newSlice = append(newSlice, newDoc)
+			newMsg["docs"] = newSlice
+			msgs = append(msgs, newMsg)
 		}
 	} else {
 		msgs = append(msgs, msg)

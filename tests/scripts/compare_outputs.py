@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 
 
 def compare_json(gold_root, other_root, path, errors):
@@ -57,10 +58,10 @@ def compare_files(fn, gold, other):
 
 def process_dirs(gold_output, go_output):
     for format in ["json", "protobuf"]:
-        if not os.path.isdir(os.path.join(gold_output, format)):
+        if not os.path.isdir(os.path.join(os.getcwd(), gold_output, format)):
             raise Exception("FATAL: no %s directory found in python output directory" % format)
 
-        if not os.path.isdir(os.path.join(go_output, format)):
+        if not os.path.isdir(os.path.join(os.getcwd(), go_output, format)):
             raise Exception("FATAL: no %s directory found in go output directory" % format)
 
         format_path = os.path.join(gold_output, format)
@@ -89,4 +90,4 @@ def process_dirs(gold_output, go_output):
 
 
 if __name__ == '__main__':
-    process_dirs("../gold_output", "../go_output")
+    process_dirs(sys.argv[1], sys.argv[2])
