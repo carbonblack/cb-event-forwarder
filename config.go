@@ -100,16 +100,13 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 		eventList []string
 	}{
 		{"events_watchlist", []string{
-			"watchlist.hit.#",
-			"watchlist.storage.hit.#",
+			"watchlist.#",
 		}},
 		{"events_feed", []string{
-			"feed.ingress.hit.#",
-			"feed.storage.hit.#",
-			"feed.query.hit.#",
+			"feed.#",
 		}},
 		{"events_alert", []string{
-			"alert.watchlist.hit.#",
+			"alert.#",
 		}},
 		{"events_raw_sensor", []string{
 			"ingress.event.process",
@@ -131,7 +128,7 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 			"binaryinfo.#",
 		}},
 		{"events_binary_upload", []string{
-			"binarystore.file.added",
+			"binarystore.#",
 		}},
 	}
 

@@ -40,13 +40,45 @@ func (inmsg *ConvertedCbMessage) getStringByGuid(guid int64) (string, error) {
 	return "", errors.New(fmt.Sprintf("Could not find string for id %d", guid))
 }
 
+func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) ([]map[string]interface{}, error) {
+	msgs := make([]map[string]interface{}, 0, 1)
+	var err error
+
+	err = nil
+	totalLength := len(body)
+	i := 0
+
+	for bytesRead := 0; bytesRead < totalLength; {
+		length := (int)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+
+		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead+4:bytesRead+length+4], headers)
+		if err != nil {
+			log.Printf("Error in ProcessProtobufMessage for event index %d: %s", i, err.Error())
+		} else if msg != nil {
+			msgs = append(msgs, msg)
+		}
+
+		bytesRead += length + 4
+		i += 1
+	}
+
+	return msgs, err
+}
+
 func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]map[string]interface{}, error) {
 	msgs := make([]map[string]interface{}, 0, 1)
 
 	bodyReader := bytes.NewReader(body)
 	zipReader, err := zip.NewReader(bodyReader, (int64)(len(body)))
+
+	// there are code revisions where the message body is not actually a zip file but rather a series of
+	// <length><protobuf> messages. Fixed as of 5.2.0 P4.
+
+	// assume that if zip.NewReader can't recognize the message body as a proper zip file, the body is
+	// a protobuf bundle instead.
+
 	if err != nil {
-		return nil, err
+		return ProcessProtobufBundle(routingKey, body, headers)
 	}
 
 	for i, zf := range zipReader.File {
@@ -63,19 +95,11 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 			continue
 		}
 
-		totalLength := len(unzippedFile)
-		for bytesRead := 0; bytesRead < totalLength; {
-			length := (int)(binary.LittleEndian.Uint32(unzippedFile[bytesRead : bytesRead+4]))
-
-			msg, err := ProcessProtobufMessage(routingKey, unzippedFile[bytesRead+4:bytesRead+length+4], headers)
-			if err != nil {
-				log.Printf("Error in ProcessProtobufMessage for event file id %d: %s", i, err.Error())
-			} else if msg != nil {
-				msgs = append(msgs, msg)
-			}
-
-			bytesRead += length + 4
+		newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
+		if err != nil {
+			log.Printf("Errors above from processing zip filename %s", zf.Name)
 		}
+		msgs = append(msgs, newMsgs...)
 	}
 	return msgs, nil
 }
@@ -195,6 +219,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		// TODO: not happy about reaching in to the "config" object for this
 		if config.CbServerURL != "" {
 			outmsg["link_process"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, processGuid)
+			outmsg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, cbMessage.Env.Endpoint.GetSensorId())
 		}
 	}
 
@@ -252,6 +277,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "modload"
+	kv["type"] = "ingress.event.moduleload"
 
 	file_path, _ := message.getStringByGuid(message.OriginalMessage.Header.GetFilepathStringGuid())
 	kv["path"] = file_path
@@ -275,6 +301,7 @@ func filemodAction(a sensor_events.CbFileModMsg_CbFileModAction) string {
 
 func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "filemod"
+	kv["type"] = "ingress.event.filemod"
 
 	file_path, _ := message.getStringByGuid(message.OriginalMessage.Header.GetFilepathStringGuid())
 	kv["path"] = file_path
@@ -289,6 +316,7 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "childproc"
+	kv["type"] = "ingress.event.childproc"
 
 	kv["created"] = message.OriginalMessage.Childproc.GetCreated()
 
@@ -332,6 +360,7 @@ func regmodAction(a sensor_events.CbRegModMsg_CbRegModAction) string {
 
 func WriteRegmodMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "regmod"
+	kv["type"] = "ingress.event.regmod"
 
 	kv["path"] = GetUnicodeFromUTF8(message.OriginalMessage.Regmod.GetUtf8Regpath())
 
@@ -342,6 +371,7 @@ func WriteRegmodMessage(message *ConvertedCbMessage, kv map[string]interface{}) 
 
 func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "netconn"
+	kv["type"] = "ingress.event.netconn"
 
 	kv["domain"] = GetUnicodeFromUTF8(message.OriginalMessage.Network.GetUtf8Netpath())
 	kv["ipv4"] = GetIPv4Address(message.OriginalMessage.Network.GetIpv4Address())
@@ -372,6 +402,8 @@ func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "binary_info"
+	kv["type"] = "ingress.event.module"
+
 	kv["md5"] = strings.ToUpper(string(message.OriginalMessage.Module.GetMd5()))
 	kv["size"] = message.OriginalMessage.Module.GetOriginalModuleLength()
 
@@ -428,6 +460,8 @@ func emetMitigationType(a *sensor_events.CbEmetMitigationAction) string {
 
 func WriteEmetEvent(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "emet_mitigation"
+	kv["type"] = "ingress.event.emetmitigation"
+
 	kv["log_message"] = message.OriginalMessage.Emet.GetActionText()
 	kv["mitigation"] = emetMitigationType(message.OriginalMessage.Emet.GetAction())
 	kv["blocked"] = message.OriginalMessage.Emet.GetBlocked()
@@ -454,6 +488,7 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 
 	if message.OriginalMessage.Crossproc.Open != nil {
 		open := message.OriginalMessage.Crossproc.Open
+		kv["type"] = "ingress.event.crossprocopen"
 
 		kv["cross_process_type"] = crossprocOpenType(open.GetType())
 
@@ -467,6 +502,7 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), pid32, int64(open.GetTargetProcCreateTime()))
 	} else {
 		rt := message.OriginalMessage.Crossproc.Remotethread
+		kv["type"] = "ingress.event.remotethread"
 
 		kv["cross_process_type"] = "remote_thread"
 		kv["target_pid"] = rt.GetRemoteProcPid()
@@ -501,6 +537,8 @@ func tamperAlertType(a sensor_events.CbTamperAlertMsg_CbTamperAlertType) string 
 
 func WriteTamperAlertMsg(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "tamper"
+	kv["type"] = "ingress.event.tamper"
+
 	kv["tamper_type"] = tamperAlertType((message.OriginalMessage.TamperAlert.GetType()))
 }
 
@@ -537,6 +575,7 @@ func blockedProcessResult(a sensor_events.CbProcessBlockedMsg_BlockResult) strin
 func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface{}) {
 	block := message.OriginalMessage.Blocked
 	kv["event_type"] = "blocked_process"
+	kv["type"] = "ingress.event.processblock"
 
 	if block.GetBlockedType() == sensor_events.CbProcessBlockedMsg_MD5Hash {
 		kv["blocked_reason"] = "Md5Hash"
@@ -577,6 +616,7 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 
 func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "blocked_netconn"
+	// TODO: need ingress event type for netconn blocks
 
 	blocked := message.OriginalMessage.NetconnBlocked
 

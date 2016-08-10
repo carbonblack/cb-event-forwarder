@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.2.1
-VERSION := 3.2.1
+GIT_VERSION := 3.2.3
+VERSION := 3.2.3
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
 cb-event-forwarder: build
@@ -28,10 +28,11 @@ rpminstall:
 test:
 	rm -rf tests/gold_output
 	rm -rf tests/go_output
+	rm -rf tests/leef_output
 	mkdir tests/gold_output
 	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
 	go test
-	(cd tests/scripts && python compare_outputs.py > ../output.txt)
+	python tests/scripts/compare_outputs.py tests/gold_output tests/go_output > tests/output.txt
 
 clean:
 	rm -f cb-event-forwarder

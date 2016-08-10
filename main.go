@@ -128,33 +128,37 @@ func reportError(d string, errmsg string, err error) {
 	log.Printf("%s when processing %s: %s", errmsg, d, err)
 }
 
-func processMessage(body []byte, routingKey, contentType string, headers amqp.Table) {
+func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Add(1)
 	//	status.EventCounter.Incr(1)
 
-	msgs := make([]map[string]interface{}, 0, 1)
 	var err error
+	var msgs []map[string]interface{}
 
 	//
 	// Process message based on ContentType
 	//
 	if contentType == "application/zip" {
-		tempMsgs, err := ProcessRawZipBundle(routingKey, body, headers)
+		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
 			reportError(routingKey, "Could not process raw zip bundle", err)
 			return
 		}
-
-		msgs = append(msgs, tempMsgs...)
-
 	} else if contentType == "application/protobuf" {
-		msg, err := ProcessProtobufMessage(routingKey, body, headers)
-		if err != nil {
-			reportError(routingKey, "Could not process body", err)
-			return
-		}
+		// if we receive a protobuf through the raw sensor exchange, it's actually a protobuf "bundle" and not a
+		// single protobuf
+		if exchangeName == "api.rawsensordata" {
+			msgs, err = ProcessProtobufBundle(routingKey, body, headers)
+		} else {
+			msg, err := ProcessProtobufMessage(routingKey, body, headers)
+			if err != nil {
+				reportError(routingKey, "Could not process body", err)
+				return
+			}
 
-		msgs = append(msgs, msg)
+			msgs = make([]map[string]interface{}, 0, 1)
+			msgs = append(msgs, msg)
+		}
 	} else if contentType == "application/json" {
 		// Note for simplicity in implementation we are assuming the JSON output by the Cb server
 		// is an object (that is, the top level JSON object is a dictionary and not an array or scalar value)
@@ -219,7 +223,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers)
+		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers, delivery.Exchange)
 	}
 
 	log.Printf("Worker exiting")
