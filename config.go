@@ -16,6 +16,7 @@ const (
 	TCPOutputType
 	UDPOutputType
 	SyslogOutputType
+	HttpOutputType
 )
 
 const (
@@ -260,6 +261,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "udp":
 			parameterKey = "udpout"
 			config.OutputType = UDPOutputType
+		case "http":
+			parameterKey = "httpout"
+			config.OutputType = HttpOutputType
 		case "s3":
 			parameterKey = "s3out"
 			config.OutputType = S3OutputType
