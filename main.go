@@ -306,8 +306,8 @@ func startOutputs() error {
 		outputHandler = &SyslogOutput{}
 	case HttpOutputType:
 		var f HttpFormatter
-		f = &SensorAlertsFormatter{ }
-		outputHandler = &HttpOutput{ formatter : f }
+		f = &SensorAlertsFormatter{}
+		outputHandler = &HttpOutput{formatter: f}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}
