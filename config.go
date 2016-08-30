@@ -16,6 +16,7 @@ const (
 	TCPOutputType
 	UDPOutputType
 	SyslogOutputType
+	HttpOutputType
 )
 
 const (
@@ -49,6 +50,8 @@ type Configuration struct {
 	SyslogTLSClientCert *string
 	SyslogTLSCACert     *string
 	SyslogTLSVerify     bool
+
+	HttpAuthorizationToken *string
 }
 
 type ConfigurationError struct {
@@ -282,6 +285,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			objectPrefix, ok := input.Get("s3", "object_prefix")
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
+			}
+		case "http":
+			parameterKey = "httpout"
+			config.OutputType = HttpOutputType
+
+			token, ok := input.Get("bridge", "authorization_token")
+			if ok {
+				config.HttpAuthorizationToken = &token
 			}
 		case "syslog":
 			parameterKey = "syslogout"

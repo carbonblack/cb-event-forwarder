@@ -304,6 +304,10 @@ func startOutputs() error {
 		outputHandler = &S3Output{}
 	case SyslogOutputType:
 		outputHandler = &SyslogOutput{}
+	case HttpOutputType:
+		var f HttpFormatter
+		f = &SensorAlertsFormatter{}
+		outputHandler = &HttpOutput{formatter: f}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}
@@ -333,6 +337,8 @@ func startOutputs() error {
 			ret["type"] = "net"
 		case S3OutputType:
 			ret["type"] = "s3"
+		case HttpOutputType:
+			ret["type"] = "http"
 		}
 
 		return ret
