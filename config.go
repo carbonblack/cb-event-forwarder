@@ -54,11 +54,11 @@ type Configuration struct {
 
 	// HTTP-specific configuration
 	HttpAuthorizationToken *string
-	HttpPostTemplate *template.Template
-	HttpContentType *string
+	HttpPostTemplate       *template.Template
+	HttpContentType        *string
 
 	// configuration options common to bundled outputs (S3, HTTP)
-	SendEmptyFiles bool
+	SendEmptyFiles      bool
 	CommaSeparateEvents bool
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-"errors"
 )
 
 type UploadStatus struct {
@@ -19,7 +19,7 @@ type UploadStatus struct {
 }
 
 type BundledOutput struct {
-	behavior          BundleBehavior
+	behavior BundleBehavior
 
 	tempFileDirectory string
 	tempFileOutput    *FileOutput
@@ -40,11 +40,11 @@ type BundledOutput struct {
 }
 
 type BundleStatistics struct {
-	FilesUploaded int64       `json:"files_uploaded"`
-	UploadErrors  int64       `json:"upload_errors"`
-	LastErrorTime time.Time   `json:"last_error_time"`
-	LastErrorText string      `json:"last_error_text"`
-	HoldingArea   interface{} `json:"file_holding_area"`
+	FilesUploaded     int64       `json:"files_uploaded"`
+	UploadErrors      int64       `json:"upload_errors"`
+	LastErrorTime     time.Time   `json:"last_error_time"`
+	LastErrorText     string      `json:"last_error_text"`
+	HoldingArea       interface{} `json:"file_holding_area"`
 	StorageStatistics interface{} `json:"storage_statistics"`
 }
 

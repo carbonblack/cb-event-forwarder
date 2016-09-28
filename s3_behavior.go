@@ -15,13 +15,13 @@ import (
 type S3Behavior struct {
 	bucketName string
 	out        *s3.S3
-	region            string
+	region     string
 }
 
 type S3Statistics struct {
-	BucketName    string      `json:"bucket_name"`
-	Region        string      `json:"region"`
-	EncryptionEnabled bool `json:"encryption_enabled"`
+	BucketName        string `json:"bucket_name"`
+	Region            string `json:"region"`
+	EncryptionEnabled bool   `json:"encryption_enabled"`
 }
 
 func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {

@@ -1,35 +1,35 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"time"
-	"text/template"
-	"bufio"
-	"bytes"
-	"io"
-	"io/ioutil"
-	"fmt"
 	"strings"
+	"text/template"
+	"time"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
 type HttpBehavior struct {
-	dest              string
-	eventSentAt       time.Time
-	headers           map[string]string
-	ssl               bool
+	dest        string
+	eventSentAt time.Time
+	headers     map[string]string
+	ssl         bool
 
 	lastHttpError     string
 	lastHttpErrorTime time.Time
 	httpErrors        int64
 
-	client            *http.Client
+	client *http.Client
 
-	httpPostTemplate  *template.Template
-	firstEventTemplate *template.Template
+	httpPostTemplate        *template.Template
+	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
 }
 
@@ -96,15 +96,15 @@ func (this *HttpBehavior) Key() string {
 type UploadData struct {
 	FileName string
 	FileSize int64
-	Events chan UploadEvent
+	Events   chan UploadEvent
 }
 
 type UploadEvent struct {
-	EventSeq int64
+	EventSeq  int64
 	EventText string
 }
 
-func (this *HttpBehavior) readFromFile(fp *os.File, events chan <- UploadEvent) {
+func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 	defer close(events)
 
 	scanner := bufio.NewScanner(fp)
