@@ -301,13 +301,11 @@ func startOutputs() error {
 		outputHandler = &NetOutput{}
 		parameters = "udp:" + parameters
 	case S3OutputType:
-		outputHandler = &S3Output{}
+		outputHandler = &BundledOutput{behavior: &S3Behavior{}}
 	case SyslogOutputType:
 		outputHandler = &SyslogOutput{}
 	case HttpOutputType:
-		var f HttpFormatter
-		f = &SensorAlertsFormatter{}
-		outputHandler = &HttpOutput{formatter: f}
+		outputHandler = &BundledOutput{behavior: &HttpBehavior{}}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}

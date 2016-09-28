@@ -1,12 +1,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
 	"os"
 	"os/signal"
@@ -15,6 +10,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+"errors"
 )
 
 type UploadStatus struct {
@@ -22,13 +18,11 @@ type UploadStatus struct {
 	result   error
 }
 
-type S3Output struct {
-	bucketName string
-	out        *s3.S3
+type BundledOutput struct {
+	behavior          BundleBehavior
 
 	tempFileDirectory string
 	tempFileOutput    *FileOutput
-	region            string
 	rollOverDuration  time.Duration
 	currentFileSize   int64
 	maxFileSize       int64
@@ -45,56 +39,47 @@ type S3Output struct {
 	sync.RWMutex
 }
 
-type S3Statistics struct {
-	BucketName    string      `json:"bucket_name"`
-	Region        string      `json:"region"`
+type BundleStatistics struct {
 	FilesUploaded int64       `json:"files_uploaded"`
 	UploadErrors  int64       `json:"upload_errors"`
 	LastErrorTime time.Time   `json:"last_error_time"`
 	LastErrorText string      `json:"last_error_text"`
 	HoldingArea   interface{} `json:"file_holding_area"`
-
-	EncryptionEnabled bool `json:"encryption_enabled"`
+	StorageStatistics interface{} `json:"storage_statistics"`
 }
 
-func (o *S3Output) uploadOne(fileName string) {
-	var baseName string
+// add an interface type to specify the initialization, upload, and statistics behavior for the specific output
 
+type BundleBehavior interface {
+	UploadBehavior(fileName string, fp *os.File) UploadStatus
+	Initialize(connString string) error
+	Statistics() interface{}
+	Key() string
+	String() string
+}
+
+func (o *BundledOutput) uploadOne(fileName string) {
 	fp, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
 	}
 
-	//
-	// If a prefix is specified then concatenate it with the Base of the filename
-	//
-	if config.S3ObjectPrefix != nil {
-		s := []string{*config.S3ObjectPrefix, filepath.Base(fileName)}
-		baseName = strings.Join(s, "/")
-	} else {
-		baseName = filepath.Base(fileName)
-	}
+	uploadStatus := o.behavior.UploadBehavior(fileName, fp)
+	err = uploadStatus.result
 
-	_, err = o.out.PutObject(&s3.PutObjectInput{
-		Body:                 fp,
-		Bucket:               &o.bucketName,
-		Key:                  &baseName,
-		ServerSideEncryption: config.S3ServerSideEncryption,
-		ACL:                  config.S3ACLPolicy,
-	})
+	o.fileResultChan <- uploadStatus
 	fp.Close()
 
 	if err == nil {
+		// only remove the old file if there was no error
 		err = os.Remove(fileName)
 		if err != nil {
 			log.Printf("error removing %s: %s", fileName, err.Error())
 		}
 	}
-
-	o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
 }
 
-func (o *S3Output) queueStragglers() {
+func (o *BundledOutput) queueStragglers() {
 	fp, err := os.Open(o.tempFileDirectory)
 	if err != nil {
 		return
@@ -121,7 +106,7 @@ func (o *S3Output) queueStragglers() {
 	}
 }
 
-func (o *S3Output) Initialize(connString string) error {
+func (o *BundledOutput) Initialize(connString string) error {
 	o.fileResultChan = make(chan UploadStatus)
 	o.filesToUpload = make([]string, 0)
 
@@ -131,57 +116,30 @@ func (o *S3Output) Initialize(connString string) error {
 	// roll over duration defaults to five minutes
 	o.rollOverDuration = 5 * time.Minute
 
-	// bucketName can either be a single value (just the bucket name itself, defaulting to "/var/cb/data/event-forwarder" as the
-	// temporary file directory and "us-east-1" for the AWS region), or:
-	//
-	// if bucketName contains two colons, treat it as follows: (temp-file-directory):(region):(bucket-name)
-
-	parts := strings.SplitN(connString, ":", 3)
-	if len(parts) == 1 {
-		o.bucketName = connString
-		o.tempFileDirectory = "/var/cb/data/event-forwarder"
-		o.region = "us-east-1"
-	} else if len(parts) == 3 {
-		o.bucketName = parts[2]
+	parts := strings.SplitN(connString, ":", 2)
+	if len(parts) > 1 {
 		o.tempFileDirectory = parts[0]
-		o.region = parts[1]
 	} else {
-		return errors.New(fmt.Sprintf("Invalid connection string: '%s' should look like (temp-file-directory):(region):(bucket-name)",
-			connString))
+		// temporary file location
+		o.tempFileDirectory = "/var/cb/data/event-forwarder"
 	}
 
-	awsConfig := &aws.Config{Region: aws.String(o.region)}
-	if config.S3CredentialProfileName != nil {
-		parts = strings.SplitN(*config.S3CredentialProfileName, ":", 2)
-		credentialProvider := credentials.SharedCredentialsProvider{}
-
-		if len(parts) == 2 {
-			credentialProvider.Filename = parts[0]
-			credentialProvider.Profile = parts[1]
-		} else {
-			credentialProvider.Profile = parts[0]
-		}
-
-		creds := credentials.NewCredentials(&credentialProvider)
-		awsConfig.Credentials = creds
+	if o.behavior == nil {
+		return errors.New("BundledOutput Initialize called without a behavior")
 	}
 
-	sess := session.New(awsConfig)
-	o.out = s3.New(sess)
-
-	_, err := o.out.HeadBucket(&s3.HeadBucketInput{Bucket: &o.bucketName})
-	if err != nil {
-		return errors.New(fmt.Sprintf("Could not open bucket %s: %s", o.bucketName, err))
+	if err := o.behavior.Initialize(connString); err != nil {
+		return err
 	}
 
-	if err = os.MkdirAll(o.tempFileDirectory, 0700); err != nil {
+	if err := os.MkdirAll(o.tempFileDirectory, 0700); err != nil {
 		return err
 	}
 
 	currentPath := filepath.Join(o.tempFileDirectory, "event-forwarder")
 
 	o.tempFileOutput = &FileOutput{}
-	err = o.tempFileOutput.Initialize(currentPath)
+	err := o.tempFileOutput.Initialize(currentPath)
 
 	// find files in the output directory that haven't been uploaded yet and add them to the list
 	// we ignore any errors that may occur during this process
@@ -190,7 +148,7 @@ func (o *S3Output) Initialize(connString string) error {
 	return err
 }
 
-func (o *S3Output) output(message string) error {
+func (o *BundledOutput) output(message string) error {
 	if o.currentFileSize+int64(len(message)) > o.maxFileSize {
 		err := o.rollOver()
 		if err != nil {
@@ -203,7 +161,7 @@ func (o *S3Output) output(message string) error {
 	return o.tempFileOutput.output(message)
 }
 
-func (o *S3Output) rollOver() error {
+func (o *BundledOutput) rollOver() error {
 	fn, err := o.tempFileOutput.rollOverFile("2006-01-02T15:04:05")
 
 	if err != nil {
@@ -216,32 +174,26 @@ func (o *S3Output) rollOver() error {
 	return nil
 }
 
-func (o *S3Output) Key() string {
-	return fmt.Sprintf("%s:%s:%s", o.region, o.bucketName, o.tempFileDirectory)
+func (o *BundledOutput) Key() string {
+	return fmt.Sprintf("%s:%s", o.behavior.Key(), o.tempFileDirectory)
 }
 
-func (o *S3Output) String() string {
-	return "AWS S3 " + o.Key()
+func (o *BundledOutput) String() string {
+	return fmt.Sprintf("%s %s", o.behavior.String(), o.Key())
 }
 
-func (o *S3Output) Statistics() interface{} {
-	return S3Statistics{
-		BucketName:        o.bucketName,
-		Region:            o.region,
+func (o *BundledOutput) Statistics() interface{} {
+	return BundleStatistics{
 		FilesUploaded:     o.successfulUploads,
 		LastErrorTime:     o.lastUploadErrorTime,
 		LastErrorText:     o.lastUploadError,
 		UploadErrors:      o.uploadErrors,
 		HoldingArea:       o.tempFileOutput.Statistics(),
-		EncryptionEnabled: config.S3ServerSideEncryption != nil,
+		StorageStatistics: o.behavior.Statistics(),
 	}
 }
 
-func (o *S3Output) Go(messages <-chan string, errorChan chan<- error) error {
-	if o.out == nil || o.tempFileOutput == nil {
-		return errors.New("S3 output not initialized")
-	}
-
+func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
@@ -285,12 +237,12 @@ func (o *S3Output) Go(messages <-chan string, errorChan chan<- error) error {
 					log.Printf("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
 				} else {
 					o.successfulUploads += 1
-					log.Printf("Successfully uploaded file %s to %s.", fileResult.fileName, o.bucketName)
+					log.Printf("Successfully uploaded file %s.", fileResult.fileName)
 				}
 
 			case <-hup:
 				// flush to S3 immediately
-				log.Println("Received SIGHUP, sending data to S3 immediately.")
+				log.Printf("Received SIGHUP, sending data to %s immediately.", o.behavior.String())
 				if err := o.rollOver(); err != nil {
 					errorChan <- err
 					return

@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"text/template"
 )
 
 const (
@@ -51,7 +52,14 @@ type Configuration struct {
 	SyslogTLSCACert     *string
 	SyslogTLSVerify     bool
 
+	// HTTP-specific configuration
 	HttpAuthorizationToken *string
+	HttpPostTemplate *template.Template
+	HttpContentType *string
+
+	// configuration options common to bundled outputs (S3, HTTP)
+	SendEmptyFiles bool
+	CommaSeparateEvents bool
 }
 
 type ConfigurationError struct {
@@ -247,6 +255,20 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.SendEmptyFiles = true
+	sendEmptyFiles, ok := input.Get("bridge", "send_empty_files")
+	if ok {
+		if sendEmptyFiles == "false" {
+			config.SendEmptyFiles = false
+		}
+	}
+
+	if config.OutputFormat == JSONOutputFormat {
+		config.CommaSeparateEvents = true
+	} else {
+		config.CommaSeparateEvents = false
+	}
+
 	outType, ok := input.Get("bridge", "output_type")
 	var parameterKey string
 	if ok {
@@ -290,9 +312,30 @@ func ParseConfig(fn string) (Configuration, error) {
 			parameterKey = "httpout"
 			config.OutputType = HttpOutputType
 
-			token, ok := input.Get("bridge", "authorization_token")
+			token, ok := input.Get("http", "authorization_token")
 			if ok {
 				config.HttpAuthorizationToken = &token
+			}
+
+			postTemplate, ok := input.Get("http", "http_post_template")
+			config.HttpPostTemplate = template.New("http_post_output")
+			if ok {
+				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+			} else {
+				if config.OutputFormat == JSONOutputFormat {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+				} else {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+				}
+			}
+
+			contentType, ok := input.Get("http", "content_type")
+			if ok {
+				config.HttpContentType = &contentType
+			} else {
+				jsonString := "application/json"
+				config.HttpContentType = &jsonString
 			}
 		case "syslog":
 			parameterKey = "syslogout"
@@ -328,7 +371,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)
 		if !ok {
-			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s", val, outType))
+			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
+				parameterKey, outType))
 		} else {
 			config.OutputParameters = val
 		}
