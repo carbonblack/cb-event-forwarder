@@ -194,14 +194,8 @@ func (this *HttpBehavior) UploadBehavior(fileName string, fp *os.File) UploadSta
 		log.Printf("%s\n", errorData)
 
 		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("Error: HTTP request failed with status: %d", resp.StatusCode)}
+			result: fmt.Errorf("HTTP request failed: Error code %s", errorData)}
 	}
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
-
 	this.eventSentAt = time.Now()
 	return UploadStatus{fileName: fileName, result: err}
 }
