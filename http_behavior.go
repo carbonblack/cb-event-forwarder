@@ -146,7 +146,7 @@ func (this *HttpBehavior) readFromFile(fp *os.File, events chan <- UploadEvent) 
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *HttpBehavior) UploadBehavior(fileName string, fp *os.File) UploadStatus {
+func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 

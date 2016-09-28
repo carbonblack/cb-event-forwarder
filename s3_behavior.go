@@ -24,7 +24,7 @@ type S3Statistics struct {
 	EncryptionEnabled bool `json:"encryption_enabled"`
 }
 
-func (o *S3Behavior) UploadBehavior(fileName string, fp *os.File) UploadStatus {
+func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var baseName string
 
 	//

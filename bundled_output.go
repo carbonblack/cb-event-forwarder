@@ -48,10 +48,10 @@ type BundleStatistics struct {
 	StorageStatistics interface{} `json:"storage_statistics"`
 }
 
-// add an interface type to specify the initialization, upload, and statistics behavior for the specific output
-
+// Each bundled output plugin must implement the BundleBehavior interface, specifying how to upload files,
+// initialize itself, and report back statistics.
 type BundleBehavior interface {
-	UploadBehavior(fileName string, fp *os.File) UploadStatus
+	Upload(fileName string, fp *os.File) UploadStatus
 	Initialize(connString string) error
 	Statistics() interface{}
 	Key() string
@@ -64,7 +64,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
 	}
 
-	uploadStatus := o.behavior.UploadBehavior(fileName, fp)
+	uploadStatus := o.behavior.Upload(fileName, fp)
 	err = uploadStatus.result
 
 	o.fileResultChan <- uploadStatus
