@@ -348,7 +348,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
+	} else {
+		errs.addErrorString("No output type specified")
+		return config, errs
 	}
+
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)
 		if !ok {
@@ -376,24 +380,23 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	// TLS configuration
-	// TODO: we need to also look at "syslog" section and remove the SyslogTLS.. variables from the Configuration struct
-	clientKeyFilename, ok := input.Get("tls", "client_key")
+	clientKeyFilename, ok := input.Get(outType, "client_key")
 	if ok {
 		config.SyslogTLSClientKey = &clientKeyFilename
 	}
 
-	clientCertFilename, ok := input.Get("tls", "client_cert")
+	clientCertFilename, ok := input.Get(outType, "client_cert")
 	if ok {
 		config.SyslogTLSClientCert = &clientCertFilename
 	}
 
-	caCertFilename, ok := input.Get("tls", "ca_cert")
+	caCertFilename, ok := input.Get(outType, "ca_cert")
 	if ok {
 		config.SyslogTLSCACert = &caCertFilename
 	}
 
 	config.SyslogTLSVerify = true
-	tlsVerify, ok := input.Get("tls", "tls_verify")
+	tlsVerify, ok := input.Get(outType, "tls_verify")
 	if ok {
 		if tlsVerify == "false" {
 			config.SyslogTLSVerify = false
@@ -414,7 +417,7 @@ func configureTLS() *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if config.SyslogTLSVerify == false {
-		log.Printf("Disabling TLS verification for remote output")
+		log.Println("Disabling TLS verification for remote output")
 		tlsConfig.InsecureSkipVerify = true
 	}
 

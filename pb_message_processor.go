@@ -11,6 +11,8 @@ import (
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"log"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -122,13 +124,35 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 	return msgs, nil
 }
 
+func parseIntFromHeader(src interface{}) (int64, error) {
+	if src == nil {
+		return 0, errors.New("Nil value")
+	}
+
+	val := reflect.ValueOf(src)
+	switch val.Kind() {
+	case reflect.Int64:
+		return src.(int64), nil
+	case reflect.Int32:
+		return int64(src.(int32)), nil
+	case reflect.Int16:
+		return int64(src.(int16)), nil
+	case reflect.String:
+		return strconv.ParseInt(src.(string), 10, 64)
+	default:
+		return 0, errors.New("unknown type")
+	}
+}
+
+// TODO: This is currently called for *every* protobuf message in a bundle. This should be called only once *per bundle*.
 func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, error) {
 	endpointMsg := &sensor_events.CbEndpointEnvironmentMsg{}
 	if hostId, ok := headers["hostId"]; ok {
-		if val, ok := hostId.(int64); ok {
-			endpointMsg.HostId = &val
+		val, err := parseIntFromHeader(hostId)
+		if err != nil {
+			return nil, err
 		} else {
-			return nil, errors.New("Could not parse hostId from message header")
+			endpointMsg.HostId = &val
 		}
 	}
 	if hostName, ok := headers["sensorHostName"]; ok {
@@ -139,7 +163,8 @@ func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, erro
 		}
 	}
 	if sensorId, ok := headers["sensorId"]; ok {
-		if val, ok := sensorId.(int64); !ok {
+		val, err := parseIntFromHeader(sensorId)
+		if err != nil {
 			return nil, errors.New("Could not parse sensorId from message header")
 		} else {
 			sensorId := int32(val)
@@ -149,10 +174,12 @@ func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, erro
 
 	serverMsg := &sensor_events.CbServerEnvironmentMsg{}
 	if nodeId, ok := headers["nodeId"]; ok {
-		if val, ok := nodeId.(int32); !ok {
-			return nil, errors.New("Could not parse nodeId from message header")
+		val, err := parseIntFromHeader(nodeId)
+		if err != nil {
+			return nil, err
 		} else {
-			serverMsg.NodeId = &val
+			nodeId := int32(val)
+			serverMsg.NodeId = &nodeId
 		}
 	}
 
