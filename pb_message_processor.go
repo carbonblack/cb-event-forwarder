@@ -45,21 +45,34 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 	var err error
 
 	err = nil
-	totalLength := len(body)
+	totalLength := uint64(len(body))
 	i := 0
 
-	for bytesRead := 0; bytesRead < totalLength; {
-		length := (int)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+	var bytesRead uint64
+	for bytesRead = 0; bytesRead+4 < totalLength; {
+		messageLength := (uint64)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+		bytesRead += 4
 
-		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead+4:bytesRead+length+4], headers)
+		if messageLength+bytesRead > totalLength {
+			err = fmt.Errorf("Error in ProcessProtobufBundle for event index %d: Length %d is insane. Giving up.",
+				messageLength)
+			break
+		}
+
+		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
 		if err != nil {
-			log.Printf("Error in ProcessProtobufMessage for event index %d: %s", i, err.Error())
+			log.Printf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
 		} else if msg != nil {
 			msgs = append(msgs, msg)
 		}
 
-		bytesRead += length + 4
+		bytesRead += messageLength
 		i += 1
+	}
+
+	if err != nil && bytesRead < totalLength {
+		err = fmt.Errorf("Error in ProcessProtobufBundle: messages did not fill entire bundle; %d bytes left",
+			totalLength-bytesRead)
 	}
 
 	return msgs, err

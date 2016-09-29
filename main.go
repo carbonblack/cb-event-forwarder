@@ -13,6 +13,8 @@ import (
 	"net"
 	"net/http"
 	//	_ "net/http/pprof"          // DEBUG: profiling support
+	"encoding/hex"
+	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/paulbellamy/ratecounter"
 	"os"
 	"runtime"
@@ -128,6 +130,24 @@ func reportError(d string, errmsg string, err error) {
 	log.Printf("%s when processing %s: %s", errmsg, d, err)
 }
 
+func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
+	log.Printf("Error while processing message through routing key %s:", routingKey)
+
+	var env *sensor_events.CbEnvironmentMsg
+	env, err := createEnvMessage(headers)
+	if err != nil {
+		log.Printf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
+			env.Endpoint.GetSensorHostName())
+	}
+
+	if len(body) < 4 {
+		log.Printf("  Message is less than 4 bytes long; malformed")
+	} else {
+		log.Printf("  First four bytes of message were:")
+		log.Printf("  %s", hex.Dump(body[0:4]))
+	}
+}
+
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Add(1)
 	//	status.EventCounter.Incr(1)
@@ -141,6 +161,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	if contentType == "application/zip" {
 		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
+			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
 			return
 		}
@@ -152,6 +173,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		} else {
 			msg, err := ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
+				reportBundleDetails(routingKey, body, headers)
 				reportError(routingKey, "Could not process body", err)
 				return
 			} else if msg != nil {
