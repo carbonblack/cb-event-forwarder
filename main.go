@@ -154,10 +154,10 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 			if err != nil {
 				reportError(routingKey, "Could not process body", err)
 				return
+			} else if msg != nil {
+				msgs = make([]map[string]interface{}, 0, 1)
+				msgs = append(msgs, msg)
 			}
-
-			msgs = make([]map[string]interface{}, 0, 1)
-			msgs = append(msgs, msg)
 		}
 	} else if contentType == "application/json" {
 		// Note for simplicity in implementation we are assuming the JSON output by the Cb server
