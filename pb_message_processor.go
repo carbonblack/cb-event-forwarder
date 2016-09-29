@@ -48,6 +48,11 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 	totalLength := uint64(len(body))
 	i := 0
 
+	if totalLength < 4 {
+		err = fmt.Errorf("Error in ProcessProtobufBundle: body length is < 4 bytes. Giving up.")
+		return msgs, err
+	}
+
 	var bytesRead uint64
 	for bytesRead = 0; bytesRead+4 < totalLength; {
 		messageLength := (uint64)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
@@ -100,9 +105,9 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 			log.Printf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
 			continue
 		}
-		defer src.Close()
 
 		unzippedFile, err := ioutil.ReadAll(src)
+		src.Close()
 		if err != nil {
 			log.Printf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
 			continue
