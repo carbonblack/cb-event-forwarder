@@ -2,20 +2,18 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"expvar"
 	"flag"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/leef"
+	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/streadway/amqp"
 	"log"
 	"net"
 	"net/http"
-	//	_ "net/http/pprof"          // DEBUG: profiling support
-	"encoding/hex"
-	"github.com/carbonblack/cb-event-forwarder/sensor_events"
-	"github.com/paulbellamy/ratecounter"
 	"os"
 	"runtime"
 	"sync"
@@ -44,9 +42,6 @@ type Status struct {
 	LastConnectError string
 	ErrorTime        time.Time
 
-	EventCounter         *ratecounter.RateCounter
-	OutputBytesPerSecond *ratecounter.RateCounter
-
 	sync.RWMutex
 }
 
@@ -65,14 +60,6 @@ func init() {
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
-
-	status.EventCounter = ratecounter.NewRateCounter(5 * time.Second)
-	status.OutputBytesPerSecond = ratecounter.NewRateCounter(5 * time.Second)
-
-	expvar.Publish("input_events_per_second",
-		expvar.Func(func() interface{} { return float64(status.EventCounter.Rate()) / 5.0 }))
-	expvar.Publish("output_bytes_per_second",
-		expvar.Func(func() interface{} { return float64(status.OutputBytesPerSecond.Rate()) / 5.0 }))
 
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
@@ -141,16 +128,15 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	}
 
 	if len(body) < 4 {
-		log.Printf("  Message is less than 4 bytes long; malformed")
+		log.Println("  Message is less than 4 bytes long; malformed")
 	} else {
-		log.Printf("  First four bytes of message were:")
+		log.Println("  First four bytes of message were:")
 		log.Printf("  %s", hex.Dump(body[0:4]))
 	}
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Add(1)
-	//	status.EventCounter.Incr(1)
 
 	var err error
 	var msgs []map[string]interface{}
@@ -232,7 +218,6 @@ func outputMessage(msg map[string]interface{}) error {
 
 	if len(outmsg) > 0 && err == nil {
 		status.OutputEventCount.Add(1)
-		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
 		results <- string(outmsg)
 	} else {
 		return err
@@ -248,7 +233,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers, delivery.Exchange)
 	}
 
-	log.Printf("Worker exiting")
+	log.Println("Worker exiting")
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {

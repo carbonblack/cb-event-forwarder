@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -198,11 +197,11 @@ func (o *BundledOutput) rollOver() error {
 }
 
 func (o *BundledOutput) Key() string {
-	return fmt.Sprintf("%s:%s", o.behavior.Key(), o.tempFileDirectory)
+	return o.behavior.Key()
 }
 
 func (o *BundledOutput) String() string {
-	return fmt.Sprintf("%s %s", o.behavior.String(), o.Key())
+	return o.behavior.String()
 }
 
 func (o *BundledOutput) Statistics() interface{} {
@@ -265,7 +264,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 				} else {
 					o.successfulUploads += 1
 					o.lastSuccessfulUpload = time.Now()
-					log.Printf("Successfully uploaded file %s.", fileResult.fileName)
+					log.Printf("Successfully uploaded file %s to %s.", fileResult.fileName, o.behavior.String())
 				}
 
 			case <-hup:
