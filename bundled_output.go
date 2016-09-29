@@ -49,6 +49,9 @@ type BundleStatistics struct {
 	LastSuccessfulUpload time.Time   `json:"last_successful_upload"`
 	HoldingArea          interface{} `json:"file_holding_area"`
 	StorageStatistics    interface{} `json:"storage_statistics"`
+	BundleSendTimeout    int64       `json:"bundle_send_timeout"`
+	BundleSizeMax        int64       `json:"bundle_size_max"`
+	UploadEmptyFiles     bool        `json:"upload_empty_files"`
 }
 
 // Each bundled output plugin must implement the BundleBehavior interface, specifying how to upload files,
@@ -65,12 +68,23 @@ func (o *BundledOutput) uploadOne(fileName string) {
 	fp, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
+		return
 	}
 
-	uploadStatus := o.behavior.Upload(fileName, fp)
-	err = uploadStatus.result
+	fileInfo, err := fp.Stat()
+	if err != nil {
+		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
+		fp.Close()
+		return
+	} else {
+		if fileInfo.Size() > 0 || config.UploadEmptyFiles {
+			// only upload if the file size is greater than zero
+			uploadStatus := o.behavior.Upload(fileName, fp)
+			err = uploadStatus.result
+			o.fileResultChan <- uploadStatus
+		}
+	}
 
-	o.fileResultChan <- uploadStatus
 	fp.Close()
 
 	if err == nil {
@@ -114,14 +128,15 @@ func (o *BundledOutput) Initialize(connString string) error {
 	o.filesToUpload = make([]string, 0)
 
 	// maximum file size before we trigger an upload is ~10MB.
-	o.maxFileSize = 10 * 1024 * 1024
+	o.maxFileSize = config.BundleSizeMax
 
 	// roll over duration defaults to five minutes
-	o.rollOverDuration = 5 * time.Minute
+	o.rollOverDuration = config.BundleSendTimeout
 
 	parts := strings.SplitN(connString, ":", 2)
-	if len(parts) > 1 {
+	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
 		o.tempFileDirectory = parts[0]
+		connString = parts[1]
 	} else {
 		// temporary file location
 		o.tempFileDirectory = "/var/cb/data/event-forwarder"
@@ -165,6 +180,11 @@ func (o *BundledOutput) output(message string) error {
 }
 
 func (o *BundledOutput) rollOver() error {
+	if o.currentFileSize == 0 && !config.UploadEmptyFiles {
+		// don't upload zero length files if UploadEmptyFiles is false
+		return nil
+	}
+
 	fn, err := o.tempFileOutput.rollOverFile("2006-01-02T15:04:05")
 
 	if err != nil {
@@ -194,6 +214,9 @@ func (o *BundledOutput) Statistics() interface{} {
 		UploadErrors:         o.uploadErrors,
 		HoldingArea:          o.tempFileOutput.Statistics(),
 		StorageStatistics:    o.behavior.Statistics(),
+		BundleSendTimeout:    int64(config.BundleSendTimeout / time.Second),
+		BundleSizeMax:        config.BundleSizeMax,
+		UploadEmptyFiles:     config.UploadEmptyFiles,
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"text/template"
 )
 
@@ -37,9 +36,7 @@ func (this *HttpBehavior) Initialize(dest string) error {
 
 	this.headers = make(map[string]string)
 
-	// TODO: fix
-	parts := strings.SplitN(dest, ":", 2)
-	this.dest = parts[1]
+	this.dest = dest
 
 	/* add authorization token, if applicable */
 	if config.HttpAuthorizationToken != nil {

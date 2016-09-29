@@ -55,15 +55,15 @@ func (o *S3Behavior) Initialize(connString string) error {
 	//
 	// if bucketName contains two colons, treat it as follows: (temp-file-directory):(region):(bucket-name)
 
-	parts := strings.SplitN(connString, ":", 3)
+	parts := strings.SplitN(connString, ":", 2)
 	if len(parts) == 1 {
 		o.bucketName = connString
 		o.region = "us-east-1"
-	} else if len(parts) == 3 {
-		o.bucketName = parts[2]
-		o.region = parts[1]
+	} else if len(parts) == 2 {
+		o.bucketName = parts[1]
+		o.region = parts[0]
 	} else {
-		return errors.New(fmt.Sprintf("Invalid connection string: '%s' should look like (temp-file-directory):(region):(bucket-name)",
+		return errors.New(fmt.Sprintf("Invalid connection string: '%s' should look like (temp-file-directory):(region):bucket-name",
 			connString))
 	}
 

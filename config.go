@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const (
@@ -50,10 +51,10 @@ type Configuration struct {
 	S3ObjectPrefix          *string
 
 	// Syslog-specific configuration
-	SyslogTLSClientKey  *string
-	SyslogTLSClientCert *string
-	SyslogTLSCACert     *string
-	SyslogTLSVerify     bool
+	TLSClientKey  *string
+	TLSClientCert *string
+	TLSCACert     *string
+	TLSVerify     bool
 
 	// HTTP-specific configuration
 	HttpAuthorizationToken *string
@@ -61,8 +62,10 @@ type Configuration struct {
 	HttpContentType        *string
 
 	// configuration options common to bundled outputs (S3, HTTP)
-	SendEmptyFiles      bool
+	UploadEmptyFiles    bool
 	CommaSeparateEvents bool
+	BundleSendTimeout   time.Duration
+	BundleSizeMax       int64
 
 	TLSConfig *tls.Config
 }
@@ -260,20 +263,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	config.SendEmptyFiles = true
-	sendEmptyFiles, ok := input.Get("bridge", "send_empty_files")
-	if ok {
-		if sendEmptyFiles == "false" {
-			config.SendEmptyFiles = false
-		}
-	}
-
-	if config.OutputFormat == JSONOutputFormat {
-		config.CommaSeparateEvents = true
-	} else {
-		config.CommaSeparateEvents = false
-	}
-
 	outType, ok := input.Get("bridge", "output_type")
 	var parameterKey string
 	if ok {
@@ -382,27 +371,64 @@ func ParseConfig(fn string) (Configuration, error) {
 	// TLS configuration
 	clientKeyFilename, ok := input.Get(outType, "client_key")
 	if ok {
-		config.SyslogTLSClientKey = &clientKeyFilename
+		config.TLSClientKey = &clientKeyFilename
 	}
 
 	clientCertFilename, ok := input.Get(outType, "client_cert")
 	if ok {
-		config.SyslogTLSClientCert = &clientCertFilename
+		config.TLSClientCert = &clientCertFilename
 	}
 
 	caCertFilename, ok := input.Get(outType, "ca_cert")
 	if ok {
-		config.SyslogTLSCACert = &caCertFilename
+		config.TLSCACert = &caCertFilename
 	}
 
-	config.SyslogTLSVerify = true
+	config.TLSVerify = true
 	tlsVerify, ok := input.Get(outType, "tls_verify")
 	if ok {
 		if tlsVerify == "false" {
-			config.SyslogTLSVerify = false
+			config.TLSVerify = false
 		}
 	}
 	config.TLSConfig = configureTLS()
+
+	// Bundle configuration
+
+	// default to sending empty files to S3/HTTP POST endpoint
+	config.UploadEmptyFiles = true
+	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
+	if ok {
+		if sendEmptyFiles == "false" {
+			config.UploadEmptyFiles = false
+		}
+	}
+
+	if config.OutputFormat == JSONOutputFormat {
+		config.CommaSeparateEvents = true
+	} else {
+		config.CommaSeparateEvents = false
+	}
+
+	// default 10MB bundle size max before forcing a send
+	config.BundleSizeMax = 10 * 1024 * 1024
+	bundleSizeMax, ok := input.Get(outType, "bundle_size_max")
+	if ok {
+		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
+		if err == nil {
+			config.BundleSizeMax = bundleSizeMax
+		}
+	}
+
+	// default 5 minute send interval
+	config.BundleSendTimeout = 5 * time.Minute
+	bundleSendTimeout, ok := input.Get(outType, "bundle_send_timeout")
+	if ok {
+		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
+		if err == nil {
+			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
+		}
+	}
 
 	config.parseEventTypes(input)
 
@@ -416,25 +442,25 @@ func ParseConfig(fn string) (Configuration, error) {
 func configureTLS() *tls.Config {
 	tlsConfig := &tls.Config{}
 
-	if config.SyslogTLSVerify == false {
+	if config.TLSVerify == false {
 		log.Println("Disabling TLS verification for remote output")
 		tlsConfig.InsecureSkipVerify = true
 	}
 
-	if config.SyslogTLSClientCert != nil && config.SyslogTLSClientKey != nil && len(*config.SyslogTLSClientCert) > 0 &&
-		len(*config.SyslogTLSClientKey) > 0 {
-		log.Printf("Loading client cert/key from %s & %s", *config.SyslogTLSClientCert, *config.SyslogTLSClientKey)
-		cert, err := tls.LoadX509KeyPair(*config.SyslogTLSClientCert, *config.SyslogTLSClientKey)
+	if config.TLSClientCert != nil && config.TLSClientKey != nil && len(*config.TLSClientCert) > 0 &&
+		len(*config.TLSClientKey) > 0 {
+		log.Printf("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
+		cert, err := tls.LoadX509KeyPair(*config.TLSClientCert, *config.TLSClientKey)
 		if err != nil {
 			log.Fatal(err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if config.SyslogTLSCACert != nil && len(*config.SyslogTLSCACert) > 0 {
+	if config.TLSCACert != nil && len(*config.TLSCACert) > 0 {
 		// Load CA cert
-		log.Printf("Loading valid CAs from file %s", *config.SyslogTLSCACert)
-		caCert, err := ioutil.ReadFile(*config.SyslogTLSCACert)
+		log.Printf("Loading valid CAs from file %s", *config.TLSCACert)
+		caCert, err := ioutil.ReadFile(*config.TLSCACert)
 		if err != nil {
 			log.Fatal(err)
 		}
