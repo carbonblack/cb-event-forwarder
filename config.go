@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	_ "expvar"
 	"fmt"
 	"github.com/vaughan0/go-ini"
+	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
@@ -60,6 +63,8 @@ type Configuration struct {
 	// configuration options common to bundled outputs (S3, HTTP)
 	SendEmptyFiles      bool
 	CommaSeparateEvents bool
+
+	TLSConfig *tls.Config
 }
 
 type ConfigurationError struct {
@@ -340,30 +345,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
-
-			clientKeyFilename, ok := input.Get("syslog", "client_key")
-			if ok {
-				config.SyslogTLSClientKey = &clientKeyFilename
-			}
-
-			clientCertFilename, ok := input.Get("syslog", "client_cert")
-			if ok {
-				config.SyslogTLSClientCert = &clientCertFilename
-			}
-
-			caCertFilename, ok := input.Get("syslog", "ca_cert")
-			if ok {
-				config.SyslogTLSCACert = &caCertFilename
-			}
-
-			config.SyslogTLSVerify = true
-			tlsVerify, ok := input.Get("syslog", "tls_verify")
-			if ok {
-				if tlsVerify == "false" {
-					config.SyslogTLSVerify = false
-				}
-			}
-
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
@@ -394,6 +375,32 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	// TLS configuration
+	// TODO: we need to also look at "syslog" section and remove the SyslogTLS.. variables from the Configuration struct
+	clientKeyFilename, ok := input.Get("tls", "client_key")
+	if ok {
+		config.SyslogTLSClientKey = &clientKeyFilename
+	}
+
+	clientCertFilename, ok := input.Get("tls", "client_cert")
+	if ok {
+		config.SyslogTLSClientCert = &clientCertFilename
+	}
+
+	caCertFilename, ok := input.Get("tls", "ca_cert")
+	if ok {
+		config.SyslogTLSCACert = &caCertFilename
+	}
+
+	config.SyslogTLSVerify = true
+	tlsVerify, ok := input.Get("tls", "tls_verify")
+	if ok {
+		if tlsVerify == "false" {
+			config.SyslogTLSVerify = false
+		}
+	}
+	config.TLSConfig = configureTLS()
+
 	config.parseEventTypes(input)
 
 	if !errs.Empty {
@@ -401,4 +408,37 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		return config, nil
 	}
+}
+
+func configureTLS() *tls.Config {
+	tlsConfig := &tls.Config{}
+
+	if config.SyslogTLSVerify == false {
+		log.Printf("Disabling TLS verification for remote output")
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	if config.SyslogTLSClientCert != nil && config.SyslogTLSClientKey != nil && len(*config.SyslogTLSClientCert) > 0 &&
+		len(*config.SyslogTLSClientKey) > 0 {
+		log.Printf("Loading client cert/key from %s & %s", *config.SyslogTLSClientCert, *config.SyslogTLSClientKey)
+		cert, err := tls.LoadX509KeyPair(*config.SyslogTLSClientCert, *config.SyslogTLSClientKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	if config.SyslogTLSCACert != nil && len(*config.SyslogTLSCACert) > 0 {
+		// Load CA cert
+		log.Printf("Loading valid CAs from file %s", *config.SyslogTLSCACert)
+		caCert, err := ioutil.ReadFile(*config.SyslogTLSCACert)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tlsConfig.RootCAs = caCertPool
+	}
+
+	return tlsConfig
 }

@@ -27,11 +27,13 @@ type BundledOutput struct {
 	currentFileSize   int64
 	maxFileSize       int64
 
-	lastUploadError     string
-	lastUploadErrorTime time.Time
-	uploadErrors        int64
-	successfulUploads   int64
-	fileResultChan      chan UploadStatus
+	lastUploadError      string
+	lastUploadErrorTime  time.Time
+	lastSuccessfulUpload time.Time
+
+	uploadErrors      int64
+	successfulUploads int64
+	fileResultChan    chan UploadStatus
 
 	filesToUpload []string
 
@@ -40,12 +42,13 @@ type BundledOutput struct {
 }
 
 type BundleStatistics struct {
-	FilesUploaded     int64       `json:"files_uploaded"`
-	UploadErrors      int64       `json:"upload_errors"`
-	LastErrorTime     time.Time   `json:"last_error_time"`
-	LastErrorText     string      `json:"last_error_text"`
-	HoldingArea       interface{} `json:"file_holding_area"`
-	StorageStatistics interface{} `json:"storage_statistics"`
+	FilesUploaded        int64       `json:"files_uploaded"`
+	UploadErrors         int64       `json:"upload_errors"`
+	LastErrorTime        time.Time   `json:"last_error_time"`
+	LastErrorText        string      `json:"last_error_text"`
+	LastSuccessfulUpload time.Time   `json:"last_successful_upload"`
+	HoldingArea          interface{} `json:"file_holding_area"`
+	StorageStatistics    interface{} `json:"storage_statistics"`
 }
 
 // Each bundled output plugin must implement the BundleBehavior interface, specifying how to upload files,
@@ -184,12 +187,13 @@ func (o *BundledOutput) String() string {
 
 func (o *BundledOutput) Statistics() interface{} {
 	return BundleStatistics{
-		FilesUploaded:     o.successfulUploads,
-		LastErrorTime:     o.lastUploadErrorTime,
-		LastErrorText:     o.lastUploadError,
-		UploadErrors:      o.uploadErrors,
-		HoldingArea:       o.tempFileOutput.Statistics(),
-		StorageStatistics: o.behavior.Statistics(),
+		FilesUploaded:        o.successfulUploads,
+		LastErrorTime:        o.lastUploadErrorTime,
+		LastErrorText:        o.lastUploadError,
+		LastSuccessfulUpload: o.lastSuccessfulUpload,
+		UploadErrors:         o.uploadErrors,
+		HoldingArea:          o.tempFileOutput.Statistics(),
+		StorageStatistics:    o.behavior.Statistics(),
 	}
 }
 
@@ -237,6 +241,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					log.Printf("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
 				} else {
 					o.successfulUploads += 1
+					o.lastSuccessfulUpload = time.Now()
 					log.Printf("Successfully uploaded file %s.", fileResult.fileName)
 				}
 

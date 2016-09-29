@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,19 +11,12 @@ import (
 	"os"
 	"strings"
 	"text/template"
-	"time"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
 type HttpBehavior struct {
-	dest        string
-	eventSentAt time.Time
-	headers     map[string]string
-	ssl         bool
-
-	lastHttpError     string
-	lastHttpErrorTime time.Time
-	httpErrors        int64
+	dest    string
+	headers map[string]string
 
 	client *http.Client
 
@@ -34,11 +26,7 @@ type HttpBehavior struct {
 }
 
 type HttpStatistics struct {
-	LastSendTime  time.Time `json:"last_send_time"`
-	Destination   string    `json:"destination"`
-	HttpErrors    int64     `json:"http_errors"`
-	LastErrorTime time.Time `json:"last_error_time"`
-	LastErrorText string    `json:"last_error_text"`
+	Destination string `json:"destination"`
 }
 
 /* Construct the HttpBehavior object */
@@ -60,18 +48,11 @@ func (this *HttpBehavior) Initialize(dest string) error {
 
 	this.headers["Content-Type"] = *config.HttpContentType
 
-	/* ssl verification is enabled by default */
-	// TODO: merge this with the Syslog TLS configuration in syslog_output.go
-	if this.ssl {
-		this.client = &http.Client{}
-	} else { /* disable ssl verification */
-		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		this.client = &http.Client{Transport: transport}
+	transport := &http.Transport{
+		TLSClientConfig: config.TLSConfig,
 	}
+	this.client = &http.Client{Transport: transport}
 
-	this.eventSentAt = time.Time{}
 	return nil
 }
 
@@ -81,11 +62,7 @@ func (this *HttpBehavior) String() string {
 
 func (this *HttpBehavior) Statistics() interface{} {
 	return HttpStatistics{
-		LastSendTime:  this.eventSentAt,
-		Destination:   this.dest,
-		LastErrorTime: this.lastHttpErrorTime,
-		LastErrorText: this.lastHttpError,
-		HttpErrors:    this.httpErrors,
+		Destination: this.dest,
 	}
 }
 
@@ -187,15 +164,8 @@ func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
-		this.httpErrors += 1
-		this.lastHttpError = errorData
-		this.lastHttpErrorTime = time.Now()
-
-		log.Printf("%s\n", errorData)
-
 		return UploadStatus{fileName: fileName,
 			result: fmt.Errorf("HTTP request failed: Error code %s", errorData)}
 	}
-	this.eventSentAt = time.Now()
 	return UploadStatus{fileName: fileName, result: err}
 }

@@ -1,12 +1,9 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	syslog "github.com/RackSec/srslog"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -56,38 +53,8 @@ func (o *SyslogOutput) Initialize(netConn string) error {
 	o.protocol = connSpecification[0]
 	o.hostnamePort = connSpecification[1]
 
-	tlsConfig := &tls.Config{}
-
-	if config.SyslogTLSVerify == false {
-		log.Printf("Disabling TLS verification for syslog output at %s", netConn)
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	if config.SyslogTLSClientCert != nil && config.SyslogTLSClientKey != nil && len(*config.SyslogTLSClientCert) > 0 &&
-		len(*config.SyslogTLSClientKey) > 0 {
-		log.Printf("Loading client cert/key from %s & %s for syslog output at %s", *config.SyslogTLSClientCert,
-			*config.SyslogTLSClientKey, netConn)
-		cert, err := tls.LoadX509KeyPair(*config.SyslogTLSClientCert, *config.SyslogTLSClientKey)
-		if err != nil {
-			log.Fatal(err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	if config.SyslogTLSCACert != nil && len(*config.SyslogTLSCACert) > 0 {
-		// Load CA cert
-		log.Printf("Loading valid CAs from file %s for syslog output at %s", *config.SyslogTLSCACert, netConn)
-		caCert, err := ioutil.ReadFile(*config.SyslogTLSCACert)
-		if err != nil {
-			log.Fatal(err)
-		}
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-		tlsConfig.RootCAs = caCertPool
-	}
-
 	var err error
-	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, tlsConfig)
+	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, config.TLSConfig)
 
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error connecting to '%s': %s", netConn, err))
