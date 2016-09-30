@@ -233,7 +233,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	case cbMessage.Childproc != nil:
 		WriteChildprocMessage(inmsg, outmsg)
 	case cbMessage.Crossproc != nil:
-		WriteCrossProcMessge(inmsg, outmsg)
+		WriteCrossProcMessage(inmsg, outmsg)
 	case cbMessage.Emet != nil:
 		WriteEmetEvent(inmsg, outmsg)
 	case cbMessage.NetconnBlocked != nil:
@@ -294,6 +294,15 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 	om := message.OriginalMessage
 
+	kv["parent_path"] = om.Process.GetParentPath()
+	kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+
+	if message.OriginalMessage.Process.ParentMd5 != nil {
+		kv["parent_md5"] = GetMd5Hexdigest(om.Process.GetParentMd5())
+	}
+
+	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
+
 	if om.Env != nil && om.Env.Endpoint != nil && om.Env.Endpoint.SensorId != nil && om.Process.ParentPid != nil &&
 		om.Process.ParentCreateTime != nil {
 		kv["parent_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), om.Process.GetParentPid(),
@@ -346,6 +355,10 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	action := message.OriginalMessage.Filemod.GetAction()
 	kv["action"] = filemodAction(action)
 	kv["actiontype"] = int32(action)
+
+	fileType := message.OriginalMessage.Filemod.GetType()
+	kv["filetype"] = int32(fileType)
+	kv["filetype_name"] = strings.TrimPrefix(sensor_events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
 }
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -513,10 +526,12 @@ func crossprocOpenType(a sensor_events.CbCrossProcessOpenMsg_OpenType) string {
 	return fmt.Sprintf("unknown (%d)", int32(a))
 }
 
-func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}) {
+func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "cross_process"
 
 	om := message.OriginalMessage
+
+	kv["is_target"] = om.Crossproc.GetIsTarget()
 
 	if message.OriginalMessage.Crossproc.Open != nil {
 		open := message.OriginalMessage.Crossproc.Open
