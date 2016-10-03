@@ -405,8 +405,13 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.UploadEmptyFiles = true
 	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
 	if ok {
-		if sendEmptyFiles == "false" {
-			config.UploadEmptyFiles = false
+		boolval, err := strconv.ParseBool(sendEmptyFiles)
+		if err == nil {
+			if boolval == false {
+				config.UploadEmptyFiles = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'upload_empty_files': valid values are true, false, 1, 0. Default is 'true'")
 		}
 	}
 
