@@ -76,8 +76,8 @@ Cb Response needs to be restarted if any variables were changed in `/etc/cb/cb.c
 
 If you are configuring the cb-event-forwarder on a Cb Response cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
-must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster restarted using
-the `/usr/share/cb/cbcluster restart` command.
+must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster stopped and started using
+the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 
 ### Starting and Stopping the Service
 
