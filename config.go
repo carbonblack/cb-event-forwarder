@@ -387,11 +387,17 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.TLSVerify = true
 	tlsVerify, ok := input.Get(outType, "tls_verify")
 	if ok {
-		if tlsVerify == "false" {
-			config.TLSVerify = false
+		boolval, err := strconv.ParseBool(tlsVerify)
+		if err == nil {
+			if boolval == false {
+				config.TLSVerify = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
 		}
 	}
-	config.TLSConfig = configureTLS()
+
+	config.TLSConfig = configureTLS(config)
 
 	// Bundle configuration
 
@@ -439,7 +445,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 }
 
-func configureTLS() *tls.Config {
+func configureTLS(config Configuration) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if config.TLSVerify == false {
