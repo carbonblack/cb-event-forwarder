@@ -359,6 +359,10 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	fileType := message.OriginalMessage.Filemod.GetType()
 	kv["filetype"] = int32(fileType)
 	kv["filetype_name"] = strings.TrimPrefix(sensor_events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
+
+	if message.OriginalMessage.Filemod.Md5Hash != nil {
+		kv["file_md5"] = message.OriginalMessage.Filemod.GetMd5Hash()
+	}
 }
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
