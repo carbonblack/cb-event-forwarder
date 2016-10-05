@@ -361,7 +361,7 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["filetype_name"] = strings.TrimPrefix(sensor_events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
 
 	if message.OriginalMessage.Filemod.Md5Hash != nil {
-		kv["file_md5"] = message.OriginalMessage.Filemod.GetMd5Hash()
+		kv["file_md5"] = GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
 	}
 }
 
