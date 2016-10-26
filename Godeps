@@ -5,3 +5,4 @@ github.com/paulbellamy/ratecounter
 github.com/streadway/amqp
 github.com/vaughan0/go-ini
 github.com/Shopify/sarama
+gopkg.in/redis.v5

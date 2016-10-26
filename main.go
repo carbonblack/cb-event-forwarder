@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"github.com/pborman/uuid"
 )
 
 var (
@@ -53,6 +54,7 @@ var status Status
 var (
 	results       chan string
 	output_errors chan error
+	audit_logs    chan map[string]interface{}
 )
 
 /*
@@ -97,6 +99,7 @@ func init() {
 
 	results = make(chan string, 100)
 	output_errors = make(chan error)
+	audit_logs = make(chan map[string]interface{}, 100)
 
 	status.StartTime = time.Now()
 }
@@ -194,6 +197,8 @@ func outputMessage(msg map[string]interface{}) error {
 	// Marshal result into the correct output format
 	//
 	msg["cb_server"] = config.ServerName
+	event_uuid := uuid.NewRandom()
+	msg["event_guid"] = fmt.Sprintf("%s|%s|%s", config.ServerName, msg["process_guid"], event_uuid.String())
 
 	var outmsg string
 
@@ -212,6 +217,7 @@ func outputMessage(msg map[string]interface{}) error {
 		status.OutputEventCount.Add(1)
 		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
 		results <- string(outmsg)
+		audit_logs <- msg
 	} else {
 		return err
 	}
@@ -364,8 +370,7 @@ func main() {
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-	//configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
-	configLocation := "/Users/crothe/Code/go_work/src/github.com/carbonblack/cb-event-forwarder/conf/cb-event-forwarder.conf"
+	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	log.Printf("configLocation: %s", configLocation)
 
 	if flag.NArg() > 0 {
@@ -388,6 +393,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not get IP addresses")
 	}
+
+	auditLogger := NewAuditLogger(audit_logs)
+	auditLogger.run()
 
 	log.Printf("cb-event-forwarder version %s starting", version)
 

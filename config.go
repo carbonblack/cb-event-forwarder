@@ -55,6 +55,11 @@ type Configuration struct {
 	KafkaBrokers        *string
 	KafkaTopicSuffix    *string
 	// TODO: May want some more options for batch size, etc.
+
+	// Audit redis configuration
+	AuditRedisHost      	  string
+	AuditRedisDatabaseNumber  int
+	AuditPipelineSize         int
 }
 
 type ConfigurationError struct {
@@ -331,6 +336,32 @@ func ParseConfig(fn string) (Configuration, error) {
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
 	}
+
+	val, ok = input.Get("audit", "redis_host")
+	log.Println("HOST: ", val)
+	if ok {
+		log.Println("HOST: ", val)
+		config.AuditRedisHost = val
+	} else {
+		log.Panic("NOT OK")
+	}
+
+	val, ok = input.Get("audit", "redis_database_number")
+	if ok {
+		db_number, err := strconv.Atoi(val)
+		if err == nil {
+			config.AuditRedisDatabaseNumber = db_number
+		}
+	}
+
+	val, ok = input.Get("audit", "pipeline_size")
+	if ok {
+		pipeline_size, err := strconv.Atoi(val)
+		if err == nil {
+			config.AuditPipelineSize = pipeline_size
+		}
+	}
+
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)
 		if !ok {
