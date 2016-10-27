@@ -6,6 +6,7 @@ import (
 	"time"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 type AuditLogger struct {
@@ -50,6 +51,7 @@ func (a *AuditLogger) run() {
 					pipeline.HSet(event_guid, "raw_event", event_string)
 
 					pipeline.ZAddNX("events_to_audit", redis.Z{float64(time.Now().Unix()), event_guid})
+					pipeline.Expire(event_guid, 3600*time.Second)
 					events_pipelined++
 				}
 
