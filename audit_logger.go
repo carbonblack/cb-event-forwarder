@@ -6,7 +6,6 @@ import (
 	"time"
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/client"
 )
 
 type AuditLogger struct {
