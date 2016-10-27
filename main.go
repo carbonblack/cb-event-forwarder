@@ -23,7 +23,7 @@ import (
 
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
-	debug              = flag.Bool("debug", false, "Enable debugging mode")
+	debug = flag.Bool("debug", false, "Enable debugging mode")
 )
 
 var version = "NOT FOR RELEASE"
@@ -32,16 +32,16 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount  *expvar.Int
-	OutputEventCount *expvar.Int
-	ErrorCount       *expvar.Int
+	InputEventCount      *expvar.Int
+	OutputEventCount     *expvar.Int
+	ErrorCount           *expvar.Int
 
-	IsConnected     bool
-	LastConnectTime time.Time
-	StartTime       time.Time
+	IsConnected          bool
+	LastConnectTime      time.Time
+	StartTime            time.Time
 
-	LastConnectError string
-	ErrorTime        time.Time
+	LastConnectError     string
+	ErrorTime            time.Time
 
 	EventCounter         *ratecounter.RateCounter
 	OutputBytesPerSecond *ratecounter.RateCounter
@@ -70,9 +70,13 @@ func init() {
 	status.OutputBytesPerSecond = ratecounter.NewRateCounter(5 * time.Second)
 
 	expvar.Publish("input_events_per_second",
-		expvar.Func(func() interface{} { return float64(status.EventCounter.Rate()) / 5.0 }))
+		expvar.Func(func() interface{} {
+			return float64(status.EventCounter.Rate()) / 5.0
+		}))
 	expvar.Publish("output_bytes_per_second",
-		expvar.Func(func() interface{} { return float64(status.OutputBytesPerSecond.Rate()) / 5.0 }))
+		expvar.Func(func() interface{} {
+			return float64(status.OutputBytesPerSecond.Rate()) / 5.0
+		}))
 
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
@@ -115,7 +119,7 @@ type Consumer struct {
 
 type OutputHandler interface {
 	Initialize(string) error
-	Go(messages <-chan string, errorChan chan<- error) error
+	Go(messages <-chan string, errorChan chan <- error) error
 	String() string
 	Statistics() interface{}
 	Key() string
@@ -217,7 +221,9 @@ func outputMessage(msg map[string]interface{}) error {
 		status.OutputEventCount.Add(1)
 		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
 		results <- string(outmsg)
-		audit_logs <- msg
+		if config.AuditingEnabled == true {
+			audit_logs <- msg
+		}
 	} else {
 		return err
 	}
@@ -263,7 +269,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 		case output_error := <-output_errors:
 			log.Printf("ERROR during output: %s", output_error.Error())
 
-			// hack to exit if the error happens while we are writing to a file
+		// hack to exit if the error happens while we are writing to a file
 			if config.OutputType == FileOutputType {
 				log.Println("File output error; exiting immediately.")
 				c.Shutdown()
@@ -370,7 +376,8 @@ func main() {
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	//configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	configLocation := "/Users/crothe/Code/go_work/src/github.com/carbonblack/cb-event-forwarder/conf/cb-event-forwarder.conf"
 	log.Printf("configLocation: %s", configLocation)
 
 	if flag.NArg() > 0 {
@@ -394,8 +401,10 @@ func main() {
 		log.Fatal("Could not get IP addresses")
 	}
 
-	auditLogger := NewAuditLogger(audit_logs)
-	auditLogger.run()
+	if config.AuditingEnabled == true {
+		auditLogger := NewAuditLogger(audit_logs)
+		auditLogger.run()
+	}
 
 	log.Printf("cb-event-forwarder version %s starting", version)
 
@@ -407,7 +416,9 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
-	expvar.Publish("debug", expvar.Func(func() interface{} { return *debug }))
+	expvar.Publish("debug", expvar.Func(func() interface{} {
+		return *debug
+	}))
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
