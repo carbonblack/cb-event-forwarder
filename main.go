@@ -220,10 +220,12 @@ func outputMessage(msg map[string]interface{}) error {
 	if len(outmsg) > 0 && err == nil {
 		status.OutputEventCount.Add(1)
 		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
-		results <- string(outmsg)
 		if config.AuditingEnabled == true {
+			msg["audit"] = true
 			audit_logs <- msg
 		}
+		results <- string(outmsg)
+
 	} else {
 		return err
 	}
