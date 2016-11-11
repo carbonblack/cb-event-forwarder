@@ -33,6 +33,10 @@ type Configuration struct {
 	AMQPUsername         string
 	AMQPPassword         string
 	AMQPPort             int
+	AMQPTLSEnabled       bool
+	AMQPTLSClientKey     string
+	AMQPTLSClientCert    string
+	AMQPTLSCACert        string
 	OutputParameters     string
 	EventTypes           []string
 	HTTPServerPort       int
@@ -222,7 +226,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "rabbit_mq_port")
 	if ok {
 		port, err := strconv.Atoi(val)
-		if err != nil {
+		if err == nil {
 			config.AMQPPort = port
 		}
 	}
@@ -232,6 +236,31 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			errs.addError(err)
 		}
+	}
+
+	val, ok = input.Get("bridge", "rabbit_mq_use_tls")
+	if ok {
+		if ok {
+			b, err := strconv.ParseBool(val)
+			if err == nil {
+				config.AMQPTLSEnabled = b
+			}
+		}
+	}
+
+	clientKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
+	if ok {
+		config.AMQPTLSClientKey = clientKeyFilename
+	}
+
+	clientCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
+	if ok {
+		config.AMQPTLSClientCert = clientCertFilename
+	}
+
+	caCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
+	if ok {
+		config.AMQPTLSCACert = caCertFilename
 	}
 
 	val, ok = input.Get("bridge", "cb_server_hostname")

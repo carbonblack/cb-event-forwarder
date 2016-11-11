@@ -500,7 +500,7 @@ func main() {
 
 	for i := 0; i < numConsumers; i++ {
 		go func(consumerNumber int) {
-			log.Printf("Starting AMQP loop %d", consumerNumber)
+			log.Printf("Starting AMQP loop %d to %s", consumerNumber, config.AMQPURL())
 
 			for {
 				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
