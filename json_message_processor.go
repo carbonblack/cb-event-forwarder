@@ -7,9 +7,12 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/deepcopy"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
 func parseFullGuid(v string) (string, int, error) {
 	var segmentNumber int64
@@ -204,8 +207,16 @@ func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}
 	}
 }
 
+func fixupMessageType(routingKey string) string {
+	if feedParserRegex.MatchString(routingKey) {
+		return fmt.Sprintf("feed.%s", feedParserRegex.FindStringSubmatch(routingKey)[2])
+	} else {
+		return routingKey
+	}
+}
+
 func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
-	msg["type"] = routingKey
+	msg["type"] = fixupMessageType(routingKey)
 	fixupMessage(routingKey, msg)
 
 	msgs := make([]map[string]interface{}, 0, 1)
