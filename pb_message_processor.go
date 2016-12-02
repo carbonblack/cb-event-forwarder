@@ -273,6 +273,10 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Process.Username != nil {
 		kv["username"] = message.OriginalMessage.Process.GetUsername()
 	}
+
+	if message.OriginalMessage.Process.Uid != nil {
+		kv["uid"] = message.OriginalMessage.Process.GetUid()
+	}
 }
 
 func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
