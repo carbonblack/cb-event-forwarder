@@ -68,6 +68,11 @@ type Configuration struct {
 	BundleSizeMax       int64
 
 	TLSConfig *tls.Config
+
+	// optional post processing of feed hits to retrieve titles
+	PerformFeedPostprocessing bool
+	CbAPIToken                string
+	CbAPIVerifySSL            bool
 }
 
 type ConfigurationError struct {
@@ -438,6 +443,28 @@ func ParseConfig(fn string) (Configuration, error) {
 		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
 		if err == nil {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
+		}
+	}
+
+	val, ok = input.Get("bridge", "api_verify_ssl")
+	if ok {
+		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
+		if err != nil {
+			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
+	val, ok = input.Get("bridge", "api_token")
+	if ok {
+		config.CbAPIToken = val
+		config.PerformFeedPostprocessing = true
+	}
+
+	if config.PerformFeedPostprocessing {
+		apiVersion, err := GetCbVersion()
+		if err != nil {
+			errs.addError(err)
+		} else {
+			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
 		}
 	}
 
