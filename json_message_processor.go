@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/deepcopy"
+	"log"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -241,4 +242,25 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 	}
 
 	return msgs, nil
+}
+
+func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
+	if val, ok := msg["type"]; ok {
+		messageType := val.(string)
+
+		if strings.HasPrefix(messageType, "feed.") {
+			feedId, feedIdPresent := msg["feed_id"]
+			reportId, reportIdPresent := msg["report_id"]
+			if feedIdPresent && reportIdPresent {
+				// TODO: error handling around casting these back to int, string.
+				reportTitle, err := GetReportTitle(feedId.(int), reportId.(string))
+				if err == nil {
+					msg["report_title"] = reportTitle
+					log.Printf("report title for id %d:%s == %s", feedId.(int), reportId.(string), reportTitle)
+				}
+			}
+		}
+	}
+
+	return msg
 }

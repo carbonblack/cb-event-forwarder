@@ -188,9 +188,16 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
-		err = outputMessage(msg)
-		if err != nil {
-			reportError(string(body), "Error marshaling message", err)
+		if config.PerformFeedPostprocessing {
+			go func(msg map[string]interface{}) {
+				outputMsg := PostprocessJSONMessage(msg)
+				outputMessage(outputMsg)
+			}(msg)
+		} else {
+			err = outputMessage(msg)
+			if err != nil {
+				reportError(string(body), "Error marshaling message", err)
+			}
 		}
 	}
 }

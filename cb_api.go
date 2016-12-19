@@ -82,7 +82,7 @@ func GetCbVersion() (version string, err error) {
 	return
 }
 
-func GetReportTitle(ServerUrl string, ApiToken string, SslVerify bool, FeedId int, ReportId string) (string, error) {
+func GetReportTitle(FeedId int, ReportId string) (string, error) {
 	threatReport := ThreatReport{}
 
 	body, err := GetCb(fmt.Sprintf("/api/v1/feed/%d/report/%s", FeedId, ReportId))
