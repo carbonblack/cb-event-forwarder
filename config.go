@@ -459,15 +459,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.PerformFeedPostprocessing = true
 	}
 
-	if config.PerformFeedPostprocessing {
-		apiVersion, err := GetCbVersion()
-		if err != nil {
-			errs.addError(err)
-		} else {
-			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
-		}
-	}
-
 	config.parseEventTypes(input)
 
 	if !errs.Empty {

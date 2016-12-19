@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -52,7 +53,7 @@ func GetCb(route string) ([]byte, error) {
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", config.CbServerURL, route), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", config.CbServerURL, route), nil)
 	if err != nil {
 		return nil, err
 	}

@@ -377,6 +377,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.PerformFeedPostprocessing {
+		apiVersion, err := GetCbVersion()
+		if err != nil {
+			log.Fatal("Could not get cb version: " + err.Error())
+		} else {
+			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
+		}
+	}
+
 	if *checkConfiguration {
 		if err := startOutputs(); err != nil {
 			log.Fatal(err)
