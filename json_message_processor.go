@@ -244,6 +244,11 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 	return msgs, nil
 }
 
+/*
+ * Used to perform postprocessing on messages.  For exmaple, for feed hits we need to grab the report_title.
+ * To do this we must query the Cb Response Server's REST API to get the report_title.  NOTE: In order to do this
+ * functionality we need the Cb Response Server URL and API Token set within the config.
+ */
 func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
 	if val, ok := msg["type"]; ok {
@@ -253,6 +258,9 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 			feedId, feedIdPresent := msg["feed_id"]
 			reportId, reportIdPresent := msg["report_id"]
 
+			/*
+			 * First make sure these fields are present
+			 */
 			if feedIdPresent && reportIdPresent {
 				/*
 				 * feedId should be of type json.Number which is typed as a string
@@ -262,13 +270,21 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 					reflect.TypeOf(reportId).Kind() == reflect.String {
 					iFeedId, err := feedId.(json.Number).Int64()
 					if err == nil {
+						/*
+						 * Get the report_title for this feed hit
+						 */
 						reportTitle, err := GetReportTitle(int(iFeedId), reportId.(string))
 						if err == nil {
+							/*
+							 * Finally save the report_title into this message
+							 */
 							msg["report_title"] = reportTitle
+							/*
 							log.Printf("report title for id %s:%s == %s\n",
 								feedId.(json.Number).String(),
 								reportId.(string),
 								reportTitle)
+								*/
 						}
 
 					} else {
