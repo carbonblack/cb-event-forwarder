@@ -245,22 +245,42 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 }
 
 func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
+
 	if val, ok := msg["type"]; ok {
 		messageType := val.(string)
 
 		if strings.HasPrefix(messageType, "feed.") {
 			feedId, feedIdPresent := msg["feed_id"]
 			reportId, reportIdPresent := msg["report_id"]
+
 			if feedIdPresent && reportIdPresent {
-				// TODO: error handling around casting these back to int, string.
-				reportTitle, err := GetReportTitle(feedId.(int), reportId.(string))
-				if err == nil {
-					msg["report_title"] = reportTitle
-					log.Printf("report title for id %d:%s == %s", feedId.(int), reportId.(string), reportTitle)
+				/*
+				 * feedId should be of type json.Number which is typed as a string
+				 * reportId should be of type string as well
+				 */
+				if reflect.TypeOf(feedId).Kind() == reflect.String &&
+					reflect.TypeOf(reportId).Kind() == reflect.String {
+					iFeedId, err := feedId.(json.Number).Int64()
+					if err == nil {
+						reportTitle, err := GetReportTitle(int(iFeedId), reportId.(string))
+						if err == nil {
+							msg["report_title"] = reportTitle
+							log.Printf("report title for id %s:%s == %s\n",
+								feedId.(json.Number).String(),
+								reportId.(string),
+								reportTitle)
+						}
+
+					} else {
+						log.Println("Unable to convert feed_id to int64 from json.Number")
+					}
+
+				} else {
+					log.Println("Feed Id was an unexpected type")
 				}
 			}
 		}
-	}
 
+	}
 	return msg
 }
