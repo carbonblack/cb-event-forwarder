@@ -178,7 +178,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	case cbMessage.Process != nil:
 		WriteProcessMessage(inmsg, outmsg)
 	case cbMessage.Modload != nil:
-		WriteModloadMessage(inmsg, outmsg)
+		return nil, nil
+		//WriteModloadMessage(inmsg, outmsg)
 	case cbMessage.Filemod != nil:
 		WriteFilemodMessage(inmsg, outmsg)
 	case cbMessage.Network != nil:
