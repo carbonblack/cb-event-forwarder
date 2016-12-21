@@ -237,7 +237,11 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers, delivery.Exchange)
+		processMessage(delivery.Body,
+			delivery.RoutingKey,
+			delivery.ContentType,
+			delivery.Headers,
+			delivery.Exchange)
 	}
 
 	log.Println("Worker exiting")

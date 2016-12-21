@@ -216,6 +216,14 @@ func fixupMessageType(routingKey string) string {
 	}
 }
 
+func PrettyPrintMap(msg map[string]interface{}){
+	b, err := json.MarshalIndent(msg, "", "  ")
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	fmt.Print(string(b))
+}
+
 func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
 	msg["type"] = fixupMessageType(routingKey)
 	fixupMessage(routingKey, msg)

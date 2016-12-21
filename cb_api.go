@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"github.com/zvelo/ttlru"
+	"strconv"
+	"time"
 )
 
 type ThreatReport struct {
@@ -22,29 +25,30 @@ type ThreatReport struct {
 	Score        int         `json:"score"`
 }
 
-/*
-{u'banningEnabled': True,
- u'binaryOrder': u'',
- u'binaryPageSize': 10,
- u'cblrEnabled': False,
- u'cloud_install': False,
- u'features': {u'thirdparty_sharing': False},
- u'linuxInstallerExists': True,
- u'liveResponseAutoAttach': True,
- u'maxRowsSolrReportQuery': 10000,
- u'maxSearchResultRows': 1000,
- u'osxInstallerExists': True,
- u'processOrder': u'',
- u'processPageSize': 10,
- u'searchExportCount': 1000,
- u'timestampDeltaThreshold': 5,
- u'vdiGloballyEnabled': False,
- u'version': u'5.2.0.161004.1206',
- u'version_release': u'5.2.0-4'}
-*/
 type ApiInfo struct {
-	Version string `json:"version"`
+	BanningEnabled          bool            `json:"banningEnabled"`
+	BinaryOrder             string          `json:"binaryOrder"`
+	BinaryPageSize          int             `json:"binaryPageSize"`
+	CBLREnabled             bool 		`json:"cblrEnabled"`
+	CloudInstall            bool  		`json:"cloud_install"`
+	Features                interface{} 	`json:"features"`
+	LinuxInstallerExists    bool 		`json:"linuxInstallerExists"`
+	MaxRowsSolrReportQuery  int 		`json:"maxRowsSolrReportQuery"`
+	MaxSearchResultRows     int 		`json:"maxSearchResultRows"`
+	OsxInstallerExists      bool        	`json:"osxInstallerExists"`
+	ProcessOrder            string        	`json:"processOrder"`
+	ProcessPageSize         int        	`json:"processPageSize"`
+	SearchExportCount       int        	`json:"searchExportCount"`
+	TimestampDeltaThreshold int        	`json:"timestampDeltaThreshold"`
+	VdiGloballyEnabled      bool        	`json:"vdiGloballyEnabled"`
+	Version                 string 		`json:"version"`
+	VersionRelease          string        	`json:"version_release"`
 }
+/*
+ * This is the Cache for the report title within post processing
+ * Mapping: "<feed_id>|<report_id>" -> report_title
+ */
+var FeedCache = ttlru.New(128, 5 * time.Minute)
 
 func GetCb(route string) ([]byte, error) {
 	tr := &http.Transport{
@@ -63,6 +67,10 @@ func GetCb(route string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200{
+		return nil, fmt.Errorf("Cb Response Server returned a %d status code.\n", resp.StatusCode)
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, err
@@ -85,16 +93,26 @@ func GetCbVersion() (version string, err error) {
 func GetReportTitle(FeedId int, ReportId string) (string, error) {
 	threatReport := ThreatReport{}
 
-	body, err := GetCb(fmt.Sprintf("/api/v1/feed/%d/report/%s", FeedId, ReportId))
-	if err != nil {
-		return "", err
+	key := strconv.Itoa(FeedId) + "|" + ReportId
+
+	reportTitle, cachePresent := FeedCache.Get(key)
+
+	if cachePresent && reportTitle != nil {
+		return reportTitle.(string), nil
+	} else {
+		body, err := GetCb(fmt.Sprintf("/api/v1/feed/%d/report/%s", FeedId, ReportId))
+		if err != nil {
+			return "", err
+		}
+
+		err = json.Unmarshal(body, &threatReport)
+
+		if err != nil {
+			return "", err
+		}
+
+		FeedCache.Set(key, threatReport.Title)
+
+		return threatReport.Title, nil
 	}
-
-	err = json.Unmarshal(body, &threatReport)
-
-	if err != nil {
-		return "", err
-	}
-
-	return threatReport.Title, nil
 }
