@@ -85,7 +85,9 @@ func BenchmarkZipBundleProcessing(b *testing.B) {
 
 	fakeHeaders := amqp.Table{}
 
-	ProcessRawZipBundle("", d, fakeHeaders)
+	for i := 0; i < b.N; i++ {
+		ProcessRawZipBundle("", d, fakeHeaders)
+	}
 }
 
 type outputMessageFunc func([]map[string]interface{}) (string, error)
