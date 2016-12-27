@@ -78,6 +78,16 @@ func BenchmarkJsonEventProcessing(b *testing.B) {
 	}
 }
 
+func BenchmarkZipBundleProcessing(b *testing.B) {
+	fn := path.Join("./tests/stress_rabbit/zipbundles/1")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+
+	fakeHeaders := amqp.Table{}
+
+	ProcessRawZipBundle("", d, fakeHeaders)
+}
+
 type outputMessageFunc func([]map[string]interface{}) (string, error)
 
 func TestEventProcessing(t *testing.T) {
