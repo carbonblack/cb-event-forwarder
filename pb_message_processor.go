@@ -264,8 +264,12 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		// add link to process in the Cb UI if the Cb hostname is set
 		// TODO: not happy about reaching in to the "config" object for this
 		if config.CbServerURL != "" {
-			outmsg["link_process"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, processGuid)
-			outmsg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, cbMessage.Env.Endpoint.GetSensorId())
+
+			outmsg["link_process"] = FastStringConcat(
+				config.CbServerURL, "#analyze/", processGuid, "/1")
+
+			outmsg["link_sensor"] = FastStringConcat(
+				config.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
 		}
 	}
 

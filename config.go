@@ -77,6 +77,7 @@ type Configuration struct {
 	PerformFeedPostprocessing bool
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
+	CbAPIProxyUrl	          string
 }
 
 type ConfigurationError struct {
@@ -486,6 +487,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	if ok {
 		config.CbAPIToken = val
 		config.PerformFeedPostprocessing = true
+	}
+
+	config.CbAPIProxyUrl = ""
+	val, ok = input.Get("bridge", "api_proxy_url")
+	if ok {
+		config.CbAPIProxyUrl = val
 	}
 
 	config.parseEventTypes(input)

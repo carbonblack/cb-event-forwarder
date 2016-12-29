@@ -9,6 +9,7 @@ import (
 	"github.com/zvelo/ttlru"
 	"strconv"
 	"time"
+	"net/url"
 )
 
 type ThreatReport struct {
@@ -51,8 +52,15 @@ type ApiInfo struct {
 var FeedCache = ttlru.New(128, 5 * time.Minute)
 
 func GetCb(route string) ([]byte, error) {
+
+	proxyUrl, err := url.Parse(config.CbAPIProxyUrl)
+	if err != nil {
+		return nil, err
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL},
+		Proxy: http.ProxyURL(proxyUrl),
 	}
 
 	httpClient := &http.Client{Transport: tr}
@@ -79,7 +87,10 @@ func GetCb(route string) ([]byte, error) {
 func GetCbVersion() (version string, err error) {
 	cbInfo := ApiInfo{}
 
-	body, err := GetCb("/api/info")
+	/*
+	 * NOTE: CbAPIServerUrl ends with a '/'
+	 */
+	body, err := GetCb("api/info")
 	if err != nil {
 		return
 	}
@@ -100,7 +111,7 @@ func GetReportTitle(FeedId int, ReportId string) (string, error) {
 	if cachePresent && reportTitle != nil {
 		return reportTitle.(string), nil
 	} else {
-		body, err := GetCb(fmt.Sprintf("/api/v1/feed/%d/report/%s", FeedId, ReportId))
+		body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
 		if err != nil {
 			return "", err
 		}
