@@ -53,14 +53,24 @@ var FeedCache = ttlru.New(128, 5 * time.Minute)
 
 func GetCb(route string) ([]byte, error) {
 
-	proxyUrl, err := url.Parse(config.CbAPIProxyUrl)
-	if err != nil {
-		return nil, err
+	var proxyRequest func(*http.Request) (*url.URL, error)
+
+	if config.CbAPIProxyUrl == "" {
+		/*
+		 * No Proxy was specified
+		 */
+		proxyRequest = nil
+	} else {
+		proxyUrl, err := url.Parse(config.CbAPIProxyUrl)
+		if err != nil {
+			return nil, err
+		}
+		proxyRequest = http.ProxyURL(proxyUrl)
 	}
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL},
-		Proxy: http.ProxyURL(proxyUrl),
+		Proxy: proxyRequest,
 	}
 
 	httpClient := &http.Client{Transport: tr}
