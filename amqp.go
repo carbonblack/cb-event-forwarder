@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"github.com/streadway/amqp"
 	"log"
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 )
 
 /*
@@ -20,12 +23,40 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 
 	var err error
 
-	log.Println("Connecting to message bus...")
-	c.conn, err = amqp.Dial(amqpURI)
+	if config.AMQPTLSEnabled == true {
+		log.Println("Connecting to message bus via TLS...")
 
-	if err != nil {
-		return nil, nil, fmt.Errorf("Dial: %s", err)
+		cfg := new(tls.Config)
+
+		caCert, err := ioutil.ReadFile(config.AMQPTLSCACert)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		cfg.RootCAs = caCertPool
+
+		cert, err := tls.LoadX509KeyPair(config.AMQPTLSClientCert, config.AMQPTLSClientKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+		cfg.Certificates = []tls.Certificate{cert}
+		cfg.InsecureSkipVerify = true
+
+		c.conn, err = amqp.DialTLS(amqpURI, cfg)
+
+		if err != nil {
+			return nil, nil, fmt.Errorf("Dial: %s", err)
+		}
+	} else {
+		log.Println("Connecting to message bus...")
+		c.conn, err = amqp.Dial(amqpURI)
+
+		if err != nil {
+			return nil, nil, fmt.Errorf("Dial: %s", err)
+		}
 	}
+
 
 	c.channel, err = c.conn.Channel()
 	if err != nil {

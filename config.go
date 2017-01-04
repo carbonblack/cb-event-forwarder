@@ -38,6 +38,10 @@ type Configuration struct {
 	AMQPUsername         string
 	AMQPPassword         string
 	AMQPPort             int
+	AMQPTLSEnabled       bool
+	AMQPTLSClientKey     string
+	AMQPTLSClientCert    string
+	AMQPTLSCACert        string
 	OutputParameters     string
 	EventTypes           []string
 	HTTPServerPort       int
@@ -68,6 +72,12 @@ type Configuration struct {
 	BundleSizeMax       int64
 
 	TLSConfig *tls.Config
+
+	// optional post processing of feed hits to retrieve titles
+	PerformFeedPostprocessing bool
+	CbAPIToken                string
+	CbAPIVerifySSL            bool
+	CbAPIProxyUrl	          string
 }
 
 type ConfigurationError struct {
@@ -229,7 +239,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "rabbit_mq_port")
 	if ok {
 		port, err := strconv.Atoi(val)
-		if err != nil {
+		if err == nil {
 			config.AMQPPort = port
 		}
 	}
@@ -239,6 +249,31 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			errs.addError(err)
 		}
+	}
+
+	val, ok = input.Get("bridge", "rabbit_mq_use_tls")
+	if ok {
+		if ok {
+			b, err := strconv.ParseBool(val)
+			if err == nil {
+				config.AMQPTLSEnabled = b
+			}
+		}
+	}
+
+	rabbitKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
+	if ok {
+		config.AMQPTLSClientKey = rabbitKeyFilename
+	}
+
+	rabbitCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
+	if ok {
+		config.AMQPTLSClientCert = rabbitCertFilename
+	}
+
+	rabbitCaCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
+	if ok {
+		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
 	val, ok = input.Get("bridge", "cb_server_hostname")
@@ -439,6 +474,25 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 		}
+	}
+
+	val, ok = input.Get("bridge", "api_verify_ssl")
+	if ok {
+		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
+		if err != nil {
+			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
+	val, ok = input.Get("bridge", "api_token")
+	if ok {
+		config.CbAPIToken = val
+		config.PerformFeedPostprocessing = true
+	}
+
+	config.CbAPIProxyUrl = ""
+	val, ok = input.Get("bridge", "api_proxy_url")
+	if ok {
+		config.CbAPIProxyUrl = val
 	}
 
 	config.parseEventTypes(input)

@@ -188,9 +188,16 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
-		err = outputMessage(msg)
-		if err != nil {
-			reportError(string(body), "Error marshaling message", err)
+		if config.PerformFeedPostprocessing {
+			go func(msg map[string]interface{}) {
+				outputMsg := PostprocessJSONMessage(msg)
+				outputMessage(outputMsg)
+			}(msg)
+		} else {
+			err = outputMessage(msg)
+			if err != nil {
+				reportError(string(body), "Error marshaling message", err)
+			}
 		}
 	}
 }
@@ -230,7 +237,11 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers, delivery.Exchange)
+		processMessage(delivery.Body,
+			delivery.RoutingKey,
+			delivery.ContentType,
+			delivery.Headers,
+			delivery.Exchange)
 	}
 
 	log.Println("Worker exiting")
@@ -368,6 +379,15 @@ func main() {
 	config, err = ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if config.PerformFeedPostprocessing {
+		apiVersion, err := GetCbVersion()
+		if err != nil {
+			log.Fatal("Could not get cb version: " + err.Error())
+		} else {
+			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
+		}
 	}
 
 	if *checkConfiguration {
