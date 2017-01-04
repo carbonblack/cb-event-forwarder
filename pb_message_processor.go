@@ -257,6 +257,13 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		processGuid := GetProcessGUID(cbMessage)
 		outmsg["process_guid"] = processGuid
 		outmsg["pid"] = inmsg.OriginalMessage.Header.GetProcessPid()
+
+		/*
+		 * Sometimes Process path is empty
+		 */
+		if inmsg.OriginalMessage.Header.GetProcessPath() != "" {
+			outmsg["process_path"] = inmsg.OriginalMessage.Header.GetProcessPath()
+		}
 		if _, ok := outmsg["md5"]; !ok {
 			outmsg["md5"] = GetMd5Hexdigest(inmsg.OriginalMessage.Header.GetProcessMd5())
 		}
