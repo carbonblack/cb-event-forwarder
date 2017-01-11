@@ -47,18 +47,433 @@ message are pulled by the cb-event-forwarder to populate the output JSON or LEEF
 |ingress.event.module|This event contains the digital signature information for a new binary executed on an endpoint monitored by Carbon Black|
 |ingress.event.childproc|A process has spawned another process on an endpoint monitored by Carbon Black|
 |ingress.event.process|A new process has started (or exited) on an endpoint monitored by Carbon Black|
-
-## Raw endpoint events not yet supported
-
-|Event ID|Description|
-|---    |---    |
 |ingress.event.crossprocopen|A process has attempted to open a handle into another process|
 |ingress.event.remotethread|A process has attempted to inject a thread into another process|
 |ingress.event.emetmitigation|Microsoft EMET has killed a process on an endpoint monitored by Carbon Black|
 |ingress.event.processblock|A process was blocked from executing on an endpoint monitored by Carbon Black because the process MD5 has been blacklisted|
 |ingress.event.tamper|A process tampered with a critical Carbon Black userspace process or kernel driver|
 
-# Event format
+### ingress.event.regmod (Registry Modification)
+
+Below is an example of an ingress.event.regmod JSON event.
+
+```
+{
+    "action": "writeval",
+    "actiontype": 2,
+    "cb_server": "cbserver",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "regmod",
+    "link_process": "https://cbtests/#analyze/00000001-0000-0484-01d1-1e951b7c000b/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "md5": "0E7196981EDE614F1F54FFF2C3843ADF",
+    "path": "\\registry\\user\\s-1-5-21-2709706146-4189370754-997381202-1001\\software\\microsoft\\vscommon\\12.0\\sqm\\pids\\1156\\stillalive",
+    "pid": 1156,
+    "process_guid": "00000001-0000-0484-01d1-1e951b7c000b",
+    "sensor_id": 1,
+    "timestamp": 1447696798,
+    "type": "ingress.event.regmod"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|action|writeval|Type of registry modification|
+|actiontype|2|Enum value of the registry modification|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|regmod|The type of event|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|0E7196981EDE614F1F54FFF2C3843ADF|md5 of process executable|
+|path|\\registry\\user\\s-1-5-21...|Full registry path|
+|pid|1156|Process Id of process|
+|process_guid|00000001-0000-0484-01d1-1e951b7c000b|Process Guid of process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1447696798|timestamp of this event since epoch|
+|type|ingress.event.regmod|The full type of event|
+
+### ingress.event.filemod (File Modification)
+
+Below is an example of an ingress.event.filemod JSON event.
+
+```
+{
+    "action": "create",
+    "actiontype": 1,
+    "cb_server": "cbserver",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "filemod",
+    "filetype": 0,
+    "filetype_name": "Unknown",
+    "link_process": "https://cbtests/#analyze/00000001-0000-0c70-01d1-1e951aae7e2f/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "md5": "7A2870C2A8283B3630BF7670D0362B94",
+    "path": "c:\\users\\admin\\appdata\\local\\google\\chrome\\user data\\b5e2.tmp",
+    "pid": 3184,
+    "process_guid": "00000001-0000-0c70-01d1-1e951aae7e2f",
+    "sensor_id": 1,
+    "timestamp": 1447696804,
+    "type": "ingress.event.filemod"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|action|writeval|Type of file modification|
+|actiontype|2|Enum value of the file modification|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|filemod|The type of event|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|7A2870C2A8283B3630BF7670D0362B94|md5 of process executable|
+|path|c:\\users\\admin\\appdata\\...|Full file path|
+|pid|3184|Process Id of process|
+|process_guid|00000001-0000-0c70-01d1-1e951aae7e2f|Process Guid of process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1447696804|timestamp of this event since epoch|
+|type|ingress.event.filemod|The full type of event|
+
+### ingress.event.netconn (Network Connection)
+
+Below is an example of an ingress.event.netconn JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "computer_name": "WIN-OTEMNUTBS23",
+    "direction": "outbound",
+    "domain": "",
+    "event_type": "netconn",
+    "ipv4": "23.4.187.27",
+    "link_process": "https://cbtests/#analyze/00000007-0000-090c-01d1-2099b8f18a82/1",
+    "link_sensor": "https://cbtests/#/host/7",
+    "local_ip": "172.31.30.0",
+    "local_port": 49352,
+    "md5": "C10A66189DC8C090E7C84873EDCEBC88",
+    "pid": 2316,
+    "port": 80,
+    "process_guid": "00000007-0000-090c-01d1-2099b8f18a82",
+    "protocol": 6,
+    "remote_ip": "23.4.187.27",
+    "remote_port": 80,
+    "sensor_id": 7,
+    "timestamp": 1447697666,
+    "type": "ingress.event.netconn"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|WIN-OTEMNUTBS23|hostname of the sensor|
+|direction|outbound|Direction of the netconn event
+|event_type|netconn|The type of event|
+|ipv4|23.4.187.27|remote ipv4 address of network connection|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|local_ip|172.31.30.0|Local IP address of network connection|
+|local_port|49352|Local port of the network connection|
+|md5|C10A66189DC8C090E7C84873EDCEBC88|md5 of process executable|
+|pid|2316|Process Id of process|
+|process_guid|00000007-0000-090c-01d1-2099b8f18a82|Process Guid of process|
+|protocol|6| 6 is for TCP, 4 is for UDP|
+|remote_ip|23.4.187.27|Remote IP of the network connection|
+|remote_port|80|Remote port of the network connection|
+|sensor_id|7|sensor ID of associated sensor|
+|timestamp|1447697666|timestamp of this event since epoch|
+|type|ingress.event.netconn|The full type of event|
+
+### ingress.event.moduleload (Module Load)
+
+Below is an example of an ingress.event.moduleload JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "modload",
+    "link_process": "https://cbtests/#analyze/00000001-0000-07b4-01d1-209a100bc217/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "md5": "3D136E8D4C0407D9C40FD8BDD649B587",
+    "path": "c:\\windows\\system32\\ntdll.dll",
+    "pid": 1972,
+    "process_guid": "00000001-0000-07b4-01d1-209a100bc217",
+    "sensor_id": 1,
+    "timestamp": 1447697423,
+    "type": "ingress.event.moduleload"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|modload|The type of event|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
+|pid|1972|Process Id of process|
+|process_guid|00000001-0000-07b4-01d1-209a100bc217|Process Guid of process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1447697423|timestamp of this event since epoch|
+|type|ingress.event.moduleload|The full type of event|
+
+### ingress.event.childproc (Child Process)
+
+Below is an example of an ingress.event.childproc JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "child_process_guid": "00000001-0000-07b4-01d1-209a100bc217",
+    "computer_name": "JASON-WIN81-VM",
+    "created": true,
+    "event_type": "childproc",
+    "link_child": "https://cbtests/#analyze/00000001-0000-07b4-01d1-209a100bc217/1",
+    "link_process": "https://cbtests/#analyze/00000001-0000-0af4-01d1-1e444bf4c3dd/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "md5": "D6021013D7C4E248AEB8BED12D3DCC88",
+    "pid": 2804,
+    "process_guid": "00000001-0000-0af4-01d1-1e444bf4c3dd",
+    "sensor_id": 1,
+    "timestamp": 1447697423,
+    "type": "ingress.event.childproc"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|child_process_guid|00000001-0000-07b4-01d1-209a100bc217|process guid of the child process|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|created|true|Specifies whether this process_guid is the child or the parent|
+|event_type|childproc|The type of event|
+|link_child|https://cbtests/#analyze...|Deep link to Cb Response UI for child process
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for parent process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
+|pid|2804|Process Id of process|
+|process_guid|00000001-0000-0af4-01d1-1e444bf4c3dd|Process guid of parent process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1447697423|timestamp of this event since epoch|
+|type|ingress.event.childproc|The full type of event|
+
+### ingress.event.procstart (Process Start)
+
+Below is an example of an ingress.event.procstart JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "command_line": "\"C:\\Windows\\system32\\SearchProtocolHost.exe\" Global\\UsGthrFltPipeMssGthrPipe253_ Global\\UsGthrCtrlFltPipeMssGthrPipe253 1 -2147483646 \"Software\\Microsoft\\Windows Search\" \"Mozilla/4.0 (compatible; MSIE 6.0; Windows NT; MS Search 4.0 Robot)\" \"C:\\ProgramData\\Microsoft\\Search\\Data\\Temp\\usgthrsvc\" \"DownLevelDaemon\" ",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "proc",
+    "expect_followon_w_md5": false,
+    "link_parent": "https://cbtests/#analyze/00000001-0000-0af4-01d1-1e444bf4c3dd/1",
+    "link_process": "https://cbtests/#analyze/00000001-0000-07b4-01d1-209a100bc217/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "md5": "D6021013D7C4E248AEB8BED12D3DCC88",
+    "parent_create_time": 1447440685,
+    "parent_md5": "79227C1E2225DE455F365B607A6D46FB",
+    "parent_path": "c:\\windows\\system32\\searchindexer.exe",
+    "parent_process_guid": "00000001-0000-0af4-01d1-1e444bf4c3dd",
+    "path": "c:\\windows\\system32\\searchprotocolhost.exe",
+    "pid": 1972,
+    "process_guid": "00000001-0000-07b4-01d1-209a100bc217",
+    "sensor_id": 1,
+    "timestamp": 1447697423,
+    "type": "ingress.event.procstart",
+    "username": "SYSTEM"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|command_line|\"C:\\Windows\\system32\\SearchProtocolHost.exe\"...|Command Line of the new process
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|proc|type of event|
+|expect_followon_w_md5|false|If the md5 could not be calculated in time then Cb Response will send another procstart with the process md5|
+|link_parent|https://cbtests/#analyze...|Deep link to Cb Response UI for parent process
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for this process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
+|parent_create_time|1447440685|seconds since epoch of parent process create time|
+|parent_md5|79227C1E2225DE455F365B607A6D46FB|md5 of parent's executable image|
+|parent_path|c:\\windows\\system32\\searchindexer.exe|file path of parent's executable image|
+|pid|1972|Process Id of child process|
+|process_guid|00000001-0000-07b4-01d1-209a100bc217|Process guid of child process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1447697423|timestamp of this event since epoch|
+|type|ingress.event.procstart|The full type of event|
+|username|SYSTEM|Username used to create child process|
+
+### ingress.event.crossprocopen (Cross Process Open)
+
+Below is an example of an ingress.event.crossprocopen JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "computer_name": "WIN-OTEMNUTBS23",
+    "cross_process_type": "open_process",
+    "event_type": "cross_process",
+    "is_target": false,
+    "link_process": "https://cbtests/#analyze/00000007-0000-0ccc-01d1-209ab5339f45/1",
+    "link_sensor": "https://cbtests/#/host/7",
+    "link_target": "https://cbtests/#analyze/00000007-0000-02c4-01d1-20982cef85d3/1",
+    "md5": "053EEEE1ABAE53F044F1E386E22AE525",
+    "pid": 3276,
+    "process_guid": "00000007-0000-0ccc-01d1-209ab5339f45",
+    "requested_acces": 5136,
+    "sensor_id": 7,
+    "target_create_time": 130921702131467731,
+    "target_md5": "382100E75B6F4668AEAEF228C6CEFFAD",
+    "target_path": "c:\\windows\\system32\\lsass.exe",
+    "target_pid": 708,
+    "target_process_guid": "00000007-0000-02c4-01d1-20982cef85d3",
+    "timestamp": 1447697702,
+    "type": "ingress.event.crossprocopen"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|WIN-OTEMNUTBS23|hostname of the sensor|
+|cross_process_type|open_process|The type of cross process event|
+|event_type|cross_process|type of event|
+|is_target|false|specifies whether process_guid is the target of the cross process event|
+|link_target|https://cbtests/#analyze...|Deep link to Cb Response UI for target process|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for this process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
+|pid|3276|Process Id of process that generated the crossprocopen event|
+|process_guid|00000007-0000-0ccc-01d1-209ab5339f45|Process guid of child process|
+|sensor_id|7|sensor ID of associated sensor|
+|target_create_time|130921702131467731|Target Process create time represented as a 64-bit Windows FILETIME|
+|target_md5|382100E75B6F4668AEAEF228C6CEFFAD|md5 of target process executable image|
+|target_path|c:\\windows\\system32\\lsass.exe|Path of the target process' executable image|
+|target_pid|708|Process ID of the target process|
+|target_process_guid|00000007-0000-02c4-01d1-20982cef85d3|process_guid of the target process|
+|timestamp|1447697702|timestamp of this event since epoch|
+|type|ingress.event.crossprocopen|The full type of event|
+
+### ingress.event.emetmitigation (EMET Mitigation)
+
+Below is an example of an ingress.event.emetmitigation JSON event.
+
+```
+{
+    "blocked": true,
+    "cb_server": "cbserver",
+    "computer_name": "JASON-WIN81-VM",
+    "emet_timestamp": 130949318600000000,
+    "event_type": "emet_mitigation",
+    "link_process": "https://cbtests/#analyze/00000001-0000-0d10-01d1-39b621f894f9/1",
+    "link_sensor": "https://cbtests/#/host/1",
+    "log_id": 1032,
+    "log_message": "EMET detected EAF mitigation and will close the application: EMET_Test64.exe\r\n\r\nEAF check failed:\n  Application \t: C:\\Users\\dan\\Desktop\\EMET_TEST\\EMET_Test64.exe\n  User Name \t: DANWIN764\\dan\n  Session ID \t: 1\n  PID \t\t: 0xD10 (3344)\n  TID \t\t: 0xDB4 (3508)\n  Module \t: N/A\n  Mod Base \t: 0x0000000000000000\n  Mod Address \t: 0x000000000297000D\n  Mem Address \t: 0x0000000000000000\n\r\n",
+    "md5": "053EEEE1ABAE53F044F1E386E22AE525",
+    "mitigation": "Eaf",
+    "pid": 3344,
+    "process_guid": "00000001-0000-0d10-01d1-39b621f894f9",
+    "sensor_id": 1,
+    "timestamp": 1450458260,
+    "type": "ingress.event.emetmitigation"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|blocked|true|boolean value describing if the action was successfully blocked by emet|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|emet_timestamp|130949318600000000|timestamp of emet event represented by a 64-bit Windows FILETIME|
+|event_type|emet_mitigation|type of event|
+|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|log_id|1032|EMET log ID associated with this emetmitigation event|
+|log_message|EMET detected EAF mitigation...|The log message generated by EMET|
+|md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
+|mitigation|Eaf|The type of EMET mitigation performed to block the operation|
+|pid|3344|Process Id of process that generated the emetmitigation event|
+|process_guid|00000001-0000-0d10-01d1-39b621f894f9|Process guid of offending process|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1450458260|timestamp of this event since epoch|
+|type|ingress.event.emetmitigation|The full type of event|
+
+### ingress.event.processblock (Process Block)
+
+Below is an example of an ingress.event.processblock JSON event.
+
+```
+{
+    "blocked_event": "ProcessCreate",
+    "blocked_reason": "Md5Hash",
+    "blocked_result": "ProcessTerminated",
+    "cb_server": "cbserver",
+    "command_line": "\"C:\\Program Files\\Microsoft Games\\hearts\\hearts.exe\" ",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "blocked_process",
+    "md5": "A8524F6C3AFF774911BCA26AB8322602",
+    "path": "c:\\program files\\microsoft games\\hearts\\hearts.exe",
+    "sensor_id": 1,
+    "timestamp": 1450470603,
+    "type": "ingress.event.processblock",
+    "uid": "S-1-5-21-3382350439-2970772701-2583938045-1000",
+    "username": "DANWIN764\\dan"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|blocked_event|ProcessCreate|The type of event that was blocked|
+|blocked_reason|Md5Hash|The reason for block action|
+|blocked_result|ProcessTerminated|The result of the blocked action|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|command_line|\"C:\\Program Files\\Microsoft Games\\hearts\\hearts.exe\" |Command line associated with the blocked process|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|blocked_process|type of event|
+|md5|A8524F6C3AFF774911BCA26AB8322602|md5 of the blocked executable|
+|sensor_id|1|sensor ID of associated sensor|
+|timestamp|1450458260|timestamp of this event since epoch|
+|type|ingress.event.processblock|The full type of event|
+|uid|S-1-5-21-3382350439-2970772701-2583938045-1000|Security Identifier of the username name used for process creation|
+|username|DANWIN764\\dan|Username that initiated the process creation|
+
+### ingress.event.tamper (Cb Response Tamper)
+
+Below is an example of an ingress.event.tamper JSON event.
+
+```
+{
+    "cb_server": "cbserver",
+    "computer_name": "JASON-WIN81-VM",
+    "event_type": "tamper",
+    "sensor_id": 1,
+    "tamper_type": "CbProcessTerminated",
+    "timestamp": 1450470455,
+    "type": "ingress.event.tamper"
+}
+```
+
+|Key|Value|Description|
+|---|---|---|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|computer_name|JASON-WIN81-VM|hostname of the sensor|
+|event_type|tamper|type of event|
+|sensor_id|1|sensor ID of associated sensor|
+|tamper_type|CbProcessTerminated|The activity which triggered this tamper event|
+|timestamp|1450458260|timestamp of this event since epoch|
+|type|ingress.event.tamper|The full type of event|
+
+
+|ingress.event.remotethread|A process has attempted to inject a thread into another process|
+
+# LEEF Event format
 
 Below is an example of a watchlist.hit.process event.  The following table breaks up the key value pairs and gives a description.
 
