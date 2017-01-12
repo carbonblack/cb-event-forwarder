@@ -1,7 +1,7 @@
 package main
 
 import (
-	leef "./leef"
+	leef "github.com/carbonblack/cb-event-forwarder/leef"
 	"bytes"
 	"encoding/json"
 	"errors"
