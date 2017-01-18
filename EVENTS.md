@@ -78,19 +78,19 @@ Below is an example of an ingress.event.regmod JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|action|writeval|Type of registry modification|
-|actiontype|2|Enum value of the registry modification|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|action|writeval|Type of registry modification. This can be one of: createkey, writeval, delkey, or delval|
+|actiontype|2|Enum value of the registry modification: 1=createkey, 2=writeval, 4=delkey, 8=delval|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|regmod|The type of event|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
 |md5|0E7196981EDE614F1F54FFF2C3843ADF|md5 of process executable|
 |path|\\registry\\user\\s-1-5-21...|Full registry path|
-|pid|1156|Process Id of process|
-|process_guid|00000001-0000-0484-01d1-1e951b7c000b|Process Guid of process|
-|sensor_id|1|sensor ID of associated sensor|
-|timestamp|1447696798|timestamp of this event since epoch|
+|pid|1156|Endpoint OS Process id of process|
+|process_guid|00000001-0000-0484-01d1-1e951b7c000b|Cb Process GUID of process|
+|sensor_id|1|Sensor ID of associated sensor|
+|timestamp|1447696798|Endpoint timestamp of this event since epoch|
 |type|ingress.event.regmod|The full type of event|
 
 ### ingress.event.filemod (File Modification)
@@ -120,19 +120,21 @@ Below is an example of an ingress.event.filemod JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|action|writeval|Type of file modification|
-|actiontype|2|Enum value of the file modification|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|action|writeval|Type of file modification: create, write, delete, lastwrite|
+|actiontype|2|Enum value of the file modification: 1=create, 2=write, 4=delete, 8=lastwrite|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|filemod|The type of event|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|filetype|0|Enum value of the detected file type of this file. Only valid for "lastwrite" actions. See the [CbFileType protobuf definition](https://raw.githubusercontent.com/carbonblack/cbapi/master/server_apis/proto/sensor_events.proto) for the available values.| 
+|filetype_name|Unknown|The detected file type of this file. Only valid for "lastwrite" actions. Currently supported file types: PE, ELF, UniversalBin, Eicar, OfficeLegacy, OfficeOpenXml, PDF, PKZIP, LZH, LZW, RAR, TAR, and 7zip.|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
 |md5|7A2870C2A8283B3630BF7670D0362B94|md5 of process executable|
 |path|c:\\users\\admin\\appdata\\...|Full file path|
-|pid|3184|Process Id of process|
-|process_guid|00000001-0000-0c70-01d1-1e951aae7e2f|Process Guid of process|
+|pid|3184|Endpoint OS Process id of process|
+|process_guid|00000001-0000-0c70-01d1-1e951aae7e2f|Cb Process GUID of process|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1447696804|timestamp of this event since epoch|
+|timestamp|1447696804|Endpoint timestamp of this event since epoch|
 |type|ingress.event.filemod|The full type of event|
 
 ### ingress.event.netconn (Network Connection)
@@ -166,23 +168,25 @@ Below is an example of an ingress.event.netconn JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|WIN-OTEMNUTBS23|hostname of the sensor|
-|direction|outbound|Direction of the netconn event
+|direction|outbound|Direction of the netconn event: inbound or outbound|
+|domain||The DNS name of the network peer, if available.|
 |event_type|netconn|The type of event|
-|ipv4|23.4.187.27|remote ipv4 address of network connection|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
-|local_ip|172.31.30.0|Local IP address of network connection|
+|ipv4|23.4.187.27|remote ipv4 address of network connection. Maintained for backward compatibility for earlier versions of the event forwarder. See local_ip and remote_ip.|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
+|local_ip|172.31.30.0|Local IP address of network connection (network interface on the endpoint)|
 |local_port|49352|Local port of the network connection|
 |md5|C10A66189DC8C090E7C84873EDCEBC88|md5 of process executable|
-|pid|2316|Process Id of process|
-|process_guid|00000007-0000-090c-01d1-2099b8f18a82|Process Guid of process|
-|protocol|6| 6 is for TCP, 4 is for UDP|
-|remote_ip|23.4.187.27|Remote IP of the network connection|
+|pid|2316|Endpoint OS Process id of process|
+|port|80|remote port of the network connection. Maintained for backward compatibility for earlier versions of the event forwarder. See local_port and remote_port.|
+|process_guid|00000007-0000-090c-01d1-2099b8f18a82|Cb Process GUID of process|
+|protocol|6|6=TCP, 17=UDP|
+|remote_ip|23.4.187.27|IP address of the remote system (peer)|
 |remote_port|80|Remote port of the network connection|
 |sensor_id|7|sensor ID of associated sensor|
-|timestamp|1447697666|timestamp of this event since epoch|
+|timestamp|1447697666|Endpoint timestamp of this event since epoch|
 |type|ingress.event.netconn|The full type of event|
 
 ### ingress.event.moduleload (Module Load)
@@ -208,16 +212,17 @@ Below is an example of an ingress.event.moduleload JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|modload|The type of event|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
 |md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
-|pid|1972|Process Id of process|
-|process_guid|00000001-0000-07b4-01d1-209a100bc217|Process Guid of process|
+|path|c:\\windows\\system32\\ntdll.dll|Path of the module loaded into the current process|
+|pid|1972|Endpoint OS Process id of process|
+|process_guid|00000001-0000-07b4-01d1-209a100bc217|Cb Process GUID of process|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1447697423|timestamp of this event since epoch|
+|timestamp|1447697423|Endpoint timestamp of this event since epoch|
 |type|ingress.event.moduleload|The full type of event|
 
 ### ingress.event.childproc (Child Process)
@@ -245,7 +250,7 @@ Below is an example of an ingress.event.childproc JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |child_process_guid|00000001-0000-07b4-01d1-209a100bc217|process guid of the child process|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |created|true|Specifies whether this process_guid is the child or the parent|
@@ -254,10 +259,10 @@ Below is an example of an ingress.event.childproc JSON event.
 |link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for parent process|
 |link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
 |md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
-|pid|2804|Process Id of process|
+|pid|2804|Endpoint OS Process id of process|
 |process_guid|00000001-0000-0af4-01d1-1e444bf4c3dd|Process guid of parent process|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1447697423|timestamp of this event since epoch|
+|timestamp|1447697423|Endpoint timestamp of this event since epoch|
 |type|ingress.event.childproc|The full type of event|
 
 ### ingress.event.procstart (Process Start)
@@ -291,7 +296,7 @@ Below is an example of an ingress.event.procstart JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |command_line|\"C:\\Windows\\system32\\SearchProtocolHost.exe\"...|Command Line of the new process
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|proc|type of event|
@@ -306,7 +311,7 @@ Below is an example of an ingress.event.procstart JSON event.
 |pid|1972|Process Id of child process|
 |process_guid|00000001-0000-07b4-01d1-209a100bc217|Process guid of child process|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1447697423|timestamp of this event since epoch|
+|timestamp|1447697423|Endpoint timestamp of this event since epoch|
 |type|ingress.event.procstart|The full type of event|
 |username|SYSTEM|Username used to create child process|
 
@@ -341,7 +346,7 @@ Below is an example of an ingress.event.crossprocopen JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|WIN-OTEMNUTBS23|hostname of the sensor|
 |cross_process_type|open_process|The type of cross process event|
 |event_type|cross_process|type of event|
@@ -350,7 +355,7 @@ Below is an example of an ingress.event.crossprocopen JSON event.
 |link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for this process|
 |link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
 |md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
-|pid|3276|Process Id of process that generated the crossprocopen event|
+|pid|3276|Endpoint OS Process id of process that generated the crossprocopen event|
 |process_guid|00000007-0000-0ccc-01d1-209ab5339f45|Process guid of child process|
 |sensor_id|7|sensor ID of associated sensor|
 |target_create_time|130921702131467731|Target Process create time represented as a 64-bit Windows FILETIME|
@@ -358,7 +363,7 @@ Below is an example of an ingress.event.crossprocopen JSON event.
 |target_path|c:\\windows\\system32\\lsass.exe|Path of the target process' executable image|
 |target_pid|708|Process ID of the target process|
 |target_process_guid|00000007-0000-02c4-01d1-20982cef85d3|process_guid of the target process|
-|timestamp|1447697702|timestamp of this event since epoch|
+|timestamp|1447697702|Endpoint timestamp of this event since epoch|
 |type|ingress.event.crossprocopen|The full type of event|
 
 ### ingress.event.emetmitigation (EMET Mitigation)
@@ -389,7 +394,7 @@ Below is an example of an ingress.event.emetmitigation JSON event.
 |Key|Value|Description|
 |---|---|---|
 |blocked|true|boolean value describing if the action was successfully blocked by emet|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |emet_timestamp|130949318600000000|timestamp of emet event represented by a 64-bit Windows FILETIME|
 |event_type|emet_mitigation|type of event|
@@ -399,10 +404,10 @@ Below is an example of an ingress.event.emetmitigation JSON event.
 |log_message|EMET detected EAF mitigation...|The log message generated by EMET|
 |md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
 |mitigation|Eaf|The type of EMET mitigation performed to block the operation|
-|pid|3344|Process Id of process that generated the emetmitigation event|
+|pid|3344|Endpoint OS Process id of process that generated the emetmitigation event|
 |process_guid|00000001-0000-0d10-01d1-39b621f894f9|Process guid of offending process|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1450458260|timestamp of this event since epoch|
+|timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.emetmitigation|The full type of event|
 
 ### ingress.event.processblock (Process Block)
@@ -433,13 +438,13 @@ Below is an example of an ingress.event.processblock JSON event.
 |blocked_event|ProcessCreate|The type of event that was blocked|
 |blocked_reason|Md5Hash|The reason for block action|
 |blocked_result|ProcessTerminated|The result of the blocked action|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |command_line|\"C:\\Program Files\\Microsoft Games\\hearts\\hearts.exe\" |Command line associated with the blocked process|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|blocked_process|type of event|
 |md5|A8524F6C3AFF774911BCA26AB8322602|md5 of the blocked executable|
 |sensor_id|1|sensor ID of associated sensor|
-|timestamp|1450458260|timestamp of this event since epoch|
+|timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.processblock|The full type of event|
 |uid|S-1-5-21-3382350439-2970772701-2583938045-1000|Security Identifier of the username name used for process creation|
 |username|DANWIN764\\dan|Username that initiated the process creation|
@@ -462,12 +467,12 @@ Below is an example of an ingress.event.tamper JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver|Used to distinguish between multiple Cb Response servers|
+|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|tamper|type of event|
 |sensor_id|1|sensor ID of associated sensor|
 |tamper_type|CbProcessTerminated|The activity which triggered this tamper event|
-|timestamp|1450458260|timestamp of this event since epoch|
+|timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.tamper|The full type of event|
 
 
