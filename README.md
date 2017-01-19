@@ -201,6 +201,21 @@ output from the JSON status is shown below:
 }
 ```
 
+## Building from source
+
+It is recommended to use golang 1.6.4.
+
+Setup your GOPATH environment variable.
+See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
+```
+go get github.com/carbonblack/cb-event-forwarder
+go get -u github.com/golang/protobuf/proto
+go get -u github.com/golang/protobuf/protoc-gen-go
+go generate ./...
+go get ./...
+go build
+```
+
 ## Changelog
 
 This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
