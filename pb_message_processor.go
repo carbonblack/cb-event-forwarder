@@ -554,7 +554,7 @@ func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{
 
 		kv["cross_process_type"] = crossprocOpenType(open.GetType())
 
-		kv["requested_acces"] = open.GetRequestedAccess()
+		kv["requested_access"] = open.GetRequestedAccess()
 		kv["target_pid"] = open.GetTargetPid()
 		kv["target_create_time"] = open.GetTargetProcCreateTime()
 		kv["target_md5"] = GetMd5Hexdigest(open.GetTargetProcMd5())

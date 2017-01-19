@@ -260,7 +260,7 @@ Below is an example of an ingress.event.childproc JSON event.
 |link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
 |md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
 |pid|2804|Endpoint OS Process id of process|
-|process_guid|00000001-0000-0af4-01d1-1e444bf4c3dd|Process guid of parent process|
+|process_guid|00000001-0000-0af4-01d1-1e444bf4c3dd|Cb Process GUID of parent process|
 |sensor_id|1|sensor ID of associated sensor|
 |timestamp|1447697423|Endpoint timestamp of this event since epoch|
 |type|ingress.event.childproc|The full type of event|
@@ -296,20 +296,22 @@ Below is an example of an ingress.event.procstart JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |command_line|\"C:\\Windows\\system32\\SearchProtocolHost.exe\"...|Command Line of the new process
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|proc|type of event|
 |expect_followon_w_md5|false|If the md5 could not be calculated in time then Cb Response will send another procstart with the process md5|
-|link_parent|https://cbtests/#analyze...|Deep link to Cb Response UI for parent process
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for this process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
-|md5|D6021013D7C4E248AEB8BED12D3DCC88|md5 of the module|
+|link_parent|https://cbtests/#analyze... |Deep link to Cb Response UI for parent process|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for this process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
+|md5|D6021013D7C4E248AEB8BED12D3DCC88|MD5 of the executable binary associated with this process|
 |parent_create_time|1447440685|seconds since epoch of parent process create time|
-|parent_md5|79227C1E2225DE455F365B607A6D46FB|md5 of parent's executable image|
+|parent_md5|79227C1E2225DE455F365B607A6D46FB|MD5 of parent's executable image|
 |parent_path|c:\\windows\\system32\\searchindexer.exe|file path of parent's executable image|
-|pid|1972|Process Id of child process|
-|process_guid|00000001-0000-07b4-01d1-209a100bc217|Process guid of child process|
+|parent_process_guid|00000001-0000-0af4-01d1-1e444bf4c3dd|Cb Process GUID of parent process|
+|path|c:\\windows\\system32\\searchprotocolhost.exe|file path of the child processes' executable image|
+|pid|1972|OS Process id of child process|
+|process_guid|00000001-0000-07b4-01d1-209a100bc217|Cb Process GUID of child process|
 |sensor_id|1|sensor ID of associated sensor|
 |timestamp|1447697423|Endpoint timestamp of this event since epoch|
 |type|ingress.event.procstart|The full type of event|
@@ -332,7 +334,7 @@ Below is an example of an ingress.event.crossprocopen JSON event.
     "md5": "053EEEE1ABAE53F044F1E386E22AE525",
     "pid": 3276,
     "process_guid": "00000007-0000-0ccc-01d1-209ab5339f45",
-    "requested_acces": 5136,
+    "requested_access": 5136,
     "sensor_id": 7,
     "target_create_time": 130921702131467731,
     "target_md5": "382100E75B6F4668AEAEF228C6CEFFAD",
@@ -346,17 +348,18 @@ Below is an example of an ingress.event.crossprocopen JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|WIN-OTEMNUTBS23|hostname of the sensor|
-|cross_process_type|open_process|The type of cross process event|
+|cross_process_type|open_process|The type of cross process event: either open_process (opening a handle to another process) or open_thread|
 |event_type|cross_process|type of event|
 |is_target|false|specifies whether process_guid is the target of the cross process event|
-|link_target|https://cbtests/#analyze...|Deep link to Cb Response UI for target process|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for this process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|link_target|https://cbtests/#analyze... |Deep link to Cb Response UI for target process|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for this process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
 |md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
 |pid|3276|Endpoint OS Process id of process that generated the crossprocopen event|
 |process_guid|00000007-0000-0ccc-01d1-209ab5339f45|Process guid of child process|
+|requested_access|5136|Windows bitfield representing the requested access for this process or thread handle (decimal)|
 |sensor_id|7|sensor ID of associated sensor|
 |target_create_time|130921702131467731|Target Process create time represented as a 64-bit Windows FILETIME|
 |target_md5|382100E75B6F4668AEAEF228C6CEFFAD|md5 of target process executable image|
@@ -393,19 +396,19 @@ Below is an example of an ingress.event.emetmitigation JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|blocked|true|boolean value describing if the action was successfully blocked by emet|
-|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
+|blocked|true|boolean value describing if the action was successfully blocked by EMET|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
-|emet_timestamp|130949318600000000|timestamp of emet event represented by a 64-bit Windows FILETIME|
+|emet_timestamp|130949318600000000|timestamp of EMET event represented by a 64-bit Windows FILETIME|
 |event_type|emet_mitigation|type of event|
-|link_process|https://cbtests/#analyze...|Deep link to Cb Response UI for process|
-|link_sensor|https://cbtests/#/host/1|Deep link to Cb Response UI for sensor|
+|link_process|https://cbtests/#analyze... |Deep link to Cb Response UI for process|
+|link_sensor|https://cbtests/#/host/1 |Deep link to Cb Response UI for sensor|
 |log_id|1032|EMET log ID associated with this emetmitigation event|
-|log_message|EMET detected EAF mitigation...|The log message generated by EMET|
+|log_message|EMET detected EAF mitigation...|The full log message generated by EMET|
 |md5|053EEEE1ABAE53F044F1E386E22AE525|md5 of process_guid executable image|
-|mitigation|Eaf|The type of EMET mitigation performed to block the operation|
+|mitigation|Eaf|The type of EMET mitigation performed to block the operation. Possible values are Dep, Sehop, Asr, Aslr, NullPage, HeapSpray, MandatoryAslr, Eaf, EafPlus, BottomUpAslr, LoadLibrary, MemoryProtection, SimulateExecFlow, StackPivot, CallerChecks, BannedFunctions, DeepHooks, AntiDetours.|
 |pid|3344|Endpoint OS Process id of process that generated the emetmitigation event|
-|process_guid|00000001-0000-0d10-01d1-39b621f894f9|Process guid of offending process|
+|process_guid|00000001-0000-0d10-01d1-39b621f894f9|Process GUID of offending process|
 |sensor_id|1|sensor ID of associated sensor|
 |timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.emetmitigation|The full type of event|
@@ -435,14 +438,15 @@ Below is an example of an ingress.event.processblock JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|blocked_event|ProcessCreate|The type of event that was blocked|
-|blocked_reason|Md5Hash|The reason for block action|
-|blocked_result|ProcessTerminated|The result of the blocked action|
-|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
+|blocked_event|ProcessCreate|The type of event that was blocked: either ProcessCreate (the process was terminated immediately upon execution) or RunningProcess (the process was already running on the endpoint when the block was applied).|
+|blocked_reason|Md5Hash|The reason for block action (Md5Hash is the only possible value)|
+|blocked_result|ProcessTerminated|The result of the blocked action: ProcessTerminated, NotTerminatedCBProcess, NotTerminatedSystemProcess, NotTerminatedCriticalSystemProcess, NotTerminatedWhitelistPath, NotTerminatedOpenProcessError, or NotTerminatedTerminateError.|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |command_line|\"C:\\Program Files\\Microsoft Games\\hearts\\hearts.exe\" |Command line associated with the blocked process|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|blocked_process|type of event|
 |md5|A8524F6C3AFF774911BCA26AB8322602|md5 of the blocked executable|
+|path|c:\\program files\\microsoft games\\hearts\\hearts.exe|Path of the blocked executable on disk|
 |sensor_id|1|sensor ID of associated sensor|
 |timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.processblock|The full type of event|
@@ -467,16 +471,14 @@ Below is an example of an ingress.event.tamper JSON event.
 
 |Key|Value|Description|
 |---|---|---|
-|cb_server|cbserver||cb|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
+|cb_server|cbserver|Used to distinguish between multiple Cb Response servers. Set this in the "server_name" option of cb-event-forwarder.ini.|
 |computer_name|JASON-WIN81-VM|hostname of the sensor|
 |event_type|tamper|type of event|
 |sensor_id|1|sensor ID of associated sensor|
-|tamper_type|CbProcessTerminated|The activity which triggered this tamper event|
+|tamper_type|CbProcessTerminated|The activity which triggered this tamper event: CoreDriverUnloaded, NetworkDriverUnloaded, CbServiceStopped, CbProcessTerminated, or CbCodeInjection|
 |timestamp|1450458260|Endpoint timestamp of this event since epoch|
 |type|ingress.event.tamper|The full type of event|
 
-
-|ingress.event.remotethread|A process has attempted to inject a thread into another process|
 
 # LEEF Event format
 
