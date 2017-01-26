@@ -2,18 +2,18 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"expvar"
 	"flag"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/leef"
+	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/streadway/amqp"
 	"log"
 	"net"
 	"net/http"
-	//	_ "net/http/pprof"          // DEBUG: profiling support
-	"github.com/paulbellamy/ratecounter"
 	"os"
 	"runtime"
 	"sync"
@@ -23,7 +23,7 @@ import (
 
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
-	debug = flag.Bool("debug", false, "Enable debugging mode")
+	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
 var version = "NOT FOR RELEASE"
@@ -32,19 +32,16 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount      *expvar.Int
-	OutputEventCount     *expvar.Int
-	ErrorCount           *expvar.Int
+	InputEventCount  *expvar.Int
+	OutputEventCount *expvar.Int
+	ErrorCount       *expvar.Int
 
-	IsConnected          bool
-	LastConnectTime      time.Time
-	StartTime            time.Time
+	IsConnected     bool
+	LastConnectTime time.Time
+	StartTime       time.Time
 
-	LastConnectError     string
-	ErrorTime            time.Time
-
-	EventCounter         *ratecounter.RateCounter
-	OutputBytesPerSecond *ratecounter.RateCounter
+	LastConnectError string
+	ErrorTime        time.Time
 
 	sync.RWMutex
 }
@@ -65,18 +62,6 @@ func init() {
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
-
-	status.EventCounter = ratecounter.NewRateCounter(5 * time.Second)
-	status.OutputBytesPerSecond = ratecounter.NewRateCounter(5 * time.Second)
-
-	expvar.Publish("input_events_per_second",
-		expvar.Func(func() interface{} {
-			return float64(status.EventCounter.Rate()) / 5.0
-		}))
-	expvar.Publish("output_bytes_per_second",
-		expvar.Func(func() interface{} {
-			return float64(status.OutputBytesPerSecond.Rate()) / 5.0
-		}))
 
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
@@ -119,7 +104,7 @@ type Consumer struct {
 
 type OutputHandler interface {
 	Initialize(string) error
-	Go(messages <-chan string, errorChan chan <- error) error
+	Go(messages <-chan string, errorChan chan<- error) error
 	String() string
 	Statistics() interface{}
 	Key() string
@@ -135,9 +120,26 @@ func reportError(d string, errmsg string, err error) {
 	log.Printf("%s when processing %s: %s", errmsg, d, err)
 }
 
+func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
+	log.Printf("Error while processing message through routing key %s:", routingKey)
+
+	var env *sensor_events.CbEnvironmentMsg
+	env, err := createEnvMessage(headers)
+	if err != nil {
+		log.Printf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
+			env.Endpoint.GetSensorHostName())
+	}
+
+	if len(body) < 4 {
+		log.Println("  Message is less than 4 bytes long; malformed")
+	} else {
+		log.Println("  First four bytes of message were:")
+		log.Printf("  %s", hex.Dump(body[0:4]))
+	}
+}
+
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Add(1)
-	//	status.EventCounter.Incr(1)
 
 	var err error
 	var msgs []map[string]interface{}
@@ -148,6 +150,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	if contentType == "application/zip" {
 		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
+			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
 			return
 		}
@@ -159,12 +162,13 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		} else {
 			msg, err := ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
+				reportBundleDetails(routingKey, body, headers)
 				reportError(routingKey, "Could not process body", err)
 				return
+			} else if msg != nil {
+				msgs = make([]map[string]interface{}, 0, 1)
+				msgs = append(msgs, msg)
 			}
-
-			msgs = make([]map[string]interface{}, 0, 1)
-			msgs = append(msgs, msg)
 		}
 	} else if contentType == "application/json" {
 		// Note for simplicity in implementation we are assuming the JSON output by the Cb server
@@ -187,9 +191,16 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
-		err = outputMessage(msg)
-		if err != nil {
-			reportError(string(body), "Error marshaling message", err)
+		if config.PerformFeedPostprocessing {
+			go func(msg map[string]interface{}) {
+				outputMsg := PostprocessJSONMessage(msg)
+				outputMessage(outputMsg)
+			}(msg)
+		} else {
+			err = outputMessage(msg)
+			if err != nil {
+				reportError(string(body), "Error marshaling message", err)
+			}
 		}
 	}
 }
@@ -223,12 +234,11 @@ func outputMessage(msg map[string]interface{}) error {
 
 	if len(outmsg) > 0 && err == nil {
 		status.OutputEventCount.Add(1)
-		//			status.OutputBytesPerSecond.Incr(int64(len(outmsg)))
+
 		if config.AuditingEnabled == true {
 			audit_logs <- msg
 		}
 		results <- string(outmsg)
-
 	} else {
 		return err
 	}
@@ -240,10 +250,14 @@ func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
-		processMessage(delivery.Body, delivery.RoutingKey, delivery.ContentType, delivery.Headers, delivery.Exchange)
+		processMessage(delivery.Body,
+			delivery.RoutingKey,
+			delivery.ContentType,
+			delivery.Headers,
+			delivery.Exchange)
 	}
 
-	log.Printf("Worker exiting")
+	log.Println("Worker exiting")
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
@@ -274,7 +288,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 		case output_error := <-output_errors:
 			log.Printf("ERROR during output: %s", output_error.Error())
 
-		// hack to exit if the error happens while we are writing to a file
+			// hack to exit if the error happens while we are writing to a file
 			if config.OutputType == FileOutputType {
 				log.Println("File output error; exiting immediately.")
 				c.Shutdown()
@@ -324,9 +338,11 @@ func startOutputs() error {
 			outputHandler = &NetOutput{}
 			parameters = "udp:" + parameters
 		case S3OutputType:
-			outputHandler = &S3Output{}
+			outputHandler = &BundledOutput{behavior: &S3Behavior{}}
 		case SyslogOutputType:
 			outputHandler = &SyslogOutput{}
+		case HttpOutputType:
+			outputHandler = &BundledOutput{behavior: &HttpBehavior{}}
 		case KafkaOutputType:
 			outputHandler = &KafkaOutput{}
 		default:
@@ -358,6 +374,8 @@ func startOutputs() error {
 				ret["type"] = "net"
 			case S3OutputType:
 				ret["type"] = "s3"
+			case HttpOutputType:
+				ret["type"] = "http"
 			case KafkaOutputType:
 				ret["type"] = "kafka"
 			}
@@ -392,6 +410,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.PerformFeedPostprocessing {
+		apiVersion, err := GetCbVersion()
+		if err != nil {
+			log.Fatal("Could not get cb version: " + err.Error())
+		} else {
+			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
+		}
+	}
+
 	if *checkConfiguration {
 		if err := startOutputs(); err != nil {
 			log.Fatal(err)
@@ -420,9 +447,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
-	expvar.Publish("debug", expvar.Func(func() interface{} {
-		return *debug
-	}))
+	expvar.Publish("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {

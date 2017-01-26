@@ -76,8 +76,8 @@ Cb Response needs to be restarted if any variables were changed in `/etc/cb/cb.c
 
 If you are configuring the cb-event-forwarder on a Cb Response cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
-must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster restarted using
-the `/usr/share/cb/cbcluster restart` command.
+must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster stopped and started using
+the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 
 ### Starting and Stopping the Service
 
@@ -199,6 +199,21 @@ output from the JSON status is shown below:
     "binarystore.file.added"
   ]
 }
+```
+
+## Building from source
+
+It is recommended to use golang 1.6.4.
+
+Setup your GOPATH environment variable.
+See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
+```
+go get github.com/carbonblack/cb-event-forwarder
+go get -u github.com/golang/protobuf/proto
+go get -u github.com/golang/protobuf/protoc-gen-go
+go generate ./...
+go get ./...
+go build
 ```
 
 ## Changelog

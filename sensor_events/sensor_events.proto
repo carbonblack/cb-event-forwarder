@@ -3,6 +3,7 @@
 //
 // Copyright 2015-2016 Carbon Black, Inc.
 //
+syntax="proto2";
 
 message CbHeaderMsg
 {

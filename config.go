@@ -1,13 +1,18 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	_ "expvar"
 	"fmt"
 	"github.com/vaughan0/go-ini"
+	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
+	"text/template"
+	"time"
 )
 
 const (
@@ -16,6 +21,7 @@ const (
 	TCPOutputType
 	UDPOutputType
 	SyslogOutputType
+	HttpOutputType
 	KafkaOutputType
 )
 
@@ -50,10 +56,29 @@ type Configuration struct {
 	S3ObjectPrefix          *string
 
 	// Syslog-specific configuration
-	SyslogTLSClientKey  *string
-	SyslogTLSClientCert *string
-	SyslogTLSCACert     *string
-	SyslogTLSVerify     bool
+	TLSClientKey  *string
+	TLSClientCert *string
+	TLSCACert     *string
+	TLSVerify     bool
+
+	// HTTP-specific configuration
+	HttpAuthorizationToken *string
+	HttpPostTemplate       *template.Template
+	HttpContentType        *string
+
+	// configuration options common to bundled outputs (S3, HTTP)
+	UploadEmptyFiles    bool
+	CommaSeparateEvents bool
+	BundleSendTimeout   time.Duration
+	BundleSizeMax       int64
+
+	TLSConfig *tls.Config
+
+	// optional post processing of feed hits to retrieve titles
+	PerformFeedPostprocessing bool
+	CbAPIToken                string
+	CbAPIVerifySSL            bool
+	CbAPIProxyUrl	          string
 
 	// Kafka-specific configuration
 	KafkaBrokers        *string
@@ -248,19 +273,19 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	clientKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
+	rabbitKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
 	if ok {
-		config.AMQPTLSClientKey = clientKeyFilename
+		config.AMQPTLSClientKey = rabbitKeyFilename
 	}
 
-	clientCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
+	rabbitCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
 	if ok {
-		config.AMQPTLSClientCert = clientCertFilename
+		config.AMQPTLSClientCert = rabbitCertFilename
 	}
 
-	caCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
+	rabbitCaCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
 	if ok {
-		config.AMQPTLSCACert = caCertFilename
+		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
 	val, ok = input.Get("bridge", "cb_server_hostname")
@@ -324,32 +349,38 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
 			}
+		case "http":
+			parameterKey = "httpout"
+			config.OutputType = HttpOutputType
+
+			token, ok := input.Get("http", "authorization_token")
+			if ok {
+				config.HttpAuthorizationToken = &token
+			}
+
+			postTemplate, ok := input.Get("http", "http_post_template")
+			config.HttpPostTemplate = template.New("http_post_output")
+			if ok {
+				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+			} else {
+				if config.OutputFormat == JSONOutputFormat {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+				} else {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+				}
+			}
+
+			contentType, ok := input.Get("http", "content_type")
+			if ok {
+				config.HttpContentType = &contentType
+			} else {
+				jsonString := "application/json"
+				config.HttpContentType = &jsonString
+			}
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
-
-			clientKeyFilename, ok := input.Get("syslog", "client_key")
-			if ok {
-				config.SyslogTLSClientKey = &clientKeyFilename
-			}
-
-			clientCertFilename, ok := input.Get("syslog", "client_cert")
-			if ok {
-				config.SyslogTLSClientCert = &clientCertFilename
-			}
-
-			caCertFilename, ok := input.Get("syslog", "ca_cert")
-			if ok {
-				config.SyslogTLSCACert = &caCertFilename
-			}
-
-			config.SyslogTLSVerify = true
-			tlsVerify, ok := input.Get("syslog", "tls_verify")
-			if ok {
-				if tlsVerify == "false" {
-					config.SyslogTLSVerify = false
-				}
-			}
 		case "kafka":
 			config.OutputType = KafkaOutputType
 
@@ -365,6 +396,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
+	} else {
+		errs.addErrorString("No output type specified")
+		return config, errs
 	}
 
 	val, ok = input.Get("audit", "enabled")
@@ -408,7 +442,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)
 		if !ok {
-			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s", val, outType))
+			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
+				parameterKey, outType))
 		} else {
 			config.OutputParameters = val
 		}
@@ -430,6 +465,98 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	// TLS configuration
+	clientKeyFilename, ok := input.Get(outType, "client_key")
+	if ok {
+		config.TLSClientKey = &clientKeyFilename
+	}
+
+	clientCertFilename, ok := input.Get(outType, "client_cert")
+	if ok {
+		config.TLSClientCert = &clientCertFilename
+	}
+
+	caCertFilename, ok := input.Get(outType, "ca_cert")
+	if ok {
+		config.TLSCACert = &caCertFilename
+	}
+
+	config.TLSVerify = true
+	tlsVerify, ok := input.Get(outType, "tls_verify")
+	if ok {
+		boolval, err := strconv.ParseBool(tlsVerify)
+		if err == nil {
+			if boolval == false {
+				config.TLSVerify = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
+		}
+	}
+
+	config.TLSConfig = configureTLS(config)
+
+	// Bundle configuration
+
+	// default to sending empty files to S3/HTTP POST endpoint
+	config.UploadEmptyFiles = true
+	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
+	if ok {
+		boolval, err := strconv.ParseBool(sendEmptyFiles)
+		if err == nil {
+			if boolval == false {
+				config.UploadEmptyFiles = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'upload_empty_files': valid values are true, false, 1, 0. Default is 'true'")
+		}
+	}
+
+	if config.OutputFormat == JSONOutputFormat {
+		config.CommaSeparateEvents = true
+	} else {
+		config.CommaSeparateEvents = false
+	}
+
+	// default 10MB bundle size max before forcing a send
+	config.BundleSizeMax = 10 * 1024 * 1024
+	bundleSizeMax, ok := input.Get(outType, "bundle_size_max")
+	if ok {
+		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
+		if err == nil {
+			config.BundleSizeMax = bundleSizeMax
+		}
+	}
+
+	// default 5 minute send interval
+	config.BundleSendTimeout = 5 * time.Minute
+	bundleSendTimeout, ok := input.Get(outType, "bundle_send_timeout")
+	if ok {
+		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
+		if err == nil {
+			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
+		}
+	}
+
+	val, ok = input.Get("bridge", "api_verify_ssl")
+	if ok {
+		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
+		if err != nil {
+			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
+	val, ok = input.Get("bridge", "api_token")
+	if ok {
+		config.CbAPIToken = val
+		config.PerformFeedPostprocessing = true
+	}
+
+	config.CbAPIProxyUrl = ""
+	val, ok = input.Get("bridge", "api_proxy_url")
+	if ok {
+		config.CbAPIProxyUrl = val
+	}
+
 	config.parseEventTypes(input)
 
 	if !errs.Empty {
@@ -437,4 +564,37 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		return config, nil
 	}
+}
+
+func configureTLS(config Configuration) *tls.Config {
+	tlsConfig := &tls.Config{}
+
+	if config.TLSVerify == false {
+		log.Println("Disabling TLS verification for remote output")
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	if config.TLSClientCert != nil && config.TLSClientKey != nil && len(*config.TLSClientCert) > 0 &&
+		len(*config.TLSClientKey) > 0 {
+		log.Printf("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
+		cert, err := tls.LoadX509KeyPair(*config.TLSClientCert, *config.TLSClientKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	if config.TLSCACert != nil && len(*config.TLSCACert) > 0 {
+		// Load CA cert
+		log.Printf("Loading valid CAs from file %s", *config.TLSCACert)
+		caCert, err := ioutil.ReadFile(*config.TLSCACert)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tlsConfig.RootCAs = caCertPool
+	}
+
+	return tlsConfig
 }
