@@ -50,8 +50,10 @@ func GetIPv4Address(addr uint32) string {
 	return net.IPv4(b[0], b[1], b[2], b[3]).String()
 }
 
-// NOTE: the interface_ip and comms_ip (from JSON events) are byte-flipped from the IP addresses in the
-// sensor protobuf events.
+/*
+ * NOTE: the interface_ip and comms_ip (from JSON events) are byte-flipped from the IP addresses in the
+ * sensor protobuf events.
+ */
 func GetIPv4AddressSigned(addr int32) string {
 	buf := bytes.Buffer{}
 
@@ -74,4 +76,16 @@ func GetMd5Hexdigest(src []byte) string {
 
 func GetUnicodeFromUTF8(src []byte) string {
 	return string(src)
+}
+
+func FastStringConcat(substrings ...string) string {
+	/*
+	 * PreAllocate for speed
+	 */
+	buffer := bytes.NewBuffer(make([]byte, 0, 32))
+
+	for _, substring := range substrings {
+		buffer.WriteString(substring)
+	}
+	return buffer.String()
 }
