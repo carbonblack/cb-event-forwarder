@@ -63,32 +63,6 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		return nil, nil, fmt.Errorf("Channel: %s", err)
 	}
 
-	if err = c.channel.ExchangeDeclare(
-		"api.events",
-		"topic",
-		true,  // durable
-		false, // delete when complete
-		false, // internal
-		false, // nowait
-		nil,   // arguments
-	); err != nil {
-		return nil, nil, fmt.Errorf("Exchange declare: %s", err)
-	}
-
-	if bindToRawExchange {
-		if err = c.channel.ExchangeDeclare(
-			"api.rawsensordata",
-			"fanout",
-			true,
-			false,
-			false,
-			false,
-			nil,
-		); err != nil {
-			return nil, nil, fmt.Errorf("Exchange declare: %s", err)
-		}
-	}
-
 	queue, err := c.channel.QueueDeclare(
 		queueName,
 		false, // durable,
