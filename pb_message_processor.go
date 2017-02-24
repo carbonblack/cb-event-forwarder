@@ -406,6 +406,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["child_process_guid"])
 	}
 
+	kv["path"] = om.Childproc.GetPath()
+
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
 }
 
