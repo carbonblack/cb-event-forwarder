@@ -221,9 +221,17 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 
 	switch {
 	case cbMessage.Process != nil:
-		WriteProcessMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.process"]; ok {
+			WriteProcessMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Modload != nil:
-		WriteModloadMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.moduleload"]; ok {
+			WriteModloadMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Filemod != nil:
 		WriteFilemodMessage(inmsg, outmsg)
 	case cbMessage.Network != nil:

@@ -44,6 +44,7 @@ type Configuration struct {
 	AMQPTLSCACert        string
 	OutputParameters     string
 	EventTypes           []string
+	EventMap             map[string]bool
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
@@ -77,7 +78,7 @@ type Configuration struct {
 	PerformFeedPostprocessing bool
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
-	CbAPIProxyUrl	          string
+	CbAPIProxyUrl             string
 }
 
 type ConfigurationError struct {
@@ -156,11 +157,6 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 	}
 
 	for _, eventType := range eventTypes {
-		if eventType.configKey == "events_raw_sensor" && c.UseRawSensorExchange {
-			// skip the sensor event section if we're consuming from the firehose anyway
-			// we will be forwarding everything in that case
-			continue
-		}
 		val, ok := input.Get("bridge", eventType.configKey)
 		if ok {
 			val = strings.ToLower(val)
@@ -176,6 +172,10 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 				}
 			}
 		}
+	}
+
+	for _, eventName := range c.EventTypes {
+		c.EventMap[eventName] = true
 	}
 }
 
