@@ -174,6 +174,8 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 		}
 	}
 
+	c.EventMap = make(map[string]bool)
+
 	for _, eventName := range c.EventTypes {
 		c.EventMap[eventName] = true
 	}

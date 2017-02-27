@@ -223,6 +223,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	case cbMessage.Process != nil:
 		if _, ok := config.EventMap["ingress.event.process"]; ok {
 			WriteProcessMessage(inmsg, outmsg)
+		} else if _, ok := config.EventMap["ingress.event.procstart"]; ok {
+			WriteProcessMessage(inmsg, outmsg)
 		} else {
 			return nil, nil
 		}
@@ -233,28 +235,65 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 			return nil, nil
 		}
 	case cbMessage.Filemod != nil:
-		WriteFilemodMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.filemod"]; ok {
+			WriteFilemodMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
+
 	case cbMessage.Network != nil:
-		WriteNetconnMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.netconn"]; ok {
+			WriteNetconnMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Regmod != nil:
-		WriteRegmodMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.regmod"]; ok {
+			WriteRegmodMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Childproc != nil:
-		WriteChildprocMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.childproc"]; ok {
+			WriteChildprocMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Crossproc != nil:
-		WriteCrossProcMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.crossprocopen"]; ok {
+			WriteCrossProcMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Emet != nil:
-		WriteEmetEvent(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.emetmitigation"]; ok {
+			WriteEmetEvent(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.NetconnBlocked != nil:
 		WriteNetconnBlockedMessage(inmsg, outmsg)
 	case cbMessage.TamperAlert != nil:
-		eventMsg = false
-		WriteTamperAlertMsg(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.tamper"]; ok {
+			eventMsg = false
+			WriteTamperAlertMsg(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Blocked != nil:
-		eventMsg = false
-		WriteProcessBlockedMsg(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.processblock"]; ok {
+			eventMsg = false
+			WriteProcessBlockedMsg(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	case cbMessage.Module != nil:
-		eventMsg = false
-		WriteModinfoMessage(inmsg, outmsg)
+		if _, ok := config.EventMap["ingress.event.module"]; ok {
+			eventMsg = false
+			WriteModinfoMessage(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
 	default:
 		// we ignore event types we don't understand yet.
 		return nil, nil
