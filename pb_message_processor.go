@@ -11,6 +11,8 @@ import (
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"log"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -45,21 +47,39 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 	var err error
 
 	err = nil
-	totalLength := len(body)
+	totalLength := uint64(len(body))
 	i := 0
 
-	for bytesRead := 0; bytesRead < totalLength; {
-		length := (int)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+	if totalLength < 4 {
+		err = fmt.Errorf("Error in ProcessProtobufBundle: body length is < 4 bytes. Giving up.")
+		return msgs, err
+	}
 
-		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead+4:bytesRead+length+4], headers)
+	var bytesRead uint64
+	for bytesRead = 0; bytesRead+4 < totalLength; {
+		messageLength := (uint64)(binary.LittleEndian.Uint32(body[bytesRead : bytesRead+4]))
+		bytesRead += 4
+
+		if messageLength+bytesRead > totalLength {
+			err = fmt.Errorf("Error in ProcessProtobufBundle for event index %d: Length %d is insane. Giving up.",
+				messageLength)
+			break
+		}
+
+		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
 		if err != nil {
-			log.Printf("Error in ProcessProtobufMessage for event index %d: %s", i, err.Error())
+			log.Printf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
 		} else if msg != nil {
 			msgs = append(msgs, msg)
 		}
 
-		bytesRead += length + 4
+		bytesRead += messageLength
 		i += 1
+	}
+
+	if err != nil && bytesRead < totalLength {
+		err = fmt.Errorf("Error in ProcessProtobufBundle: messages did not fill entire bundle; %d bytes left",
+			totalLength-bytesRead)
 	}
 
 	return msgs, err
@@ -87,9 +107,9 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 			log.Printf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
 			continue
 		}
-		defer src.Close()
 
 		unzippedFile, err := ioutil.ReadAll(src)
+		src.Close()
 		if err != nil {
 			log.Printf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
 			continue
@@ -104,13 +124,35 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 	return msgs, nil
 }
 
+func parseIntFromHeader(src interface{}) (int64, error) {
+	if src == nil {
+		return 0, errors.New("Nil value")
+	}
+
+	val := reflect.ValueOf(src)
+	switch val.Kind() {
+	case reflect.Int64:
+		return src.(int64), nil
+	case reflect.Int32:
+		return int64(src.(int32)), nil
+	case reflect.Int16:
+		return int64(src.(int16)), nil
+	case reflect.String:
+		return strconv.ParseInt(src.(string), 10, 64)
+	default:
+		return 0, errors.New("unknown type")
+	}
+}
+
+// TODO: This is currently called for *every* protobuf message in a bundle. This should be called only once *per bundle*.
 func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, error) {
 	endpointMsg := &sensor_events.CbEndpointEnvironmentMsg{}
 	if hostId, ok := headers["hostId"]; ok {
-		if val, ok := hostId.(int64); ok {
-			endpointMsg.HostId = &val
+		val, err := parseIntFromHeader(hostId)
+		if err != nil {
+			return nil, err
 		} else {
-			return nil, errors.New("Could not parse hostId from message header")
+			endpointMsg.HostId = &val
 		}
 	}
 	if hostName, ok := headers["sensorHostName"]; ok {
@@ -121,7 +163,8 @@ func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, erro
 		}
 	}
 	if sensorId, ok := headers["sensorId"]; ok {
-		if val, ok := sensorId.(int64); !ok {
+		val, err := parseIntFromHeader(sensorId)
+		if err != nil {
 			return nil, errors.New("Could not parse sensorId from message header")
 		} else {
 			sensorId := int32(val)
@@ -131,10 +174,12 @@ func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, erro
 
 	serverMsg := &sensor_events.CbServerEnvironmentMsg{}
 	if nodeId, ok := headers["nodeId"]; ok {
-		if val, ok := nodeId.(int32); !ok {
-			return nil, errors.New("Could not parse nodeId from message header")
+		val, err := parseIntFromHeader(nodeId)
+		if err != nil {
+			return nil, err
 		} else {
-			serverMsg.NodeId = &val
+			nodeId := int32(val)
+			serverMsg.NodeId = &nodeId
 		}
 	}
 
@@ -188,7 +233,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	case cbMessage.Childproc != nil:
 		WriteChildprocMessage(inmsg, outmsg)
 	case cbMessage.Crossproc != nil:
-		WriteCrossProcMessge(inmsg, outmsg)
+		WriteCrossProcMessage(inmsg, outmsg)
 	case cbMessage.Emet != nil:
 		WriteEmetEvent(inmsg, outmsg)
 	case cbMessage.NetconnBlocked != nil:
@@ -203,7 +248,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		eventMsg = false
 		WriteModinfoMessage(inmsg, outmsg)
 	default:
-		return nil, errors.New("Unknown event type encountered")
+		// we ignore event types we don't understand yet.
+		return nil, nil
 	}
 
 	// write metadata about the process in case this message is generated by a process on an endpoint
@@ -211,6 +257,13 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		processGuid := GetProcessGUID(cbMessage)
 		outmsg["process_guid"] = processGuid
 		outmsg["pid"] = inmsg.OriginalMessage.Header.GetProcessPid()
+
+		/*
+		 * Sometimes Process path is empty
+		 */
+		if inmsg.OriginalMessage.Header.GetProcessPath() != "" {
+			outmsg["process_path"] = inmsg.OriginalMessage.Header.GetProcessPath()
+		}
 		if _, ok := outmsg["md5"]; !ok {
 			outmsg["md5"] = GetMd5Hexdigest(inmsg.OriginalMessage.Header.GetProcessMd5())
 		}
@@ -218,8 +271,12 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		// add link to process in the Cb UI if the Cb hostname is set
 		// TODO: not happy about reaching in to the "config" object for this
 		if config.CbServerURL != "" {
-			outmsg["link_process"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, processGuid)
-			outmsg["link_sensor"] = fmt.Sprintf("%s#/host/%d", config.CbServerURL, cbMessage.Env.Endpoint.GetSensorId())
+
+			outmsg["link_process"] = FastStringConcat(
+				config.CbServerURL, "#analyze/", processGuid, "/1")
+
+			outmsg["link_sensor"] = FastStringConcat(
+				config.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
 		}
 	}
 
@@ -247,6 +304,15 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["command_line"] = GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
 
 	om := message.OriginalMessage
+
+	kv["parent_path"] = om.Process.GetParentPath()
+	kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+
+	if message.OriginalMessage.Process.ParentMd5 != nil {
+		kv["parent_md5"] = GetMd5Hexdigest(om.Process.GetParentMd5())
+	}
+
+	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
 
 	if om.Env != nil && om.Env.Endpoint != nil && om.Env.Endpoint.SensorId != nil && om.Process.ParentPid != nil &&
 		om.Process.ParentCreateTime != nil {
@@ -300,6 +366,14 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	action := message.OriginalMessage.Filemod.GetAction()
 	kv["action"] = filemodAction(action)
 	kv["actiontype"] = int32(action)
+
+	fileType := message.OriginalMessage.Filemod.GetType()
+	kv["filetype"] = int32(fileType)
+	kv["filetype_name"] = strings.TrimPrefix(sensor_events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
+
+	if message.OriginalMessage.Filemod.Md5Hash != nil {
+		kv["file_md5"] = GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
+	}
 }
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -467,10 +541,12 @@ func crossprocOpenType(a sensor_events.CbCrossProcessOpenMsg_OpenType) string {
 	return fmt.Sprintf("unknown (%d)", int32(a))
 }
 
-func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}) {
+func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "cross_process"
 
 	om := message.OriginalMessage
+
+	kv["is_target"] = om.Crossproc.GetIsTarget()
 
 	if message.OriginalMessage.Crossproc.Open != nil {
 		open := message.OriginalMessage.Crossproc.Open
@@ -478,7 +554,7 @@ func WriteCrossProcMessge(message *ConvertedCbMessage, kv map[string]interface{}
 
 		kv["cross_process_type"] = crossprocOpenType(open.GetType())
 
-		kv["requested_acces"] = open.GetRequestedAccess()
+		kv["requested_access"] = open.GetRequestedAccess()
 		kv["target_pid"] = open.GetTargetPid()
 		kv["target_create_time"] = open.GetTargetProcCreateTime()
 		kv["target_md5"] = GetMd5Hexdigest(open.GetTargetProcMd5())

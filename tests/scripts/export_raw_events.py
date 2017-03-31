@@ -51,7 +51,7 @@ class RawEventOutput(EventOutput):
 
     def get_stats(self):
         return self.count
-e
+
 
 def get_mq_user_from_cbconf():
     for line in open('/etc/cb/cb.conf').readlines():

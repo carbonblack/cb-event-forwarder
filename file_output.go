@@ -10,15 +10,22 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"bytes"
 )
 
-type FileOutput struct {
-	outputFileName string
-	outputFile     *os.File
-	fileOpenedAt   time.Time
+type BufferOutput struct {
+	buffer 		bytes.Buffer
+	lastFlush 	time.Time
+}
 
-	lastRolledOver time.Time
+type FileOutput struct {
+	outputFileName 	string
+	outputFile     	*os.File
+	fileOpenedAt  	time.Time
+
+	lastRolledOver 	time.Time
 	sync.RWMutex
+	bufferOutput	BufferOutput
 }
 
 type FileStatistics struct {
@@ -57,6 +64,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.outputFile = fp
 	o.fileOpenedAt = time.Now()
 	o.lastRolledOver = time.Now()
+	o.bufferOutput.lastFlush = time.Now()
 
 	return nil
 }
@@ -78,10 +86,12 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
 
+		defer o.flushOutput(true)
 		defer signal.Stop(hup)
 		defer o.close()
 
 		for {
+
 			select {
 			case message := <-messages:
 				if err := o.output(message); err != nil {
@@ -96,6 +106,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						return
 					}
 				}
+				o.flushOutput(false)
 
 			case <-hup:
 				// reopen file
@@ -119,13 +130,32 @@ func (o *FileOutput) String() string {
 	return fmt.Sprintf("File %s", o.outputFileName)
 }
 
-func (o *FileOutput) output(s string) error {
-	_, err := o.outputFile.WriteString(s + "\n")
-	// is the error temporary? reopen the file and see...
-	if err != nil {
-		return err
+func (o *FileOutput) flushOutput(force bool) error {
+
+	/*
+	 * 1000000ns = 1ms
+	 */
+
+	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000  || force {
+		_, err := o.outputFile.WriteString(o.bufferOutput.buffer.String())
+		// is the error temporary? reopen the file and see...
+		if err != nil {
+			return err
+		}
+		o.bufferOutput.buffer.Reset()
+		o.bufferOutput.lastFlush = time.Now()
+		return nil
 	}
 	return nil
+}
+
+func (o *FileOutput) output(s string) error {
+	/*
+	 * Write to our buffer first
+	 */
+	o.bufferOutput.buffer.WriteString(s + "\n")
+	err := o.flushOutput(false)
+	return err
 }
 
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
