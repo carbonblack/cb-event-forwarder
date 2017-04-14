@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func GetProcessGUID(m *sensor_events.CbEventMsg) string {
@@ -215,6 +216,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
 	outmsg["computer_name"] = cbMessage.Env.Endpoint.GetSensorHostName()
+	outmsg["ingest_ts"] = time.Now().String()
 
 	// is the message from an endpoint event process?
 	eventMsg := true
