@@ -330,6 +330,12 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Process.Username != nil {
 		kv["username"] = message.OriginalMessage.Process.GetUsername()
 	}
+
+        if message.OriginalMessage.Process.Uid != nil {
+		kv["uid"] = message.OriginalMessage.Process.GetUid()
+	}
+
+
 }
 
 func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -403,6 +409,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["child_process_guid"])
 	}
 
+        kv["path"] = om.Childproc.GetPath()
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
 }
 
