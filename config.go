@@ -22,6 +22,7 @@ const (
 	UDPOutputType
 	SyslogOutputType
 	HttpOutputType
+	KafkaOutputType
 )
 
 const (
@@ -78,6 +79,17 @@ type Configuration struct {
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
 	CbAPIProxyUrl	          string
+
+	// Kafka-specific configuration
+	KafkaBrokers        *string
+	KafkaTopicSuffix    *string
+	// TODO: May want some more options for batch size, etc.
+
+	// Audit redis configuration
+	AuditingEnabled           bool
+	AuditRedisHost      	  string
+	AuditRedisDatabaseNumber  int
+	AuditPipelineSize         int
 }
 
 type ConfigurationError struct {
@@ -369,6 +381,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
+		case "kafka":
+			config.OutputType = KafkaOutputType
+
+			kafkaBrokers, ok := input.Get("kafka", "brokers")
+			if ok {
+				config.KafkaBrokers = &kafkaBrokers
+			}
+
+			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
+			if ok {
+				config.KafkaTopicSuffix = &kafkaTopicSuffix
+			}
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
@@ -376,6 +400,44 @@ func ParseConfig(fn string) (Configuration, error) {
 		errs.addErrorString("No output type specified")
 		return config, errs
 	}
+
+	val, ok = input.Get("audit", "enabled")
+	log.Println("Auditing Enabled: ", val)
+	if ok {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.AuditingEnabled = b
+		}
+	}
+
+	if config.AuditingEnabled == true {
+		val, ok = input.Get("audit", "redis_host")
+		log.Println("HOST: ", val)
+		if ok {
+			log.Println("HOST: ", val)
+			config.AuditRedisHost = val
+		} else {
+			log.Panic("NOT OK")
+		}
+
+		val, ok = input.Get("audit", "redis_database_number")
+		if ok {
+			db_number, err := strconv.Atoi(val)
+			if err == nil {
+				config.AuditRedisDatabaseNumber = db_number
+			}
+		}
+
+		val, ok = input.Get("audit", "pipeline_size")
+		if ok {
+			pipeline_size, err := strconv.Atoi(val)
+			if err == nil {
+				config.AuditPipelineSize = pipeline_size
+			}
+		}
+	}
+
+
 
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)
