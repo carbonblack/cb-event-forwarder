@@ -42,7 +42,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 			prefix = strings.Join(s,"/")
 		}
 		if config.S3VerboseKey == true {
-			additionalKey = fmt.Sprintf("customer=%s,format=cb_native,bucket=%s,key=%s", config.ServerName, o.bucketName, filepath.Base(fileName))
+			additionalKey = fmt.Sprintf("customer=%s,format=cb_response,bucket=%s,key=%s", config.ServerName, o.bucketName, filepath.Base(fileName))
 			s := []string{prefix, additionalKey}
 			baseName = strings.Join(s, "/")
 		} else {
