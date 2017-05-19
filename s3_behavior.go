@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type S3Behavior struct {
@@ -26,13 +27,28 @@ type S3Statistics struct {
 
 func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var baseName string
+	var additionalKey string
 
 	//
 	// If a prefix is specified then concatenate it with the Base of the filename
 	//
 	if config.S3ObjectPrefix != nil {
-		s := []string{*config.S3ObjectPrefix, filepath.Base(fileName)}
-		baseName = strings.Join(s, "/")
+		prefix := *config.S3ObjectPrefix
+
+		// customer=sqc,format=native,bucket=cbio-tree-cash-syslog,key=event-forwarder.2017-05-11T23:59:58
+		if config.S3IncludeDateInPrefix == true {
+			current_time := time.Now().UTC()
+			s := []string{prefix, current_time.Format("2006-01-02")}
+			prefix = strings.Join(s,"/")
+		}
+		if config.S3VerboseKey == true {
+			additionalKey = fmt.Sprintf("customer=%s,format=cb_native,bucket=%s,key=%s", config.ServerName, o.bucketName, filepath.Base(fileName))
+			s := []string{prefix, additionalKey}
+			baseName = strings.Join(s, "/")
+		} else {
+			s := []string{prefix, filepath.Base(fileName)}
+			baseName = strings.Join(s, "/")
+		}
 	} else {
 		baseName = filepath.Base(fileName)
 	}
