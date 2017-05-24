@@ -35,14 +35,10 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 	if config.S3ObjectPrefix != nil {
 		prefix := *config.S3ObjectPrefix
 
-		// customer=sqc,format=native,bucket=cbio-tree-cash-syslog,key=event-forwarder.2017-05-11T23:59:58
-		if config.S3IncludeDateInPrefix == true {
-			current_time := time.Now().UTC()
-			s := []string{prefix, current_time.Format("2006-01-02")}
-			prefix = strings.Join(s,"/")
-		}
+		// cust_name=abc/ingest_dt=2017-05-11/format=cb_response/bucket=the-bucket,source=event-forwarder.2017-05-11T23:59:58
 		if config.S3VerboseKey == true {
-			additionalKey = fmt.Sprintf("customer=%s,format=cb_response,bucket=%s,key=%s", config.ServerName, o.bucketName, filepath.Base(fileName))
+			current_time := time.Now().UTC()
+			additionalKey = fmt.Sprintf("cust_name=%s/ingest_dt=%s/format=cb_response/bucket=%s,source=%s", config.ServerName, current_time.Format("2006-01-02"), o.bucketName, filepath.Base(fileName))
 			s := []string{prefix, additionalKey}
 			baseName = strings.Join(s, "/")
 		} else {
