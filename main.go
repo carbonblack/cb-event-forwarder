@@ -337,6 +337,8 @@ func startOutputs() error {
 		outputHandler = &SyslogOutput{}
 	case HttpOutputType:
 		outputHandler = &BundledOutput{behavior: &HttpBehavior{}}
+	case KafkaOutputType:
+		outputHandler = &KafkaOutput{}
 	default:
 		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
 	}
