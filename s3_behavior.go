@@ -1,13 +1,13 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"encoding/base64"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -50,8 +50,9 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 			//encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
 			encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
+			encoded = strings.Replace(encoded, "=", "", -1)
 
-			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/%s,ingest_ts=%s,format=cb_response,source=%s.json", prefix, current_time.Format("2006-01-02"), prefix, current_time.Format("2006-01-02-15:04:05Z"), encoded)
+			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/%s,ingest_ts=%s,format=cb_response,source=%s,sver=0-0-1.json", prefix, current_time.Format("2006-01-02"), prefix, current_time.Format("2006-01-02-15:04:05Z"), encoded)
 		} else {
 			s := []string{prefix, filepath.Base(fileName)}
 			baseName = strings.Join(s, "/")
