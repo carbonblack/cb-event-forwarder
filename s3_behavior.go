@@ -3,14 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"encoding/base64"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type S3Behavior struct {
@@ -36,7 +38,20 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		// cust_name=abc/ingest_dt=2017-05-11/format=cb_response/bucket=the-bucket,source=event-forwarder.2017-05-11T23:59:58
 		if config.S3VerboseKey == true {
 			current_time := time.Now().UTC()
-			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/bucket=%s,source=%s", prefix, current_time.Format("2006-01-02"), o.bucketName, filepath.Base(fileName))
+
+			// encoded_sourcename = Base64.strict_encode64(file_identifier).gsub('=', '').strip
+			// NamingUtils.object_name_from_keys(directory: {cust_name: customer_name, ingest_dt: now.strftime("%Y-%m-%d"), format: native_format},
+			//                                   filename: {cust_name: customer_name, ingest_ts: now.iso8601, format: native_format, source: encoded_sourcename},
+			//                                   extension: :json)
+			// cust_name=test_customer/
+			// ingest_dt=2017-05-30/
+			// format=test_format/
+			// cust_name=test_customer,ingest_ts=2017-05-30T01:02:03Z,format=test_format,source=ZXZlbnQtZm9yd2FyZGVyLjIwMTctMDUtMjRUMDc6MTc6MTI,sver=0.0.1.json
+
+			//encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
+			encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
+
+			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/%s,ingest_ts=%s,format=cb_response,source=%s.json", prefix, current_time.Format("2006-01-02"), prefix, current_time.Format("2006-01-02-15:04:05Z"), encoded)
 		} else {
 			s := []string{prefix, filepath.Base(fileName)}
 			baseName = strings.Join(s, "/")
