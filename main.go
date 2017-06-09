@@ -317,9 +317,6 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 func startOutputs() error {
 	numOutputs := 1
-	if runtime.NumCPU() > 1 {
-		numOutputs = runtime.NumCPU() / 2
-	}
 
 	for i := 0; i < numOutputs; i++ {
 		// Configure the specific output.

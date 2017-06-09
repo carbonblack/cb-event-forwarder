@@ -39,16 +39,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		if config.S3VerboseKey == true {
 			current_time := time.Now().UTC()
 
-			// encoded_sourcename = Base64.strict_encode64(file_identifier).gsub('=', '').strip
-			// NamingUtils.object_name_from_keys(directory: {cust_name: customer_name, ingest_dt: now.strftime("%Y-%m-%d"), format: native_format},
-			//                                   filename: {cust_name: customer_name, ingest_ts: now.iso8601, format: native_format, source: encoded_sourcename},
-			//                                   extension: :json)
-			// cust_name=test_customer/
-			// ingest_dt=2017-05-30/
-			// format=test_format/
 			// cust_name=test_customer,ingest_ts=2017-05-30T01:02:03Z,format=test_format,source=ZXZlbnQtZm9yd2FyZGVyLjIwMTctMDUtMjRUMDc6MTc6MTI,sver=0.0.1.json
-
-			//encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
 			encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
 			encoded = strings.Replace(encoded, "=", "", -1)
 
