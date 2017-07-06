@@ -184,7 +184,7 @@ func (o *BundledOutput) rollOver() error {
 		return nil
 	}
 
-	fn, err := o.tempFileOutput.rollOverFile("2006-01-02T15:04:05")
+	fn, err := o.tempFileOutput.rollOverFile("2006-01-02T15:04:05.000Z")
 
 	if err != nil {
 		return err
