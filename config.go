@@ -6,17 +6,18 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/vaughan0/go-ini"
 )
 
 const (
-	FileOutputType   = iota
+	FileOutputType = iota
 	S3OutputType
 	TCPOutputType
 	UDPOutputType
@@ -43,6 +44,7 @@ type Configuration struct {
 	AMQPTLSClientKey     string
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
+	AMQPQueueName        string
 	OutputParameters     string
 	EventTypes           []string
 	HTTPServerPort       int
@@ -79,18 +81,18 @@ type Configuration struct {
 	PerformFeedPostprocessing bool
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
-	CbAPIProxyUrl	          string
+	CbAPIProxyUrl             string
 
 	// Kafka-specific configuration
-	KafkaBrokers        *string
-	KafkaTopicSuffix    *string
+	KafkaBrokers     *string
+	KafkaTopicSuffix *string
 	// TODO: May want some more options for batch size, etc.
 
 	// Audit redis configuration
-	AuditingEnabled           bool
-	AuditRedisHost      	  string
-	AuditRedisDatabaseNumber  int
-	AuditPipelineSize         int
+	AuditingEnabled          bool
+	AuditRedisHost           string
+	AuditRedisDatabaseNumber int
+	AuditPipelineSize        int
 }
 
 type ConfigurationError struct {
@@ -289,6 +291,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
+	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
+	if ok {
+		config.AMQPQueueName = rabbitQueueName
+	}
+
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
@@ -445,8 +452,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 		}
 	}
-
-
 
 	if len(parameterKey) > 0 {
 		val, ok = input.Get("bridge", parameterKey)

@@ -8,9 +8,6 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/leef"
-	"github.com/carbonblack/cb-event-forwarder/sensor_events"
-	"github.com/streadway/amqp"
 	"log"
 	"net"
 	"net/http"
@@ -18,7 +15,11 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/carbonblack/cb-event-forwarder/leef"
+	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/pborman/uuid"
+	"github.com/streadway/amqp"
 )
 
 var (
@@ -385,8 +386,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
-
 	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	log.Printf("configLocation: %s", configLocation)
 
@@ -511,9 +510,15 @@ func main() {
 		numConsumers = runtime.NumCPU() / 2
 	}
 
+	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
+
+	if config.AMQPQueueName != "" {
+		queueName = config.AMQPQueueName
+	}
+
 	for i := 0; i < numConsumers; i++ {
 		go func(consumerNumber int) {
-			log.Printf("Starting AMQP loop %d to %s", consumerNumber, config.AMQPURL())
+			log.Printf("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
 
 			for {
 				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
