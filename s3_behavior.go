@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -47,7 +48,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 			encoded := base64.StdEncoding.Strict().EncodeToString([]byte(filepath.Base(fileName)))
 			encoded = strings.Replace(encoded, "=", "", -1)
 
-			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/%s,ingest_ts=%s,format=cb_response,source=%s,sver=0-0-1.json.gz", prefix, current_time.Format("2006-01-02"), prefix, current_time.Format("2006-01-02T15:04:05.000Z"), encoded)
+			baseName = fmt.Sprintf("%s/ingest_dt=%s/format=cb_response/%s,ingest_ts=%s,format=cb_response,source=%s,sver=0-0-1.json", prefix, current_time.Format("2006-01-02"), prefix, current_time.Format("2006-01-02T15:04:05.000Z"), encoded)
 		} else {
 			s := []string{prefix, filepath.Base(fileName)}
 			baseName = strings.Join(s, "/")
@@ -56,20 +57,28 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		baseName = filepath.Base(fileName)
 	}
 
-	fileReader := bufio.NewReader(fp)
+	var byteReader io.ReadSeeker
 
-	var gzBytes bytes.Buffer
-	gzWriter := gzip.NewWriter(&gzBytes)
+	if config.S3CompressData != false {
+		baseName += ".gz"
+		fileReader := bufio.NewReader(fp)
 
-	fileContents, ferr := ioutil.ReadAll(fileReader)
-	if ferr != nil {
-		return UploadStatus{fileName: fileName, result: ferr}
+		var gzBytes bytes.Buffer
+		gzWriter := gzip.NewWriter(&gzBytes)
+
+		fileContents, ferr := ioutil.ReadAll(fileReader)
+		if ferr != nil {
+			return UploadStatus{fileName: fileName, result: ferr}
+		}
+
+		gzWriter.Write(fileContents)
+		gzWriter.Close()
+
+		byteReader = bytes.NewReader(gzBytes.Bytes())
+
+	} else {
+		byteReader = fp
 	}
-
-	gzWriter.Write(fileContents)
-	gzWriter.Close()
-
-	byteReader := bytes.NewReader(gzBytes.Bytes())
 
 	_, err := o.out.PutObject(&s3.PutObjectInput{
 		Body:                 byteReader,
@@ -78,6 +87,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		ServerSideEncryption: config.S3ServerSideEncryption,
 		ACL:                  config.S3ACLPolicy,
 	})
+
 	fp.Close()
 
 	return UploadStatus{fileName: fileName, result: err}

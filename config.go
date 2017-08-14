@@ -57,6 +57,7 @@ type Configuration struct {
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
 	S3VerboseKey            bool
+	S3CompressData          bool
 
 	// Syslog-specific configuration
 	TLSClientKey  *string
@@ -364,6 +365,16 @@ func ParseConfig(fn string) (Configuration, error) {
 				if err == nil {
 					config.S3VerboseKey = b
 				}
+			}
+
+			val, ok = input.Get("s3", "compress_data")
+			if ok {
+				b, err := strconv.ParseBool(val)
+				if err == nil {
+					config.S3CompressData = b
+				}
+			} else {
+				config.S3CompressData = true
 			}
 		case "http":
 			parameterKey = "httpout"
