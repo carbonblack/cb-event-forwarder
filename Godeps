@@ -5,5 +5,5 @@ github.com/paulbellamy/ratecounter
 github.com/streadway/amqp
 github.com/vaughan0/go-ini
 github.com/Shopify/sarama
-github.com/zvelo/ttlru
 gopkg.in/redis.v5
+zvelo.io/ttlru
