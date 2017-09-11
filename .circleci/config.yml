@@ -1,27 +1,25 @@
 version: 2
 jobs:
-   build:
-     docker:      
-      - image: circleci/golang:1.8
+  build:
+    working_directory: /app
+    docker:
+      - image: docker:17.09.0-ce-git
+    steps:
+      - checkout
 
-     working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+      - setup_remote_docker:
+          version: 17.07.0-ce
 
-     steps:
-       - checkout
-       - run: 
-         name: 'Build'
-         command: |
-           go get -u github.com/golang/protobuf/proto
-           go get -u github.com/golang/protobuf/protoc-gen-go
-           make build
-       - run:
-         name: 'Run unit tests'
-         command: |
-           mkdir -p $TEST_RESULTS
-           go get github.com/jstemmer/go-junit-report
-           trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-           make test | tee ${TEST_RESULTS}/go-test.out
+      - run:
+          name: Build application Docker image
+          command: |
+            docker --version
+            docker build -t redcanary/cb-event-forwarder .
 
-       - store_test_results:
-         path: /tmp/test-results
-
+      - deploy:
+          name: Deploy latest to docker
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+              docker push redcanary/cb-event-forwarder
+            fi
