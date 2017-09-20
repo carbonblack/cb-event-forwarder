@@ -55,11 +55,12 @@ type Configuration struct {
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
 
-	// Syslog-specific configuration
+	// SSL/TLS-specific configuration
 	TLSClientKey  *string
 	TLSClientCert *string
 	TLSCACert     *string
 	TLSVerify     bool
+	TLSCName      *string
 
 	// HTTP-specific configuration
 	HttpAuthorizationToken *string
@@ -434,6 +435,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	serverCName, ok := input.Get(outType, "server_cname")
+	if ok {
+		config.TLSCName = &serverCName
+	}
+
 	config.TLSConfig = configureTLS(config)
 
 	// Bundle configuration
@@ -534,6 +540,11 @@ func configureTLS(config Configuration) *tls.Config {
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
 		tlsConfig.RootCAs = caCertPool
+	}
+
+	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
+		log.Printf("Forcing TLS Common Name check to use %s.", *config.TLSCName)
+		tlsConfig.ServerName = *config.TLSCName
 	}
 
 	return tlsConfig
