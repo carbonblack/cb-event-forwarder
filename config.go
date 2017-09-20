@@ -557,11 +557,12 @@ func configureTLS(config Configuration) *tls.Config {
 	}
 
 	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
-		log.Printf("Forcing TLS Common Name check to use %s.", *config.TLSCName)
+		log.Printf("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
 		tlsConfig.ServerName = *config.TLSCName
 	}
 
 	if config.TLS12Only == true {
+		log.Println("Enforcing minimum TLS version 1.2")
 		tlsConfig.MinVersion = tls.VersionTLS12
 	} else {
 		log.Println("Relaxing minimum TLS version to 1.0")
