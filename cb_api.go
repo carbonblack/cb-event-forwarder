@@ -4,12 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/zvelo/ttlru"
 	"io/ioutil"
 	"net/http"
-	"github.com/zvelo/ttlru"
+	"net/url"
 	"strconv"
 	"time"
-	"net/url"
 )
 
 type ThreatReport struct {
@@ -27,29 +27,30 @@ type ThreatReport struct {
 }
 
 type ApiInfo struct {
-	BanningEnabled          bool            `json:"banningEnabled"`
-	BinaryOrder             string          `json:"binaryOrder"`
-	BinaryPageSize          int             `json:"binaryPageSize"`
-	CBLREnabled             bool 		`json:"cblrEnabled"`
-	CloudInstall            bool  		`json:"cloud_install"`
-	Features                interface{} 	`json:"features"`
-	LinuxInstallerExists    bool 		`json:"linuxInstallerExists"`
-	MaxRowsSolrReportQuery  int 		`json:"maxRowsSolrReportQuery"`
-	MaxSearchResultRows     int 		`json:"maxSearchResultRows"`
-	OsxInstallerExists      bool        	`json:"osxInstallerExists"`
-	ProcessOrder            string        	`json:"processOrder"`
-	ProcessPageSize         int        	`json:"processPageSize"`
-	SearchExportCount       int        	`json:"searchExportCount"`
-	TimestampDeltaThreshold int        	`json:"timestampDeltaThreshold"`
-	VdiGloballyEnabled      bool        	`json:"vdiGloballyEnabled"`
-	Version                 string 		`json:"version"`
-	VersionRelease          string        	`json:"version_release"`
+	BanningEnabled          bool        `json:"banningEnabled"`
+	BinaryOrder             string      `json:"binaryOrder"`
+	BinaryPageSize          int         `json:"binaryPageSize"`
+	CBLREnabled             bool        `json:"cblrEnabled"`
+	CloudInstall            bool        `json:"cloud_install"`
+	Features                interface{} `json:"features"`
+	LinuxInstallerExists    bool        `json:"linuxInstallerExists"`
+	MaxRowsSolrReportQuery  int         `json:"maxRowsSolrReportQuery"`
+	MaxSearchResultRows     int         `json:"maxSearchResultRows"`
+	OsxInstallerExists      bool        `json:"osxInstallerExists"`
+	ProcessOrder            string      `json:"processOrder"`
+	ProcessPageSize         int         `json:"processPageSize"`
+	SearchExportCount       int         `json:"searchExportCount"`
+	TimestampDeltaThreshold int         `json:"timestampDeltaThreshold"`
+	VdiGloballyEnabled      bool        `json:"vdiGloballyEnabled"`
+	Version                 string      `json:"version"`
+	VersionRelease          string      `json:"version_release"`
 }
+
 /*
  * This is the Cache for the report title within post processing
  * Mapping: "<feed_id>|<report_id>" -> report_title
  */
-var FeedCache = ttlru.New(128, 5 * time.Minute)
+var FeedCache = ttlru.New(128, 5*time.Minute)
 
 func GetCb(route string) ([]byte, error) {
 
@@ -69,8 +70,8 @@ func GetCb(route string) ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL},
-		Proxy: proxyRequest,
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL, MinVersion: tls.VersionTLS12},
+		Proxy:           proxyRequest,
 	}
 
 	httpClient := &http.Client{Transport: tr}
@@ -86,7 +87,7 @@ func GetCb(route string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200{
+	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("Cb Response Server returned a %d status code.\n", resp.StatusCode)
 	}
 
