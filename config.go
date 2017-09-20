@@ -61,6 +61,7 @@ type Configuration struct {
 	TLSCACert     *string
 	TLSVerify     bool
 	TLSCName      *string
+	TLS12Only     bool
 
 	// HTTP-specific configuration
 	HttpAuthorizationToken *string
@@ -435,6 +436,19 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.TLS12Only = true
+	tlsInsecure, ok := input.Get(outType, "insecure_tls")
+	if ok {
+		boolval, err := strconv.ParseBool(tlsInsecure)
+		if err == nil {
+			if boolval == true {
+				config.TLS12Only = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'insecure_tls': ")
+		}
+	}
+
 	serverCName, ok := input.Get(outType, "server_cname")
 	if ok {
 		config.TLSCName = &serverCName
@@ -545,6 +559,13 @@ func configureTLS(config Configuration) *tls.Config {
 	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
 		log.Printf("Forcing TLS Common Name check to use %s.", *config.TLSCName)
 		tlsConfig.ServerName = *config.TLSCName
+	}
+
+	if config.TLS12Only == true {
+		tlsConfig.MinVersion = tls.VersionTLS12
+	} else {
+		log.Println("Relaxing minimum TLS version to 1.0")
+		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
 	return tlsConfig
