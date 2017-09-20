@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+import _ "net/http/pprof"
+
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")

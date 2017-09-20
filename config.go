@@ -44,6 +44,7 @@ type Configuration struct {
 	AMQPTLSCACert        string
 	OutputParameters     string
 	EventTypes           []string
+	EventMap             map[string]bool
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
@@ -54,11 +55,13 @@ type Configuration struct {
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
 
-	// Syslog-specific configuration
+	// SSL/TLS-specific configuration
 	TLSClientKey  *string
 	TLSClientCert *string
 	TLSCACert     *string
 	TLSVerify     bool
+	TLSCName      *string
+	TLS12Only     bool
 
 	// HTTP-specific configuration
 	HttpAuthorizationToken *string
@@ -77,7 +80,7 @@ type Configuration struct {
 	PerformFeedPostprocessing bool
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
-	CbAPIProxyUrl	          string
+	CbAPIProxyUrl             string
 }
 
 type ConfigurationError struct {
@@ -156,11 +159,6 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 	}
 
 	for _, eventType := range eventTypes {
-		if eventType.configKey == "events_raw_sensor" && c.UseRawSensorExchange {
-			// skip the sensor event section if we're consuming from the firehose anyway
-			// we will be forwarding everything in that case
-			continue
-		}
 		val, ok := input.Get("bridge", eventType.configKey)
 		if ok {
 			val = strings.ToLower(val)
@@ -176,6 +174,12 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 				}
 			}
 		}
+	}
+
+	c.EventMap = make(map[string]bool)
+
+	for _, eventName := range c.EventTypes {
+		c.EventMap[eventName] = true
 	}
 }
 
@@ -432,6 +436,24 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.TLS12Only = true
+	tlsInsecure, ok := input.Get(outType, "insecure_tls")
+	if ok {
+		boolval, err := strconv.ParseBool(tlsInsecure)
+		if err == nil {
+			if boolval == true {
+				config.TLS12Only = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'insecure_tls': ")
+		}
+	}
+
+	serverCName, ok := input.Get(outType, "server_cname")
+	if ok {
+		config.TLSCName = &serverCName
+	}
+
 	config.TLSConfig = configureTLS(config)
 
 	// Bundle configuration
@@ -532,6 +554,19 @@ func configureTLS(config Configuration) *tls.Config {
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
 		tlsConfig.RootCAs = caCertPool
+	}
+
+	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
+		log.Printf("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
+		tlsConfig.ServerName = *config.TLSCName
+	}
+
+	if config.TLS12Only == true {
+		log.Println("Enforcing minimum TLS version 1.2")
+		tlsConfig.MinVersion = tls.VersionTLS12
+	} else {
+		log.Println("Relaxing minimum TLS version to 1.0")
+		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
 	return tlsConfig
