@@ -378,11 +378,9 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		kv["username"] = message.OriginalMessage.Process.GetUsername()
 	}
 
-        if message.OriginalMessage.Process.Uid != nil {
+	if message.OriginalMessage.Process.Uid != nil {
 		kv["uid"] = message.OriginalMessage.Process.GetUid()
 	}
-
-
 }
 
 func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -392,7 +390,6 @@ func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	file_path, _ := message.getStringByGuid(message.OriginalMessage.Header.GetFilepathStringGuid())
 	kv["path"] = file_path
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Modload.GetMd5Hash())
-
 }
 
 func filemodAction(a sensor_events.CbFileModMsg_CbFileModAction) string {
@@ -456,7 +453,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["child_process_guid"])
 	}
 
-        kv["path"] = om.Childproc.GetPath()
+	kv["path"] = om.Childproc.GetPath()
+
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
 }
 

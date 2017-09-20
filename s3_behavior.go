@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,8 +42,31 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		baseName = filepath.Base(fileName)
 	}
 
+	var byteReader io.ReadSeeker
+
+	if config.S3CompressData != false {
+		baseName += ".gz"
+		fileReader := bufio.NewReader(fp)
+
+		var gzBytes bytes.Buffer
+		gzWriter := gzip.NewWriter(&gzBytes)
+
+		fileContents, ferr := ioutil.ReadAll(fileReader)
+		if ferr != nil {
+			return UploadStatus{fileName: fileName, result: ferr}
+		}
+
+		gzWriter.Write(fileContents)
+		gzWriter.Close()
+
+		byteReader = bytes.NewReader(gzBytes.Bytes())
+
+	} else {
+		byteReader = fp
+	}
+
 	_, err := o.out.PutObject(&s3.PutObjectInput{
-		Body:                 fp,
+		Body:                 byteReader,
 		Bucket:               &o.bucketName,
 		Key:                  &baseName,
 		ServerSideEncryption: config.S3ServerSideEncryption,

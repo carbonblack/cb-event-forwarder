@@ -22,6 +22,7 @@ const (
 	UDPOutputType
 	SyslogOutputType
 	HttpOutputType
+	KafkaOutputType
 )
 
 const (
@@ -42,6 +43,7 @@ type Configuration struct {
 	AMQPTLSClientKey     string
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
+	AMQPQueueName        string
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -54,6 +56,7 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3CompressData          bool
 
 	// SSL/TLS-specific configuration
 	TLSClientKey  *string
@@ -81,6 +84,10 @@ type Configuration struct {
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
 	CbAPIProxyUrl             string
+
+	// Kafka-specific configuration
+	KafkaBrokers     *string
+	KafkaTopicSuffix *string
 }
 
 type ConfigurationError struct {
@@ -280,6 +287,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
+	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
+	if ok {
+		config.AMQPQueueName = rabbitQueueName
+	}
+
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
@@ -341,6 +353,15 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
 			}
+
+			config.S3CompressData = false
+			val, ok = input.Get("s3", "compress_data")
+			if ok {
+				b, err := strconv.ParseBool(val)
+				if err == nil {
+					config.S3CompressData = b
+				}
+			}
 		case "http":
 			parameterKey = "httpout"
 			config.OutputType = HttpOutputType
@@ -373,6 +394,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
+		case "kafka":
+			config.OutputType = KafkaOutputType
+
+			kafkaBrokers, ok := input.Get("kafka", "brokers")
+			if ok {
+				config.KafkaBrokers = &kafkaBrokers
+			}
+
+			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
+			if ok {
+				config.KafkaTopicSuffix = &kafkaTopicSuffix
+			}
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
