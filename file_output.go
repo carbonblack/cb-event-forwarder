@@ -1,31 +1,35 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
-	"bytes"
 )
 
 type BufferOutput struct {
-	buffer 		bytes.Buffer
-	lastFlush 	time.Time
+	buffer    bytes.Buffer
+	lastFlush time.Time
 }
 
 type FileOutput struct {
-	outputFileName 	string
-	outputFile     	*os.File
-	fileOpenedAt  	time.Time
+	outputFileName string
+	outputFile     io.WriteCloser
+	gzipOSFilePtr  *os.File
+	fileOpenedAt   time.Time
 
-	lastRolledOver 	time.Time
+	lastRolledOver time.Time
 	sync.RWMutex
-	bufferOutput	BufferOutput
+	bufferOutput BufferOutput
 }
 
 type FileStatistics struct {
@@ -51,8 +55,12 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.Lock()
 	defer o.Unlock()
 
+	if config.FileHandlerCompressData != false && !strings.HasSuffix(fileName, ".gz") {
+		fileName += ".gz"
+	}
+
 	o.outputFileName = fileName
-	o.close()
+	o.closeFile()
 	o.fileOpenedAt = time.Time{}
 	o.lastRolledOver = time.Time{}
 
@@ -61,7 +69,13 @@ func (o *FileOutput) Initialize(fileName string) error {
 		return err
 	}
 
-	o.outputFile = fp
+	if config.FileHandlerCompressData != false {
+		o.outputFile = gzip.NewWriter(fp)
+		o.gzipOSFilePtr = fp
+	} else {
+		o.outputFile = fp
+	}
+
 	o.fileOpenedAt = time.Now()
 	o.lastRolledOver = time.Now()
 	o.bufferOutput.lastFlush = time.Now()
@@ -74,11 +88,6 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		return errors.New("No output file specified")
 	}
 
-	_, err := o.outputFile.Stat()
-	if err != nil {
-		return err
-	}
-
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
@@ -88,7 +97,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 		defer o.flushOutput(true)
 		defer signal.Stop(hup)
-		defer o.close()
+		defer o.closeFile()
 
 		for {
 
@@ -136,8 +145,8 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 * 1000000ns = 1ms
 	 */
 
-	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000  || force {
-		_, err := o.outputFile.WriteString(o.bufferOutput.buffer.String())
+	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
+		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 		// is the error temporary? reopen the file and see...
 		if err != nil {
 			return err
@@ -164,7 +173,7 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 		o.lastRolledOver.Format(tf))
 	newName = filepath.Join(basename, newName)
 
-	o.close()
+	o.closeFile()
 
 	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
@@ -175,9 +184,13 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	return newName, o.Initialize(o.outputFileName)
 }
 
-func (o *FileOutput) close() {
+func (o *FileOutput) closeFile() {
 	if o.outputFile != nil {
 		o.outputFile.Close()
 		o.outputFile = nil
+	}
+	if o.gzipOSFilePtr != nil {
+		o.gzipOSFilePtr.Close()
+		o.gzipOSFilePtr = nil
 	}
 }

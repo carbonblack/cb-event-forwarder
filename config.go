@@ -56,7 +56,6 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
-	S3CompressData          bool
 
 	// SSL/TLS-specific configuration
 	TLSClientKey  *string
@@ -76,6 +75,9 @@ type Configuration struct {
 	CommaSeparateEvents bool
 	BundleSendTimeout   time.Duration
 	BundleSizeMax       int64
+
+	// Compress data on S3 or file output types
+	FileHandlerCompressData bool
 
 	TLSConfig *tls.Config
 
@@ -314,6 +316,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.FileHandlerCompressData = false
+	val, ok = input.Get("bridge", "compress_data")
+	if ok {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.FileHandlerCompressData = b
+		}
+	}
+
 	outType, ok := input.Get("bridge", "output_type")
 	var parameterKey string
 	if ok {
@@ -354,14 +365,6 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.S3ObjectPrefix = &objectPrefix
 			}
 
-			config.S3CompressData = false
-			val, ok = input.Get("s3", "compress_data")
-			if ok {
-				b, err := strconv.ParseBool(val)
-				if err == nil {
-					config.S3CompressData = b
-				}
-			}
 		case "http":
 			parameterKey = "httpout"
 			config.OutputType = HttpOutputType

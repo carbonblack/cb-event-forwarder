@@ -223,7 +223,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-		defer o.tempFileOutput.close()
+		defer o.tempFileOutput.closeFile()
 
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)

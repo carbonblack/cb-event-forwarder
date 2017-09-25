@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"text/template"
 )
 
@@ -81,7 +83,20 @@ type UploadEvent struct {
 func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 	defer close(events)
 
-	scanner := bufio.NewScanner(fp)
+	var fileReader io.Reader
+	// decompress file from disk if it's compressed
+	if strings.HasSuffix(fp.Name(), ".gz") {
+		fileReader, err := gzip.NewReader(fp)
+		if err != nil {
+			// TODO: find a better way to bubble this error up
+			log.Fatal("Error reading file: " + err.Error())
+		}
+		defer fileReader.Close()
+	} else {
+		fileReader = fp
+	}
+
+	scanner := bufio.NewScanner(fileReader)
 	var i int64
 
 	for scanner.Scan() {
