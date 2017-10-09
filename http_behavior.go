@@ -10,8 +10,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"text/template"
+
+	"gopkg.in/h2non/filetype.v1"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
@@ -84,12 +85,23 @@ func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 	defer close(events)
 
 	var fileReader io.Reader
+
 	// decompress file from disk if it's compressed
-	if strings.HasSuffix(fp.Name(), ".gz") {
+	header := make([]byte, 261)
+
+	_, err := fp.Read(header)
+	if err != nil {
+		log.Fatalf("Could not read header information for file: %s", err.Error())
+		return
+	}
+	fp.Seek(0, os.SEEK_SET)
+
+	if filetype.IsMIME(header, "application/gzip") {
 		fileReader, err := gzip.NewReader(fp)
 		if err != nil {
 			// TODO: find a better way to bubble this error up
-			log.Fatal("Error reading file: " + err.Error())
+			log.Fatalf("Error reading file: %s", err.Error())
+			return
 		}
 		defer fileReader.Close()
 	} else {
