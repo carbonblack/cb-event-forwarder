@@ -22,6 +22,7 @@ const (
 	UDPOutputType
 	SyslogOutputType
 	HttpOutputType
+	SplunkOutputType
 	KafkaOutputType
 )
 

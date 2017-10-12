@@ -326,6 +326,8 @@ func startOutputs() error {
 		outputHandler = &SyslogOutput{}
 	case HttpOutputType:
 		outputHandler = &BundledOutput{behavior: &HttpBehavior{}}
+	case SplunkOutputType:
+	    outputHandler = &BundledOutput{behavior: &SplunkBehavior{}}
 	case KafkaOutputType:
 		outputHandler = &KafkaOutput{}
 	default:
@@ -359,6 +361,8 @@ func startOutputs() error {
 			ret["type"] = "s3"
 		case HttpOutputType:
 			ret["type"] = "http"
+		case SplunkOutputType:
+		    ret["type"] = "splunk"
 		}
 
 		return ret

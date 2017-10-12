@@ -11,17 +11,15 @@ import (
 	"net/http"
 	"os"
 	"text/template"
-	"crypto/sha1"
-	"encoding/hex"
 	"gopkg.in/h2non/filetype.v1"
-	"hash"
+	"github.com/satori/go.uuid"
 )
-
+/*
 // The following UUID code is from https://github.com/satori/go.uuid:
 // Copyright (C) 2013-2015 by Maxim Bublis <b@codemonkey.ru>
 //
 // Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
+// a copy of this softwarend associated documentation files (the
 // "Software"), to deal in the Software without restriction, including
 // without limitation the rights to use, copy, modify, merge, publish,
 // distribute, sublicense, and/or sell copies of the Software, and to
@@ -91,7 +89,7 @@ func newFromHash(h hash.Hash, ns UUID, name string) UUID {
 	copy(u[:], h.Sum(nil))
 
 	return u
-}
+} */
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
 type SplunkBehavior struct {
@@ -215,7 +213,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Initialize the POST */
 	reader, writer := io.Pipe()
 
-	request, err := http.NewRequest("POST", this.dest, reader)
+	request, err := http.NewRequest("POST", this.dest + "/services/collector/raw" , reader)
 
 	go func() {
 		defer writer.Close()
@@ -230,6 +228,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	for key, value := range this.headers {
 		request.Header.Set(key, value)
 	}
+	request.Header.Set("X-Splunk-Request-Channel", uuid.NewV4().String())
 
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
