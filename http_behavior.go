@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"text/template"
-
 	"gopkg.in/h2non/filetype.v1"
 )
 
@@ -68,17 +67,6 @@ func (this *HttpBehavior) Statistics() interface{} {
 
 func (this *HttpBehavior) Key() string {
 	return this.dest
-}
-
-type UploadData struct {
-	FileName string
-	FileSize int64
-	Events   chan UploadEvent
-}
-
-type UploadEvent struct {
-	EventSeq  int64
-	EventText string
 }
 
 func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {

@@ -90,6 +90,9 @@ type Configuration struct {
 	// Kafka-specific configuration
 	KafkaBrokers     *string
 	KafkaTopicSuffix *string
+
+    //Splunkd
+    SplunkToken string
 }
 
 type ConfigurationError struct {

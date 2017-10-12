@@ -10,7 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-
+	"text/template"
 	"crypto/sha1"
 	"encoding/hex"
 	"gopkg.in/h2non/filetype.v1"
@@ -101,6 +101,9 @@ type SplunkBehavior struct {
 	client *http.Client
 
 	hecToken string
+    httpPostTemplate  *template.Template 
+    firstEventTemplate *template.Template
+    subsequentEventTemplate *template.Template
 }
 
 type SplunkStatistics struct {
@@ -109,12 +112,15 @@ type SplunkStatistics struct {
 
 /* Construct the SplunkBehavior object */
 func (this *SplunkBehavior) Initialize(dest string) error {
+    this.httpPostTemplate = config.HttpPostTemplate
+    this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
+    this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
 	this.headers = make(map[string]string)
 
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.SplunkToken != nil {
+	if config.SplunkToken != "" {
 		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.HttpAuthorizationToken)
 	}
 
@@ -123,7 +129,6 @@ func (this *SplunkBehavior) Initialize(dest string) error {
 	}
 	this.client = &http.Client{Transport: transport}
 
-	this.hecToken = uuid
 	return nil
 }
 
@@ -141,16 +146,6 @@ func (this *SplunkBehavior) Key() string {
 	return this.dest
 }
 
-type UploadData struct {
-	FileName string
-	FileSize int64
-	Events   chan UploadEvent
-}
-
-type UploadEvent struct {
-	EventSeq  int64
-	EventText string
-}
 
 func (this *SplunkBehavior) readFromFile(fp *os.File) {
 	var fileReader io.Reader
