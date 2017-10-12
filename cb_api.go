@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/zvelo/ttlru"
+	"zvelo.io/ttlru"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -50,7 +50,7 @@ type ApiInfo struct {
  * This is the Cache for the report title within post processing
  * Mapping: "<feed_id>|<report_id>" -> report_title
  */
-var FeedCache = ttlru.New(128, 5*time.Minute)
+var FeedCache = ttlru.New(128, ttlru.WithTTL(5*time.Minute))
 
 func GetCb(route string) ([]byte, error) {
 
