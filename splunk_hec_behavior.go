@@ -145,7 +145,7 @@ func (this *SplunkBehavior) Key() string {
 }
 
 
-    func (this *SplunkBehavior) readFromFile(fp *os.File) {
+func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
         var fileReader io.Reader
 
         // decompress file from disk if it's compressed
@@ -219,7 +219,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go this.readFromFile(fp)
+		go this.readFromFile(fp, uploadData.Events)
 
 		this.httpPostTemplate.Execute(writer, uploadData)
 	}()
