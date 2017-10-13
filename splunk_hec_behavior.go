@@ -213,6 +213,13 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Initialize the POST */
 	reader, writer := io.Pipe()
 
+	uploadData.FileName = fileName
+	fileInfo, err := fp.Stat()
+	if err == nil {
+		uploadData.FileSize = fileInfo.Size()
+	}
+	uploadData.Events = make(chan UploadEvent)
+
 	request, err := http.NewRequest("POST", this.dest , reader)
 
 	go func() {
