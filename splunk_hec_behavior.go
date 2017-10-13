@@ -72,6 +72,9 @@ func (this *SplunkBehavior) Key() string {
 
 
 func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
+
+        defer close(events)
+
         var fileReader io.Reader
 
         // decompress file from disk if it's compressed
@@ -123,11 +126,16 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
             if err != nil {
                 log.Fatal(err)
             }
+
+            events <- UploadEvent{EventText: eventText, EventSeq: i}
+		    i += 1
+
         }
 
         if err := scanner.Err(); err != nil {
             log.Fatal(err)
         }
+
     }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
