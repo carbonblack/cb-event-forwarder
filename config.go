@@ -429,7 +429,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			} else {
 				if config.OutputFormat == JSONOutputFormat {
 					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
-						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+						`{"filename": "{{.FileName}}", "service": "carbonblack", "sourcetype":"bit9:carbonblack:json", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
 				} else {
 					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
 				}

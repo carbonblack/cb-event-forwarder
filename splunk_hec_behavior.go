@@ -145,64 +145,64 @@ func (this *SplunkBehavior) Key() string {
 }
 
 
-func (this *SplunkBehavior) readFromFile(fp *os.File) {
-	var fileReader io.Reader
+    func (this *SplunkBehavior) readFromFile(fp *os.File) {
+        var fileReader io.Reader
 
-	// decompress file from disk if it's compressed
-	header := make([]byte, 261)
+        // decompress file from disk if it's compressed
+        header := make([]byte, 261)
 
-	_, err := fp.Read(header)
-	if err != nil {
-		log.Fatalf("Could not read header information for file: %s", err.Error())
-		return
-	}
-	fp.Seek(0, os.SEEK_SET)
+        _, err := fp.Read(header)
+        if err != nil {
+            log.Fatalf("Could not read header information for file: %s", err.Error())
+            return
+        }
+        fp.Seek(0, os.SEEK_SET)
 
-	if filetype.IsMIME(header, "application/gzip") {
-		fileReader, err := gzip.NewReader(fp)
-		if err != nil {
-			// TODO: find a better way to bubble this error up
-			log.Fatalf("Error reading file: %s", err.Error())
-			return
-		}
-		defer fileReader.Close()
-	} else {
-		fileReader = fp
-	}
+        if filetype.IsMIME(header, "application/gzip") {
+            fileReader, err := gzip.NewReader(fp)
+            if err != nil {
+                // TODO: find a better way to bubble this error up
+                log.Fatalf("Error reading file: %s", err.Error())
+                return
+            }
+            defer fileReader.Close()
+        } else {
+            fileReader = fp
+        }
 
-	scanner := bufio.NewScanner(fileReader)
-	var i int64
+        scanner := bufio.NewScanner(fileReader)
+        var i int64
 
-	for scanner.Scan() {
-		var b bytes.Buffer
-		var err error
-		eventText := scanner.Text()
+        for scanner.Scan() {
+            var b bytes.Buffer
+            var err error
+            eventText := scanner.Text()
 
-		if len(eventText) == 0 {
-			// skip empty lines
-			continue
-		}
+            if len(eventText) == 0 {
+                // skip empty lines
+                continue
+            }
 
-		if config.CommaSeparateEvents {
-			if i == 0 {
-				err = this.firstEventTemplate.Execute(&b, eventText)
-			} else {
-				err = this.subsequentEventTemplate.Execute(&b, eventText)
-			}
-			eventText = b.String()
-		} else {
-			eventText = eventText + "\n"
-		}
+            if config.CommaSeparateEvents {
+                if i == 0 {
+                    err = this.firstEventTemplate.Execute(&b, eventText)
+                } else {
+                    err = this.subsequentEventTemplate.Execute(&b, eventText)
+                }
+                eventText = b.String()
+            } else {
+                eventText = eventText + "\n"
+            }
 
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+            if err != nil {
+                log.Fatal(err)
+            }
+        }
 
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-}
+        if err := scanner.Err(); err != nil {
+            log.Fatal(err)
+        }
+    }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
@@ -213,7 +213,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Initialize the POST */
 	reader, writer := io.Pipe()
 
-	request, err := http.NewRequest("POST", this.dest + "/services/collector/raw" , reader)
+	request, err := http.NewRequest("POST", this.dest , reader)
 
 	go func() {
 		defer writer.Close()
