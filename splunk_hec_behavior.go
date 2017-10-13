@@ -118,8 +118,8 @@ func (this *SplunkBehavior) Initialize(dest string) error {
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.SplunkToken != "" {
-		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.HttpAuthorizationToken)
+	if *(config.SplunkToken) != "" {
+		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
 	}
 
 	transport := &http.Transport{

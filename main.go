@@ -306,7 +306,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 func startOutputs() error {
 	// Configure the specific output.
-	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog'
+	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog' ,"http",'splunk'
 	var outputHandler OutputHandler
 
 	parameters := config.OutputParameters

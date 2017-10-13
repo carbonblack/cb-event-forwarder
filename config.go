@@ -93,7 +93,7 @@ type Configuration struct {
 	KafkaTopicSuffix *string
 
     //Splunkd
-    SplunkToken string
+    SplunkToken *string
 }
 
 type ConfigurationError struct {
@@ -413,6 +413,36 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.KafkaTopicSuffix = &kafkaTopicSuffix
 			}
+		case "splunk":
+		    parameterKey = "splunkout"
+			config.OutputType = SplunkOutputType
+
+			token, ok := input.Get("splunk", "hec_token")
+			if ok {
+				config.SplunkToken = &token
+			}
+
+			postTemplate, ok := input.Get("splunk", "http_post_template")
+			config.HttpPostTemplate = template.New("http_post_output")
+			if ok {
+				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+			} else {
+				if config.OutputFormat == JSONOutputFormat {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+				} else {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+				}
+			}
+
+			contentType, ok := input.Get("http", "content_type")
+			if ok {
+				config.HttpContentType = &contentType
+			} else {
+				jsonString := "application/json"
+				config.HttpContentType = &jsonString
+			}
+
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
