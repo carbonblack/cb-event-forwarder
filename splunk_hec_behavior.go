@@ -14,82 +14,7 @@ import (
 	"gopkg.in/h2non/filetype.v1"
 	"github.com/satori/go.uuid"
 )
-/*
-// The following UUID code is from https://github.com/satori/go.uuid:
-// Copyright (C) 2013-2015 by Maxim Bublis <b@codemonkey.ru>
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this softwarend associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// UUID representation compliant with specification
-// described in RFC 4122.
-type UUID [16]byte
-
-// Used in string method conversion
-const dash byte = '-'
-
-// SetVersion sets version bits.
-func (u *UUID) SetVersion(v byte) {
-	u[6] = (u[6] & 0x0f) | (v << 4)
-}
-
-// SetVariant sets variant bits as described in RFC 4122.
-func (u *UUID) SetVariant() {
-	u[8] = (u[8] & 0xbf) | 0x80
-}
-
-// Returns canonical string representation of UUID:
-// xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.
-func (u UUID) String() string {
-	buf := make([]byte, 36)
-
-	hex.Encode(buf[0:8], u[0:4])
-	buf[8] = dash
-	hex.Encode(buf[9:13], u[4:6])
-	buf[13] = dash
-	hex.Encode(buf[14:18], u[6:8])
-	buf[18] = dash
-	hex.Encode(buf[19:23], u[8:10])
-	buf[23] = dash
-	hex.Encode(buf[24:], u[10:])
-
-	return string(buf)
-}
-
-// NewV5 returns UUID based on SHA-1 hash of namespace UUID and name.
-func NewV5(ns UUID, name string) UUID {
-	u := newFromHash(sha1.New(), ns, name)
-	u.SetVersion(5)
-	u.SetVariant()
-
-	return u
-}
-
-// Returns UUID based on hashing of namespace UUID and name.
-func newFromHash(h hash.Hash, ns UUID, name string) UUID {
-	u := UUID{}
-	h.Write(ns[:])
-	h.Write([]byte(name))
-	copy(u[:], h.Sum(nil))
-
-	return u
-} */
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
 type SplunkBehavior struct {
@@ -98,8 +23,7 @@ type SplunkBehavior struct {
 
 	client *http.Client
 
-	hecToken string
-    httpPostTemplate  *template.Template 
+    httpPostTemplate  *template.Template
     firstEventTemplate *template.Template
     subsequentEventTemplate *template.Template
 }
@@ -118,9 +42,11 @@ func (this *SplunkBehavior) Initialize(dest string) error {
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if *(config.SplunkToken) != "" {
+	if config.SplunkToken != nil{
 		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
 	}
+
+	this.headers["Content-Type"] = *config.HttpContentType
 
 	transport := &http.Transport{
 		TLSClientConfig: config.TLSConfig,
