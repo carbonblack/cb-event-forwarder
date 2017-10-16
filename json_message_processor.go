@@ -288,7 +288,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						/*
 						 * Get the report_title for this feed hit
 						 */
-						reportTitle, reportScore, err := GetReportTitle(int(iFeedId), reportId.(string))
+						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message
