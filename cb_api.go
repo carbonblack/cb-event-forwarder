@@ -145,12 +145,16 @@ func GetReport(FeedId int, ReportId string) (string, string, error) {
 
 	key := strconv.Itoa(FeedId) + "|" + ReportId
 
-	reportTitle,nreportScore, cachePresent := FeedCache.Get(key)
+	report, cachePresent := FeedCache.Get(key)
+
+	reportTitle = report.Title
+	reportScore = report.Score
 
 	if cachePresent && reportTitle != nil && reportScore != nil {
 		return reportTitle.(string), reportScore.(string),nil
 	} else {
 		body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
+
 		if err != nil {
 			return "","", err
 		}
@@ -161,7 +165,7 @@ func GetReport(FeedId int, ReportId string) (string, string, error) {
 			return "","", err
 		}
 
-		FeedCache.Set(key, threatReport.Title, threatReport.Score)
+		FeedCache.Set(key, threatReport)
 
 		return threatReport.Title, threatReport.Score, nil
 	}
