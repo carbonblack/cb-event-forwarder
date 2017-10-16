@@ -138,3 +138,31 @@ func GetReportTitle(FeedId int, ReportId string) (string, error) {
 		return threatReport.Title, nil
 	}
 }
+
+func GetReport(FeedId int, ReportId string) (string, error) {
+
+	threatReport := ThreatReport{}
+
+	key := strconv.Itoa(FeedId) + "|" + ReportId
+
+	reportTitle, cachePresent := FeedCache.Get(key)
+
+	if cachePresent && reportTitle != nil {
+		return reportTitle.(string), nil
+	} else {
+		body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
+		if err != nil {
+			return "", err
+		}
+
+		err = json.Unmarshal(body, &threatReport)
+
+		if err != nil {
+			return "", err
+		}
+
+		FeedCache.Set(key, threatReport.Title)
+
+		return threatReport.Title, nil
+	}
+}
