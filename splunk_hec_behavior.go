@@ -169,7 +169,8 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	for key, value := range this.headers {
 		request.Header.Set(key, value)
 	}
-	request.Header.Set("X-Splunk-Request-Channel", uuid.NewV4().String())
+
+	/*request.Header.Set("X-Splunk-Request-Channel", uuid.NewV4().String()) */
 
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
