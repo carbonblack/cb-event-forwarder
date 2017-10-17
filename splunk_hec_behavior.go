@@ -164,7 +164,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
         var temp bytes.Buffer;
 		this.httpPostTemplate.Execute(writer, uploadData)
 		this.httpPostTemplate.Execute(&temp,uploadData)
-		log.Printf("Template resulted in: %s ",temp)
+		log.Printf("Template resulted in: %s ",temp.String())
 
 	}()
 
