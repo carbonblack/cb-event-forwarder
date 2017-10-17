@@ -36,7 +36,7 @@ type SplunkStatistics struct {
 func (this *SplunkBehavior) Initialize(dest string) error {
     this.httpPostTemplate = config.HttpPostTemplate
     this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
-    this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
+    this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	this.headers = make(map[string]string)
 
 	this.dest = dest
