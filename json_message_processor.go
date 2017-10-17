@@ -141,7 +141,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			      if segment, ok := msg["segment_id"] ; ok {
 	                if seg , ok := segment.(string); ok {
 	                    uniqueId += "-" + seg
-	                    log.printf("Added segment to uniqueID = %s\n",uniqueId)
+	                    log.Printf("Added segment to uniqueID = %s\n",uniqueId)
 	                }
 	              }
 	            }
