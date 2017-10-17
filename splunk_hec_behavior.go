@@ -12,7 +12,7 @@ import (
 	"os"
 	"text/template"
 	"gopkg.in/h2non/filetype.v1"
-	"github.com/satori/go.uuid"
+	/*"github.com/satori/go.uuid"*/
 )
 
 
