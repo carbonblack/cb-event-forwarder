@@ -16,10 +16,14 @@ import (
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
 func parseFullGuid(v string) (string, int, error) {
+
+
 	var segmentNumber int64
 	var err error
 
 	segmentNumber = 1
+
+	log.printf("parseFUllGuid : v  = %s\n", v)
 
 	switch {
 	case len(v) < 36:
@@ -28,12 +32,15 @@ func parseFullGuid(v string) (string, int, error) {
 		return v, int(segmentNumber), nil
 	case len(v) == 45:
 		segmentNumber, err = strconv.ParseInt(v[37:], 16, 32)
+		log.printf("segmentNumber = %d\n",segmentNumber)
 		if err != nil {
 			segmentNumber = 1
 		}
 	default:
 		err = errors.New("Truncated GUID")
 	}
+
+	log.printf("segmentNumber = %d\n",segmentNumber)
 
 	return v[:36], int(segmentNumber), err
 }
@@ -289,6 +296,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						 * Get the report_title for this feed hit
 						 */
 						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
+						log.Printf("Report title = %s , Score = %s",reportTitle, ReportScore)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message
