@@ -78,6 +78,8 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 func fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 
+	log.Printf("fixupMessage %s", messageType)
+
 	for key, value := range msg {
 		switch {
 		case key == "highlights":
