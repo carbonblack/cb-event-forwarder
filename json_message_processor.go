@@ -140,7 +140,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		if value, ok := msg["unique_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, err := parseFullGuid(uniqueId)
-                if (strings.HasPrefix(messageType,"storage.hit")){
+                if (strings.Contains(messageType,"storage.hit")){
 			      if segment, ok := msg["segment_id"] ; ok {
 	                if seg , ok := segment.(string); ok {
 	                    if process_id, ok := msg["process_id"] ; ok {
