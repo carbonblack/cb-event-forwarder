@@ -161,7 +161,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			    log.Println("UniqueID ok")
 			    if segment, ok := msg["segment_id"] ; ok {
 	                log.Println("Got segment ok")
-	                uniqueId += "-"  + segment.(string)
+	                uniqueId += "-"  + strconv.FormatInt(segment.(int64),16)
 	                log.Println("uniqueId is now : %s",uniqueId)
 	            }
 
