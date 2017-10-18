@@ -161,11 +161,8 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			    log.Println("UniqueID ok")
 			    if segment, ok := msg["segment_id"] ; ok {
 	                log.Println("Got segment ok")
-	                if seg , ok := segment.(string); ok {
-                        log.Println("got seg string")
-	                    uniqueId += "-" + seg
-	                    log.Printf("Updated uniqueID with segment now = %s",uniqueId)
-	                }
+	                uniqueId += "-"  + segment.(string)
+	                log.Println("uniqueId is now : %s",uniqueId)
 	            }
 
 				processGuid, segment, _ := parseFullGuid(uniqueId)
