@@ -155,19 +155,17 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 
 	// fall back to process_id in the message
 	if !hasProcessGUID {
+        log.Println("In !hasProcessGUID")
 		if value, ok := msg["process_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-			    if (strings.Contains(messageType,"storage.hit")){
-			      if segment, ok := msg["segment_id"] ; ok {
+			    log.Println("UniqueID ok")
+			    if segment, ok := msg["segment_id"] ; ok {
+	                log.Println("Got segment ok")
 	                if seg , ok := segment.(string); ok {
-	                    if process_id, ok := msg["process_id"] ; ok {
-	                        if proc_id , ok := process_id.(string) ; ok {
-	                            uniqueId = proc_id + "-" + seg
-	                            log.Printf("Updated uniqueID with segment now = %s",uniqueId)
-	                        }
-	                    }
+                        log.Println("got seg string")
+	                    uniqueId += "-" + seg
+	                    log.Printf("Updated uniqueID with segment now = %s",uniqueId)
 	                }
-	              }
 	            }
 
 				processGuid, segment, _ := parseFullGuid(uniqueId)
