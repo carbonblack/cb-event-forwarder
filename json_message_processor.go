@@ -161,7 +161,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			    log.Println("UniqueID ok")
 			    if segment, ok := msg["segment_id"] ; ok {
 			        if strings.Contains(messageType,"storage.hit") {
-			                 uniqueId += msg["process_id"].(string) + "-"  + segment.(json.Number).String()
+			                 uniqueId = msg["process_id"].(string) + "-"  + segment.(json.Number).String()
 	                         log.Printf("uniqueId is now : %s",uniqueId)
 	                }
 	            }
