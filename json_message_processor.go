@@ -160,9 +160,11 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			if uniqueId, ok := value.(string); ok {
 			    log.Println("UniqueID ok")
 			    if segment, ok := msg["segment_id"] ; ok {
-	                log.Println("Got segment ok")
-	                uniqueId += "-"  + segment.(json.Number).String()
-	                log.Println("uniqueId is now : %s",uniqueId)
+			        if len(uniqueId) == 37 {
+	                    log.Println("Got segment ok")
+	                    uniqueId += "-"  + segment.(json.Number).String()
+	                    log.Printf("uniqueId is now : %s",uniqueId)
+	                }
 	            }
 
 				processGuid, segment, _ := parseFullGuid(uniqueId)
