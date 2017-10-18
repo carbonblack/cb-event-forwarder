@@ -79,6 +79,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 
 	log.Printf("fixupMessage %s", messageType)
+	log.Printf("message = %s", msg)
 
 	for key, value := range msg {
 		switch {
@@ -140,7 +141,6 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		if value, ok := msg["unique_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
 			    if segment, ok := msg["segment_id"] ; ok {
-
 			        log.Println("Got segment id")
 			        if strings.Contains(messageType,"storage.hit") {
 			                 log.Println("message is a storagehit")
