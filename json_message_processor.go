@@ -155,7 +155,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	if !hasProcessGUID {
 		if value, ok := msg["process_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-			    if (strings.HasPrefix(messageType,"feed.storage.hit")){
+			    if (strings.HasPrefix(messageType,"storage.hit")){
 			      if segment, ok := msg["segment_id"] ; ok {
 	                if seg , ok := segment.(string); ok {
 	                    if process_id, ok := msg["process_id"] ; ok {
