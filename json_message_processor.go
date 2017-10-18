@@ -143,6 +143,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	                    if process_id, ok := msg["process_id"] ; ok {
 	                        if proc_id , ok := process_id.(string) ; ok {
 	                            uniqueId = proc_id + "-" + seg
+	                            log.Printf("Updated uniqueID with segment now = %s",uniqueId)
 	                        }
 	                    }
 	                }
