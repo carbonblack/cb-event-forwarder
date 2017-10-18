@@ -162,7 +162,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			    if segment, ok := msg["segment_id"] ; ok {
 
 			        log.Printf("Lenght of uniqueID = %d",len(uniqueId))
-			        if len(uniqueId) == 37 {
+			        if len(uniqueId) <= 37 {
 	                    log.Println("Got segment ok")
 	                    uniqueId += "-"  + segment.(json.Number).String()
 	                    log.Printf("uniqueId is now : %s",uniqueId)
