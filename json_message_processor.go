@@ -140,22 +140,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		if value, ok := msg["unique_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, err := parseFullGuid(uniqueId)
-
-				if err == nil {
-					    msg["process_guid"] = processGuid
-					    msg["segment_id"] = fmt.Sprintf("%v", segment)
-					    hasProcessGUID = true
-			    }
-
-			}
-		}
-	}
-
-	// fall back to process_id in the message
-	if !hasProcessGUID {
-		if value, ok := msg["process_id"]; ok {
-			if uniqueId, ok := value.(string); ok {
-			    if (strings.HasPrefix(messageType,"storage.hit")){
+                if (strings.HasPrefix(messageType,"storage.hit")){
 			      if segment, ok := msg["segment_id"] ; ok {
 	                if seg , ok := segment.(string); ok {
 	                    if process_id, ok := msg["process_id"] ; ok {
@@ -167,6 +152,22 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	                }
 	              }
 	            }
+				if err == nil {
+					    msg["process_guid"] = processGuid
+					    msg["segment_id"] = fmt.Sprintf("%v", segment)
+					    hasProcessGUID = true
+			    }
+
+			}
+		}
+	}
+
+	log.Printf("hasProcessGuid = %s",hasProcessGUID)
+
+	// fall back to process_id in the message
+	if !hasProcessGUID {
+		if value, ok := msg["process_id"]; ok {
+			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, _ := parseFullGuid(uniqueId)
 				msg["process_guid"] = processGuid
 				msg["segment_id"] = fmt.Sprintf("%v", segment)
