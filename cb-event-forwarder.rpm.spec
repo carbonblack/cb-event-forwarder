@@ -66,4 +66,4 @@ mkdir -p /var/cb/data
 
 %files -f MANIFEST
 %defattr(-,root,root)
-%config /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+%config(noreplace) /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
