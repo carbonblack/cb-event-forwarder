@@ -161,9 +161,6 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 		// spawn goroutine to read from the file
 		go this.readFromFile(fp, uploadData.Events)
-        /*temp := new(bytes.Buffer)
-        this.httpPostTemplate.Execute(temp,uploadData)
-		log.Printf("Template resulted in: %s ",temp.String())*/
 		this.httpPostTemplate.Execute(writer, uploadData)
 	}()
 

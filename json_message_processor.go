@@ -140,14 +140,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	if !strings.HasPrefix(messageType, "alert.") {
 		if value, ok := msg["unique_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-			    if segment, ok := msg["segment_id"] ; ok {
-			        log.Println("Got segment id")
-			        if strings.Contains(messageType,"storage.hit") {
-			                 log.Println("message is a storagehit")
-			                 uniqueId = msg["process_id"].(string) + "-"  + segment.(json.Number).String()
-	                         log.Printf("uniqueId is now : %s",uniqueId)
-	                }
-	            }
+
 				processGuid, segment, err := parseFullGuid(uniqueId)
 
 				if err == nil {
@@ -167,7 +160,6 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
         log.Println("In !hasProcessGUID")
 		if value, ok := msg["process_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-			    log.Println("UniqueID ok")
 
 
 				processGuid, segment, _ := parseFullGuid(uniqueId)
