@@ -147,7 +147,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 */
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
-		log.Println("Writing to bufferoutput")
+		log.Printf("Writing to bufferoutput %d", o.bufferOutput.buffer.Len())
 		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 		// is the error temporary? reopen the file and see...
 		if err != nil {
