@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"os/signal"
@@ -74,10 +74,10 @@ func (o *NetOutput) Initialize(netConn string) error {
 
 func (o *NetOutput) markConnected() {
 	o.connectTime = time.Now()
-	log.Printf("Connected to %s at %s.", o.netConn, o.connectTime)
+	log.Infof("Connected to %s at %s.", o.netConn, o.connectTime)
 	o.connected = true
 	if o.droppedEventCount != o.droppedEventSinceConnection {
-		log.Printf("Dropped %d events since the last reconnection.",
+		log.Infof("Dropped %d events since the last reconnection.",
 			o.droppedEventCount-o.droppedEventSinceConnection)
 		o.droppedEventSinceConnection = o.droppedEventCount
 	}
@@ -95,7 +95,7 @@ func (o *NetOutput) closeAndScheduleReconnection() {
 	// try reconnecting in 5 seconds
 	o.reconnectTime = time.Now().Add(time.Duration(5 * time.Second))
 
-	log.Printf("Lost connection to %s. Will try to reconnect at %s.", o.netConn, o.reconnectTime)
+	log.Infof("Lost connection to %s. Will try to reconnect at %s.", o.netConn, o.reconnectTime)
 }
 
 func (o *NetOutput) Key() string {

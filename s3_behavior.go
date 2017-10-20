@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,8 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		ACL:                  config.S3ACLPolicy,
 	})
 	fp.Close()
+
+	log.WithFields(log.Fields{"Filename": fileName, "Bucket": &o.bucketName}).Debug("Uploading File to Bucket")
 
 	return UploadStatus{fileName: fileName, result: err}
 }

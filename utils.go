@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net"
 )
 
@@ -71,6 +72,9 @@ func ntohs(p uint16) uint16 {
 }
 
 func GetMd5Hexdigest(src []byte) string {
+	if len(src) != 32 {
+		log.WithFields(log.Fields{"Md5Length": len(src)}).Debug("Md5 Length is not 32")
+	}
 	return fmt.Sprintf("%X", src)
 }
 

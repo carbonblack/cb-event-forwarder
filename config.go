@@ -6,9 +6,9 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
 	"io/ioutil"
-	"log"
 	"strconv"
 	"strings"
 	"text/template"
@@ -217,6 +217,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	if ok {
 		if val == "1" {
 			config.DebugFlag = true
+			log.SetLevel(log.DebugLevel)
+			log.Debug("Debugging output is set to True")
 		}
 	}
 
@@ -397,10 +399,10 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.UseRawSensorExchange = boolval
 			if boolval {
-				log.Println("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
-				log.Println("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Println("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
-				log.Println("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
+				log.Info("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
+				log.Info("- This will result in a *large* number of messages output via the event forwarder!")
+				log.Info("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
+				log.Info("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
 			}
 		} else {
 			errs.addErrorString("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
@@ -530,13 +532,13 @@ func configureTLS(config Configuration) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if config.TLSVerify == false {
-		log.Println("Disabling TLS verification for remote output")
+		log.Info("Disabling TLS verification for remote output")
 		tlsConfig.InsecureSkipVerify = true
 	}
 
 	if config.TLSClientCert != nil && config.TLSClientKey != nil && len(*config.TLSClientCert) > 0 &&
 		len(*config.TLSClientKey) > 0 {
-		log.Printf("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
+		log.Infof("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
 		cert, err := tls.LoadX509KeyPair(*config.TLSClientCert, *config.TLSClientKey)
 		if err != nil {
 			log.Fatal(err)
@@ -546,7 +548,7 @@ func configureTLS(config Configuration) *tls.Config {
 
 	if config.TLSCACert != nil && len(*config.TLSCACert) > 0 {
 		// Load CA cert
-		log.Printf("Loading valid CAs from file %s", *config.TLSCACert)
+		log.Infof("Loading valid CAs from file %s", *config.TLSCACert)
 		caCert, err := ioutil.ReadFile(*config.TLSCACert)
 		if err != nil {
 			log.Fatal(err)

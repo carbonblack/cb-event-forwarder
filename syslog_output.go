@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	syslog "github.com/RackSec/srslog"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
@@ -91,10 +91,10 @@ func (o *SyslogOutput) Statistics() interface{} {
 
 func (o *SyslogOutput) markConnected() {
 	o.connectTime = time.Now()
-	log.Printf("Connected to %s at %s.", o.hostnamePort, o.connectTime)
+	log.Infof("Connected to %s at %s.", o.hostnamePort, o.connectTime)
 	o.connected = true
 	if o.droppedEventCount != o.droppedEventSinceConnection {
-		log.Printf("Dropped %d events since the last reconnection.",
+		log.Infof("Dropped %d events since the last reconnection.",
 			o.droppedEventCount-o.droppedEventSinceConnection)
 		o.droppedEventSinceConnection = o.droppedEventCount
 	}
@@ -111,7 +111,7 @@ func (o *SyslogOutput) closeAndScheduleReconnection() {
 	// try reconnecting in 5 seconds
 	o.reconnectTime = time.Now().Add(time.Duration(5 * time.Second))
 
-	log.Printf("Lost connection to %s. Will try to reconnect at %s.", o.hostnamePort, o.reconnectTime)
+	log.Infof("Lost connection to %s. Will try to reconnect at %s.", o.hostnamePort, o.reconnectTime)
 }
 
 func (o *SyslogOutput) output(m string) error {
