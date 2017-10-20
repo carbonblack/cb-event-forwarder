@@ -147,29 +147,32 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 
 	raw_threat_report_p, cachePresent := FeedCache.Get(key)
 
-    	var threat_report_p * ThreatReport = (raw_threat_report_p).(* ThreatReport)
+	if cachePresent {
 
-	var threat_report ThreatReport = *threat_report_p
-	var reportTitle string = threat_report.Title
-	var reportScore int = threat_report.Score
-
-	if cachePresent && threat_report_p != nil{
-		return reportTitle, reportScore,nil
-	} else {
-		body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
-
-		if err != nil {
-			return "",0, err
+		if (raw_threat_report_p != nil){
+			threat_report_p  := (raw_threat_report_p).(* ThreatReport)
+			threat_report := *threat_report_p
+			var reportTitle string = threat_report.Title
+			var reportScore int = threat_report.Score
+			return reportTitle, reportScore,nil
 		}
 
-		err = json.Unmarshal(body, &threatReport)
-
-		if err != nil {
-			return "",0, err
-		}
-
-		FeedCache.Set(key, &threatReport)
-
-		return threatReport.Title, threatReport.Score, nil
 	}
+	//implicit ELSE
+	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
+
+	if err != nil {
+		return "",0, err
+	}
+
+	err = json.Unmarshal(body, &threatReport)
+
+	if err != nil {
+		return "",0, err
+	}
+
+	FeedCache.Set(key, &threatReport)
+
+	return threatReport.Title, threatReport.Score, nil
+
 }
