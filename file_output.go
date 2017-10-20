@@ -70,6 +70,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	}
 
 	if config.FileHandlerCompressData != false {
+		log.Println("File handler configured to compress data")
 		o.outputFile = gzip.NewWriter(fp)
 		o.gzipOSFilePtr = fp
 	} else {
@@ -162,6 +163,7 @@ func (o *FileOutput) output(s string) error {
 	/*
 	 * Write to our buffer first
 	 */
+	log.Printf("WRiting to buffer: %s ",s)
 	o.bufferOutput.buffer.WriteString(s + "\n")
 	err := o.flushOutput(false)
 	return err
