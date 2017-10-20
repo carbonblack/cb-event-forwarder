@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -135,6 +137,16 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 		log.Info("  First four bytes of message were:")
 		log.Errorf("  %s", hex.Dump(body[0:4]))
 	}
+
+	/*
+	 * We are going to store this bundle in the DebugStore
+	 */
+	if config.DebugFlag {
+		h := md5.New()
+		h.Write(body)
+		log.Debugf("Writing Bundle to disk: %s", config.DebugStore+fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
+		ioutil.WriteFile(config.DebugStore+fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)), body, 0444)
+	}
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
@@ -151,6 +163,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		if err != nil {
 			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
+
 			return
 		}
 	} else if contentType == "application/protobuf" {

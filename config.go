@@ -33,6 +33,7 @@ type Configuration struct {
 	ServerName           string
 	AMQPHostname         string
 	DebugFlag            bool
+	DebugStore           string
 	OutputType           int
 	OutputFormat         int
 	AMQPUsername         string
@@ -200,6 +201,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.AMQPUsername = "cb"
 	config.HTTPServerPort = 33706
 	config.AMQPPort = 5004
+	config.DebugStore = "/tmp"
 
 	config.S3ACLPolicy = nil
 	config.S3ServerSideEncryption = nil
@@ -225,6 +227,13 @@ func ParseConfig(fn string) (Configuration, error) {
 			customFormatter.FullTimestamp = true
 
 			log.Debug("Debugging output is set to True")
+
+			debugStore, ok := input.Get("bridge", "debug_store")
+			if ok {
+				config.DebugStore = debugStore
+			}
+
+			log.Debugf("Debug Store is %s", config.DebugStore)
 		}
 	}
 
