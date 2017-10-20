@@ -218,6 +218,12 @@ func ParseConfig(fn string) (Configuration, error) {
 		if val == "1" {
 			config.DebugFlag = true
 			log.SetLevel(log.DebugLevel)
+
+			customFormatter := new(log.TextFormatter)
+			customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+			log.SetFormatter(customFormatter)
+			customFormatter.FullTimestamp = true
+
 			log.Debug("Debugging output is set to True")
 		}
 	}
