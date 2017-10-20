@@ -295,13 +295,13 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 							 */
 							msg["report_title"] = reportTitle
 							msg["report_score"] = reportScore
-							/*
+
 							log.Printf("report title,score for id %s:%s == %s,%s\n",
 								feedId.(json.Number).String(),
 								reportId.(string),
 								reportTitle,
 								reportScore)
-								*/
+
 						}
 
 					} else {
