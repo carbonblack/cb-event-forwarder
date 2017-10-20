@@ -148,7 +148,6 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 	raw_threat_report_p, cachePresent := FeedCache.Get(key)
 
 	if cachePresent {
-
 		if (raw_threat_report_p != nil){
 			threat_report_p  := (raw_threat_report_p).(* ThreatReport)
 			threat_report := *threat_report_p
