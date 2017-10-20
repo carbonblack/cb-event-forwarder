@@ -152,7 +152,8 @@ func (o *FileOutput) flushOutput(force bool) error {
 		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 		if config.FileHandlerCompressData  != false {
 			of_pointer := unsafe.Pointer(&o.outputFile)
-			(* gzip.Writer)(of_pointer).Flush()
+			w := *(* gzip.Writer)(of_pointer)
+			w.Flush()
 
 		}
 		// is the error temporary? reopen the file and see...
