@@ -405,7 +405,7 @@ func main() {
 		log.Fatal("Could not get IP addresses")
 	}
 
-	log.Errorf("cb-event-forwarder version %s starting", version)
+	log.Infof("cb-event-forwarder version %s starting", version)
 
 	exportedVersion := expvar.NewString("version")
 	if *debug {
@@ -419,11 +419,11 @@ func main() {
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			log.Errorf("Interface address %s", ipnet.IP.String())
+			log.Infof("Interface address %s", ipnet.IP.String())
 		}
 	}
 
-	log.Errorf("Configured to capture events: %v", config.EventTypes)
+	log.Infof("Configured to capture events: %v", config.EventTypes)
 	if err := startOutputs(); err != nil {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
@@ -440,7 +440,7 @@ func main() {
 			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/static/", 301)
 			})
-			log.Errorf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
 			break
 		}
 	}
