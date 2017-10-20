@@ -399,10 +399,10 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.UseRawSensorExchange = boolval
 			if boolval {
-				log.Info("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
-				log.Info("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Info("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
-				log.Info("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
+				log.Warn("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
+				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
+				log.Warn("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
+				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
 			}
 		} else {
 			errs.addErrorString("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")

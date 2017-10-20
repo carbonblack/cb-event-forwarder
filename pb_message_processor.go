@@ -68,7 +68,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
 		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
 		if err != nil {
-			log.Printf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
+			log.Infof("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
 		} else if msg != nil {
 			msgs = append(msgs, msg)
 		}
@@ -104,20 +104,20 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 	for i, zf := range zipReader.File {
 		src, err := zf.Open()
 		if err != nil {
-			log.Printf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
+			log.Errorf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
 			continue
 		}
 
 		unzippedFile, err := ioutil.ReadAll(src)
 		src.Close()
 		if err != nil {
-			log.Printf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
+			log.Errorf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
 			continue
 		}
 
 		newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
 		if err != nil {
-			log.Printf("Errors above from processing zip filename %s", zf.Name)
+			log.Errorf("Errors above from processing zip filename %s", zf.Name)
 		}
 		msgs = append(msgs, newMsgs...)
 	}
