@@ -23,8 +23,6 @@ func parseFullGuid(v string) (string, int, error) {
 
 	segmentNumber = 1
 
-	log.Printf("parseFUllGuid : v  = %s\n", v)
-
 	switch {
 	case len(v) < 36:
 		return v, int(segmentNumber), errors.New("Truncated GUID")
@@ -32,7 +30,6 @@ func parseFullGuid(v string) (string, int, error) {
 		return v, int(segmentNumber), nil
 	case len(v) == 45:
 		segmentNumber, err = strconv.ParseInt(v[37:], 16, 32)
-		log.Printf("segmentNumber = %d\n",segmentNumber)
 		if err != nil {
 			segmentNumber = 1
 		}
@@ -40,7 +37,6 @@ func parseFullGuid(v string) (string, int, error) {
 		err = errors.New("Truncated GUID")
 	}
 
-	log.Printf("segmentNumber = %d\n",segmentNumber)
 
 	return v[:36], int(segmentNumber), err
 }
@@ -78,8 +74,6 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 func fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 
-	log.Printf("fixupMessage %s", messageType)
-	log.Printf("message = %s", msg)
 
 	for key, value := range msg {
 		switch {
@@ -140,9 +134,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	if !strings.HasPrefix(messageType, "alert.") {
 		if value, ok := msg["unique_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-
 				processGuid, segment, err := parseFullGuid(uniqueId)
-
 				if err == nil {
 					    msg["process_guid"] = processGuid
 					    msg["segment_id"] = fmt.Sprintf("%v", segment)
@@ -153,15 +145,11 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		}
 	}
 
-	log.Printf("hasProcessGuid = %s",hasProcessGUID)
 
 	// fall back to process_id in the message
 	if !hasProcessGUID {
-        log.Println("In !hasProcessGUID")
 		if value, ok := msg["process_id"]; ok {
 			if uniqueId, ok := value.(string); ok {
-
-
 				processGuid, segment, _ := parseFullGuid(uniqueId)
 				msg["process_guid"] = processGuid
 				msg["segment_id"] = fmt.Sprintf("%v", segment)
