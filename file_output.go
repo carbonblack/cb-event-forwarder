@@ -149,21 +149,39 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 */
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
+
 		log.Printf("Writing to bufferoutput %d", o.bufferOutput.buffer.Len())
-		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+
 		if config.FileHandlerCompressData != false {
+
+			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
-		}
-		// is the error temporary? reopen the file and see...
-		if err != nil {
-			log.Println("Writing to bufferoutput failed")
-			return err
+
+			if err != nil {
+				log.Println("COMPRESSED Writing to bufferoutput failed")
+				return err
+			}
+
+			log.Println("COMPRESSED Writing to buffer output did not fail")
+			o.bufferOutput.buffer.Reset()
+			o.bufferOutput.lastFlush = time.Now()
+			return nil
+
+		} else {
+			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+
+			if err != nil {
+				log.Println("COMPRESSED Writing to bufferoutput failed")
+				return err
+			}
+
+			log.Println("COMPRESSED Writing to buffer output did not fail")
+			o.bufferOutput.buffer.Reset()
+			o.bufferOutput.lastFlush = time.Now()
+			return nil
 		}
 
-		log.Println("Writing to buffer output did not fail")
-		o.bufferOutput.buffer.Reset()
-		o.bufferOutput.lastFlush = time.Now()
-		return nil
+
 	}
 	return nil
 }
