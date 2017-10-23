@@ -7,27 +7,28 @@ syntax="proto2";
 
 message CbHeaderMsg
 {
-    required int32  version                         = 1;    // 4
+    required int32  version                         = 1;
     optional int32  bootid                          = 2;    // deprecated
     optional int32  eventid                         = 3;    // deprecated
-    optional int64  timestamp                       = 4;    // FILETIME
+    optional int64  timestamp                       = 4;
     optional int64  process_guid                    = 5;    // deprecated; only provided for backwards compatibility
-    optional int64  filepath_string_guid            = 6;    // lookup key for CbStringMsg
-    optional uint32 magic                           = 7;    // deprecated
-    optional int64  process_filepath_string_guid    = 8;    // lookup key for CbStringMsg
-    optional int64  process_create_time             = 9;    // FILETIME format
-    optional int32  process_pid                     = 10;   // Windows Process Identifier (PID)
+    optional int64  filepath_string_guid            = 6;
+    optional uint32 magic                           = 7 [default = 0xdeadbeef];
+    optional int64  process_filepath_string_guid    = 8;
+    optional int64  process_create_time             = 9;
+    optional int32  process_pid                     = 10;
     optional bytes  process_md5                     = 11;
     optional string process_path                    = 12;
-    optional int32  fork_pid                        = 13;
+    optional int32  fork_pid                        = 13;  // ENT-4621
+    optional bytes  process_sha256                  = 14;
 }
 
 message CbStringMsg
 {
     enum CbStringType {
         typeFilepath   = 1;
-        typeRegpath    = 2;                                 // deprecated
-        typeNetpath    = 3;                                 // deprecated
+        typeRegpath    = 2;
+        typeNetpath    = 3;
     }
     optional int64             guid             = 1;
     optional bytes             utf8string       = 2;
@@ -38,8 +39,8 @@ message CbProcessMsg
 {
     optional    int32   pid                     = 1;    // deprecated; see process_pid in header
     optional    bool    created                 = 2;    // false means the process is exiting
-                                                        // on created filepath_string_guid will be
-                                                        // the path to the process base module on disk
+    // on created filepath_string_guid will be
+    // the path to the process base module on disk
     optional    int32   parent_pid              = 3;
     optional    int64   parent_create_time      = 4;
     optional    int64   parent_guid             = 5;    // deprecated; only for backwards compatibility
@@ -47,17 +48,19 @@ message CbProcessMsg
     optional    bool    have_seen_before        = 7;    // if true, we've sent this before
     optional    int64   deprecated              = 8;    // formerly commandlinestringguid; command line now inline (see next line)
     optional    bytes   commandline             = 9;
-    optional    bytes   parent_md5              = 10;   // parent process md5
-    optional    string  parent_path             = 11;   // parent process qualified filename
+    optional    bytes   parent_md5              = 10;   // ENT-206
+    optional    string  parent_path             = 11;   // ENT-206
     optional    bool    creationobserved        = 12 [default=false];   // was the creation of this process observed, or
-                                                                        // already running at sensor start time
+    // already running at sensor start time
     optional    bool    expect_followon_w_md5   = 13 [default=false];   // sensor is attempting to calculate the md5 of the process
-                                                                        // and will send a new process message with md5 when calc complete
-    optional    string  uid                     = 14;   // uid or SID of process security context
-    optional    string  username                = 15;   // username of process security context
-    repeated    CbEmetMitigationAction actions  = 16;
+    // and will send a new process message with md5 when calc complete
+    optional    string  uid                     = 14;   // ENT-1776
+    optional    string  username                = 15;   // ENT-1776
+    repeated    CbEmetMitigationAction actions  = 16;   // ENT-3902
     optional    bool    actionsAreFromGPO       = 17 [default=false];   // tells us where "actions" came from
     optional    bool    bFilteringKnownDlls     = 18 [default=false];
+    optional    bytes   sha256hash              = 19;
+    optional    bytes   parent_sha256           = 20;
 }
 
 message CbSuppressedInfo
@@ -76,14 +79,14 @@ message CbSuppressedInfo
 // ChildProcessMsg is a subset of CbProcessMsg
 // It is used in support of allowing viewing of child processes in the event
 // stream (for example, in the UI's process analysis page) and in allowing
-// child processes to be tagged as events.
+// child processes to be tagged as events.  See ENT-1155
 //
 message CbChildProcessMsg
 {
     enum CbChildProcType
     {
         childProcExec = 0; // default (only type supported on WIN)
-        childProcFork = 1;
+        childProcFork = 1; // ENT-4620
         childProcOtherExec = 2; // when a posix process calls exec() then exec()
     }
 
@@ -92,35 +95,38 @@ message CbChildProcessMsg
     optional    bytes   md5hash                 =  3;   // md5 hash of child process
     optional    int64   child_guid              =  4;   // guid of child process (for link)
     optional    string  path                    =  5;   // path of child process (c:\a.exe)
-    optional    int64   pid                     =  6;   // Process Identifier (PID) for human consumption
-    optional    int64   create_time             =  7;   // higher resolution timestamp of process creation (FILETIME format)
-    optional    bool    tamper                  =  8 [default=false];
+    optional    int64   pid                     =  6;   // for human consumption
+    optional    int64   create_time             =  7;   // higher resolution timestamp of process creation
+    optional    bool    tamper                  =  8 [default=false]; // ENT-3269
     optional    CbSuppressedInfo suppressed     =  9;   // if not present - not suppressed
     optional    bytes   commandline             = 10;   // used for suppressed children
     optional    string  username                = 11;   // used for suppressed children
-    optional    CbChildProcType childProcType   = 12 [default=childProcExec];
+    optional    CbChildProcType childProcType   = 12 [default=childProcExec];    // ENT-4620
+    optional    bool    tamper_sent             = 13 [default=false]; // tamper event was already sent from kernel
+    optional    bytes   sha256hash              = 14;   // sha256 hash of child process
 }
 
 message CbModuleLoadMsg
 {
-    optional    int64   guid                    = 1;    // deprecated
-    optional    int64   handlepath_string_guid  = 2;    // find the module (binary) path via the CbStringMsg
-    optional    bytes   md5hash                 = 3;    // 16 byte md5 sum
+    optional    int64   guid                    = 1;
+    optional    int64   handlepath_string_guid  = 2;
+    optional    bytes   md5hash                 = 3;
     optional    int32   scanid                  = 4;    // deprecated
     optional    bool    is_process_base_module  = 5;    // deprecated
     optional    int64   image_base              = 6;    // deprecated
     optional    uint32  image_size              = 7;    // deprecated
+    optional    bytes   sha256hash              = 8;
 }
 
 message CbFileModMsg
 {
     enum CbFileModAction
     {
-        actionFileModCreate    = 1;  // file was created
-        actionFileModWrite     = 2;  // file was modified (any write, at any offset)
-        actionFileModDelete    = 4;  // file was deleted
-        actionFileModLastWrite = 8;  // newly-written file 'completed' CbFileModMsg will include filetype and md5
-        actionFileModOpen      = 16; // Tamper opens of the carbonblackk device
+        actionFileModCreate    = 1;
+        actionFileModWrite     = 2;
+        actionFileModDelete    = 4; // yes 4, so we can AND/OR these
+        actionFileModLastWrite = 8; // ENT-630 (VtWrite scenario)
+        actionFileModOpen      = 16; // ENT-3269 (Tamper opens of the carbonblackk device)
     }
 
     enum CbFileType
@@ -141,12 +147,14 @@ message CbFileModMsg
         filetypeArchive7zip     = 0x0045;
     }
 
-    optional    int64               guid                = 1;  // deprecated
-    optional    CbFileModAction     action              = 2;  // CbFileModAction enum
+    optional    int64               guid                = 1;
+    optional    CbFileModAction     action              = 2;
     optional    bool                have_seen_before    = 3;  // deprecated
-    optional    bytes               md5hash             = 4;  // present for actionFileModLastWrite only
-    optional    CbFileType          type                = 5;  // CbFileType enum; present for actionFileModLastWrite only
-    optional    bool                tamper              = 6 [default=false];
+    optional    bytes               md5hash             = 4;  // ENT-630 , 1329
+    optional    CbFileType          type                = 5;  // ENT-1329
+    optional    bool                tamper              = 6 [default=false]; // ENT-3269
+    optional    bool                tamper_sent         = 7 [default=false]; // tamper event was already sent from kernel
+    optional    bytes               sha256hash          = 8;
 
 }
 
@@ -156,20 +164,25 @@ message CbRegModMsg
     {
         actionRegModCreateKey    = 1;
         actionRegModWriteValue   = 2;
-        actionRegModDeleteKey    = 4;
+        actionRegModDeleteKey    = 4; // yes 4, so we can AND/OR these
         actionRegModDeleteValue  = 8;
     }
 
-    optional    int64               guid                = 1;  // deprecated
-    optional    CbRegModAction      action              = 2;  // CbRegModAction enum
-    optional    bool                have_seen_before    = 3;  // deprecated
-    optional    bytes               utf8_regpath        = 4;  // value name appended to key for DeleteValue and WriteValue action types
-    optional    bool                tamper              = 5 [default=false];
+    optional    int64               guid                = 1;
+    optional    CbRegModAction      action              = 2;
+    optional    bool                have_seen_before    = 3; // deprecated
+    optional    bytes               utf8_regpath        = 4;
+    optional    bool                tamper              = 5 [default=false]; // ENT-3269
+    optional    bool                tamper_sent         = 6 [default=false]; // tamper event was already sent from kernel
 }
 
 
 //
 // describes an inbound or outbound network connection
+//
+// supports connections via web proxies (ENT-506)
+//
+// now deprecated in favor of CbNetConnMsgv2
 //
 message CbNetConnMsg
 {
@@ -197,18 +210,84 @@ message CbNetConnMsg
     optional    uint32             localPort           = 16; // local port
 }
 
+message CbIpAddr
+{
+    optional bool     bIsIpv6         = 1 [default=false];
+    optional uint32   ipv4Address     = 2;
+    optional uint64   ipv6Low         = 3;
+    optional uint64   ipv6High        = 4;
+    optional string   ipv6Scope       = 5;
+}
+
+//
+// this supersedes CbNetConnMsg
+//
+message CbNetConnMsgv2
+{
+    enum ProtocolType
+    {
+        ProtoTcp = 6;   // RFC 793
+        ProtoUdp = 17;  // RFC 768
+    }
+
+    optional    ProtocolType       protocol            = 1;
+    optional    bytes              utf8_netpath        = 2;
+    optional    bool               outbound            = 3 [default=true];
+    optional    bool               proxyConnection     = 4 [default=false];
+    optional    CbIpAddr           proxyIpAddress      = 5; // ip of the web proxy itself
+    optional    uint32             proxyPort           = 6; // port (tcp) of the web proxy itself
+    optional    string             proxyNetPath        = 7; // dns name of the web proxy itself
+    optional    CbIpAddr           remoteIpAddress     = 8; // foreign address
+    optional    uint32             remotePort          = 9; // foreign port
+    optional    CbIpAddr           localIpAddress      = 10; // local address
+    optional    uint32             localPort           = 11; // local port
+}
+
+//
+// this supersedes CbNetConnBlockedMsg
+//
+message CbNetConnBlockedMsgv2
+{
+    enum NetconnBlockType
+    {
+        NetworkIsolation    = 1; // Connection was blocked due to network isolation
+    }
+
+    enum ProtocolType
+    {
+        ProtoTcp = 6;   // RFC 793
+        ProtoUdp = 17;  // RFC 768
+    }
+
+    optional NetconnBlockType   blockedType         = 1;
+
+    // Info about the connection that was blocked:
+    optional    uint32             port                = 2;
+    optional    ProtocolType       protocol            = 3;
+    optional    bytes              utf8_netpath        = 4;
+    optional    bool               outbound            = 5 [default=true];
+    optional    bool               proxyConnection     = 6 [default=false];
+    optional    CbIpAddr           proxyIpAddress      = 7; // ip of the web proxy itself
+    optional    uint32             proxyPort           = 8; // port (tcp) of the web proxy itself
+    optional    string             proxyNetPath        = 9; // dns name of the web proxy itself
+    optional    CbIpAddr           remoteIpAddress     = 10; // foreign address
+    optional    uint32             remotePort          = 11; // foreign port
+    optional    CbIpAddr           localIpAddress      = 12; // local address
+    optional    uint32             localPort           = 13; // local port
+}
+
 //
 // deprecated
 //
 message CbLinStatsMsg
 {
-    optional int32  lin_total                          = 1;   // deprecated
-    optional int32  lin_successful                     = 2;   // deprecated
-    optional int32  lin_no_scanidi                     = 3;   // deprecated
-    optional int32  lin_total_pended                   = 4;   // deprecated
-    optional int32  lin_current_scanid_pended_size     = 5;   // deprecated
-    optional int32  lin_current_handlepath_pended_size = 6;   // deprecated
-    optional int32  lin_current_filepath_pended_size   = 7;   // deprecated
+    optional int32  lin_total                          = 1;
+    optional int32  lin_successful                     = 2;
+    optional int32  lin_no_scanidi                     = 3;
+    optional int32  lin_total_pended                   = 4;
+    optional int32  lin_current_scanid_pended_size     = 5;
+    optional int32  lin_current_handlepath_pended_size = 6;
+    optional int32  lin_current_filepath_pended_size   = 7;
 }
 
 message CbCrossProcessOpenMsg
@@ -224,6 +303,7 @@ message CbCrossProcessOpenMsg
     optional uint32             requestedAccess      = 4; // Desired Access for OpenThread/Process
     optional string             targetProcPath       = 5; // the path of the target process
     optional bytes              targetProcMd5        = 6; // the md5 sum of the target process
+    optional bytes              targetProcSha256     = 7; // the sha256 sum of the target process
 
 }
 
@@ -233,6 +313,7 @@ message CbCreateRemoteThreadMsg
     optional uint64             remoteProcCreateTime    = 2; // create time of the target process
     optional string             remoteProcPath          = 3; // the path of the target process
     optional bytes              remoteProcMd5           = 4; // the md5 sum of the target process
+    optional bytes              remoteProcSha256        = 5; // the sha256 sum of the target process
 }
 
 //
@@ -248,13 +329,14 @@ message CbCrossProcessMsg
     optional CbCreateRemoteThreadMsg    remotethread    = 2;    // createRemoteThread
     optional bool                       tamper          = 3;    // potential tamper event
     optional bool                       isTarget        = 4;    // is process actor or target of crossproc event
+    optional bool                       tamper_sent     = 5 [default=false]; // tamper event was already sent from kernel
 }
 
 message CbProcessBlockedMsg
 {
     enum BlockType
     {
-        MD5Hash             = 1; //Process was blocked due to its md5 hash
+        MD5Hash             = 1; //Proess was blocked due to its md5 hash
     }
 
     enum BlockEvent
@@ -265,13 +347,13 @@ message CbProcessBlockedMsg
 
     enum BlockResult
     {
-    	ProcessTerminated = 0; // Process was blocked/terminated successfully
-    	NotTerminatedCBProcess = 1; // Someone tried to kill cb.exe
-    	NotTerminatedSystemProcess = 2; // Someone tried to kill pid 0/pid 4
-    	NotTerminatedCriticalSystemProcess = 3; // Someone tried to kill a process registered as a critical system process
-    	NotTerminatedWhitelistedPath = 4; // Someone tried to kill a process that matched one of our never kill rules
-    	NotTerminatedOpenProcessError = 5; // Failed to get a handle to the process to kill it.
-    	NotTerminatedTerminateError = 6;  // An error occurred when we tried to kill the process.
+        ProcessTerminated = 0; // Process was blocked/terminated successfully
+        NotTerminatedCBProcess = 1; // Someone tried to kill cb.exe
+        NotTerminatedSystemProcess = 2; // Someone tried to kill pid 0/pid 4
+        NotTerminatedCriticalSystemProcess = 3; // Someone tried to kill a process registered as a critical system process
+        NotTerminatedWhitelistedPath = 4; // Someone tried to kill a process that matched one of our never kill rules
+        NotTerminatedOpenProcessError = 5; // Failed to get a handle to the process to kill it.  When set, openProcessError will be set with the error code
+        NotTerminatedTerminateError = 6;  // An error occurred when we tried to kill the process.  When set, terminteError will be set with the error code
     }
 
     optional BlockType          blockedType           = 1;
@@ -287,6 +369,9 @@ message CbProcessBlockedMsg
     optional string             blockedUsername       = 11;  // User name of the process that was blocked.  Only set if blockedEvent == ProcessCreate and blockResult == ProcessTerminated
 }
 
+//
+// deprecated in favor of CbNetConnBlockedMsgv2
+//
 message CbNetConnBlockedMsg
 {
     enum NetconnBlockType
@@ -325,13 +410,26 @@ message CbNetConnBlockedMsg
 //
 message CbStatisticsMsg
 {
-    optional CbLinStatsMsg lin_stats = 1;                     // deprecated
+    optional CbLinStatsMsg lin_stats = 1;
 }
 
 //
 // CbModuleInfoMsg
 //
 // describes certain sensor-calculated metadata associated with an individual PE module
+// see CBUI-3, ENT-254, ENT-22, ENT-957, ENT-948
+//
+//
+// -- IMPORTANT -- IMPORTANT -- IMPORTANT --
+//
+// Adding fields here MUST be accompanied by a corresponding change to
+// ModuleInfoSolrClient.java.  This is because fields are mapped from
+// this protobuf message to a SOLR document, and unrecognized field
+// names are treated as errors.
+//
+// See ENT-1223 (commit b36351ad058c59a0d2ef3d7d36a32c0a4ab6c8b6)
+//
+// -- IMPORTANT -- IMPORTANT -- IMPORTANT --
 //
 message CbModuleInfoMsg
 {
@@ -358,25 +456,28 @@ message CbModuleInfoMsg
     optional string                 utf8_DigSig_Result      = 21;   // human-readable version of DigSig_ResultCode
     optional string                 utf8_DigSig_ResultCode  = 22;   // preferable to utf8_DigSig_Result; encoded as hex string with 0x prefix
     optional string                 utf8_DigSig_SignTime    = 23;
-    optional bytes                  Icon                    = 24;   // BASE64(PNG)
+    optional bytes                  Icon                    = 24;   // PNG; see ENT-317
     optional bytes                  ImageFileHeader         = 25;   // IMAGE_FILE_HEADER from PE header; expected to be 20 bytes
     optional string                 utf8_OnDiskFilename     = 26;   // filename of the file as it was found on the filesystem (not an internal name)
+    optional bytes                  sha256                  = 27;
 }
 
 //
 // file-write message
 //
 // describe the write of a single file
+// this is required for virustotal integration
 //
-// WARNING: This is an unsupported message and subject to change
+// see ENT-234
 //
 message CbVtWriteMsg
 {
-    optional bytes                  WritingProcessExeMd5      = 1;  // unsupported
-    optional bytes                  FileWrittenMd5            = 2;  // unsupported
-    optional bool                   FileWrittenIsPeModuleHint = 3;  // unsupported
-    optional string                 WritingProcessFilename    = 4;  // unsupported
-    optional string                 FileWrittenFilename       = 5;  // unsupported
+    optional bytes                  WritingProcessExeMd5 = 1;
+    optional bytes                  FileWrittenMd5 = 2;
+    optional bool                   FileWrittenIsPeModuleHint = 3;
+    optional string                 WritingProcessFilename = 4;
+    optional string                 FileWrittenFilename = 5;
+    optional bytes                  FileWrittenSha256 = 6;
 }
 
 //
@@ -384,8 +485,8 @@ message CbVtWriteMsg
 //
 message CbVtLoadMsg
 {
-    optional bytes                  LoaderProcessExeMd5 = 1;        // deprecated
-    optional bytes                  LoadedModuleMd5     = 2;        // deprecated
+    optional bytes                  LoaderProcessExeMd5 = 1;
+    optional bytes                  LoadedModuleMd5 = 2;
 }
 
 //
@@ -393,9 +494,9 @@ message CbVtLoadMsg
 //
 message CbEndpointEnvironmentMsg
 {
-    optional int32                  SensorId       = 1;             // sensor id of the endpoint from which the message originated
-    optional string                 SensorHostName = 2;             // hostname of the endpoint from which the message originated
-    optional int64                  HostId         = 3;             // unsupported
+    optional int32                  SensorId       = 1;
+    optional string                 SensorHostName = 2;
+    optional int64                  HostId         = 3;
 }
 
 //
@@ -403,7 +504,7 @@ message CbEndpointEnvironmentMsg
 //
 message CbServerEnvironmentMsg
 {
-    optional int32                  NodeId        = 1;              // node id of the service which received the message; for clustered server setups
+    optional int32                  NodeId        = 1;
 }
 
 //
@@ -433,6 +534,7 @@ message CbTamperAlertMsg
         AlertCbCodeInjection            = 5; // non-image based code injected into cb.exe
     }
     optional CbTamperAlertType  type = 1;
+    optional bool               tamper_sent = 2 [default=false]; // tamper alert was already sent from kernel
 }
 
 //
@@ -483,12 +585,12 @@ message CbProcessMetadataMsg
     optional    string  uid                     = 6;
     optional    string  username                = 7;
     optional    bytes   commandline             = 8;
-// parent info
+    // parent info
     optional    int32   parent_pid              = 9;
     optional    int64   parent_create_time      = 10;
     optional    bytes   parent_md5              = 11;
     optional    string  parent_path             = 12;
-// Count fields contain cumulative event counts for this process
+    // Count fields contain cumulative event counts for this process
     optional    int32   modload_count           = 13;
     optional    int32   filemod_count           = 14;
     optional    int32   netconn_count           = 15;
@@ -497,31 +599,49 @@ message CbProcessMetadataMsg
     optional    int32   crossproc_count         = 18;
     optional    int32   emet_count              = 19;
     optional    int32   processblock_count      = 20;
-// segment type tracking
+    // segment type tracking
     optional    int64   sensor_start_time       = 21;
     optional    int64   sensor_segment          = 22;  // a per sensor-start segment id.  sensor_start_time.sensor_segment is unique
     optional    bool    creationobserved        = 23 [default=false];  // was the creation of this process observed, or
+    repeated    CbEmetMitigationAction actions  = 24;
+    optional    bytes   process_sha256          = 25;
+    optional    bytes   parent_sha256           = 26;
+}
+
+message InternalUse
+{
+    // The DataGenSource indicates how the msg subject (md5 for modules, etc) was generated
+    enum DataGenSource {
+        known      = 1; // comes from known valid source
+        generated  = 2; // randomly generated
+        anonymized = 3; // anonymized from otherwise known source.
+    }
+
+    optional DataGenSource dataGenSource = 1;  // The existence of this field indicates the msg is from DataGen tool.
 }
 
 message CbEventMsg
 {
-    required CbHeaderMsg            	header      	= 1;
-    repeated CbStringMsg            	strings     	= 2;
-    optional CbProcessMsg           	process     	= 3;
-    optional CbModuleLoadMsg        	modload     	= 4;
-    optional CbFileModMsg           	filemod     	= 5;
-    optional CbNetConnMsg           	network     	= 6;
-    optional CbRegModMsg            	regmod      	= 7;
-    optional CbStatisticsMsg        	stats       	= 8;  // deprecated
-    optional CbModuleInfoMsg        	module      	= 9;
-    optional CbVtWriteMsg               vtwrite         = 10; // unsupported
-    optional CbVtLoadMsg            	vtload      	= 11; // deprecated
-    optional CbChildProcessMsg      	childproc   	= 12;
-    optional CbEnvironmentMsg       	env         	= 13; // populated by server at event-export time
-    optional CbCrossProcessMsg      	crossproc   	= 14;
-    optional CbTamperAlertMsg       	tamperAlert 	= 15;
-    optional CbProcessBlockedMsg    	blocked     	= 16;
-    optional CbEmetMitigationMsg    	emet        	= 17;
-    optional CbNetConnBlockedMsg    	netconnBlocked	= 18;
-    optional CbProcessMetadataMsg    	processMeta	    = 19;
+    required CbHeaderMsg            	header      	    = 1;
+    repeated CbStringMsg            	strings     	    = 2;
+    optional CbProcessMsg           	process     	    = 3;
+    optional CbModuleLoadMsg        	modload     	    = 4;
+    optional CbFileModMsg           	filemod     	    = 5;
+    optional CbNetConnMsg           	network     	    = 6;  // deprecated post-5.2
+    optional CbRegModMsg            	regmod      	    = 7;
+    optional CbStatisticsMsg        	stats       	    = 8;  // deprecated
+    optional CbModuleInfoMsg        	module      	    = 9;  // ENT-22
+    optional CbVtWriteMsg           	vtwrite     	    = 10; // ENT-14
+    optional CbVtLoadMsg            	vtload      	    = 11; // deprecated
+    optional CbChildProcessMsg      	childproc   	    = 12; // ENT-1155
+    optional CbEnvironmentMsg       	env         	    = 13; // populated by server at event-export time
+    optional CbCrossProcessMsg      	crossproc   	    = 14;
+    optional CbTamperAlertMsg       	tamperAlert 	    = 15; // ENT-3269
+    optional CbProcessBlockedMsg    	blocked     	    = 16; // ENT-3297
+    optional CbEmetMitigationMsg    	emet        	    = 17; // ENT-3902
+    optional CbNetConnBlockedMsg    	netconnBlocked	    = 18; // deprecated post-5.2
+    optional CbProcessMetadataMsg    	processMeta	        = 19;
+    optional CbNetConnMsgv2             networkv2           = 20; // added post-5.2 - ENT-9360
+    optional CbNetConnBlockedMsgv2      netconnBlockedv2    = 21; // added post-5.2 - ENT-9360
+    optional InternalUse                internalUse         = 22;
 }

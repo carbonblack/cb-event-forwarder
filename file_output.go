@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"io"
 	"errors"
 	"fmt"
-	"io"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
@@ -26,7 +26,6 @@ type FileOutput struct {
 	outputFile          io.WriteCloser
 	outputGzWriter      *gzip.Writer
 	fileOpenedAt        time.Time
-
 	lastRolledOver time.Time
 	sync.RWMutex
 	bufferOutput BufferOutput
@@ -225,7 +224,7 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 		newName = o.outputFileName + "." + o.lastRolledOver.Format(tf)
 	}
 
-	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
+	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err

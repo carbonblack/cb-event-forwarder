@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"github.com/streadway/amqp"
-	"log"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 	"io/ioutil"
 )
 
@@ -24,7 +24,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 	var err error
 
 	if config.AMQPTLSEnabled == true {
-		log.Println("Connecting to message bus via TLS...")
+		log.Info("Connecting to message bus via TLS...")
 
 		cfg := new(tls.Config)
 
@@ -49,14 +49,13 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 			return nil, nil, fmt.Errorf("Dial: %s", err)
 		}
 	} else {
-		log.Println("Connecting to message bus...")
+		log.Info("Connecting to message bus...")
 		c.conn, err = amqp.Dial(amqpURI)
 
 		if err != nil {
 			return nil, nil, fmt.Errorf("Dial: %s", err)
 		}
 	}
-
 
 	c.channel, err = c.conn.Channel()
 	if err != nil {
@@ -80,7 +79,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		if err != nil {
 			return nil, nil, fmt.Errorf("QueueBind: %s", err)
 		}
-		log.Println("Subscribed to bulk raw sensor event exchange")
+		log.Info("Subscribed to bulk raw sensor event exchange")
 	}
 
 	for _, key := range routingKeys {
@@ -88,7 +87,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		if err != nil {
 			return nil, nil, fmt.Errorf("QueueBind: %s", err)
 		}
-		log.Printf("Subscribed to %s", key)
+		log.Infof("Subscribed to %s", key)
 	}
 
 	deliveries, err := c.channel.Consume(
@@ -117,7 +116,7 @@ func (c *Consumer) Shutdown() error {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
-	defer log.Printf("AMQP shutdown OK")
+	defer log.Infof("AMQP shutdown OK")
 
 	return nil
 }

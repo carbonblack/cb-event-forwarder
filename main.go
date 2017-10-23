@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,11 +11,13 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/leef"
 	"github.com/carbonblack/cb-event-forwarder/sensor_events"
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"log"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"sync"
 	"time"
@@ -116,24 +119,36 @@ type OutputHandler interface {
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
 	status.ErrorCount.Add(1)
-	log.Printf("%s when processing %s: %s", errmsg, d, err)
+	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
 func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
-	log.Printf("Error while processing message through routing key %s:", routingKey)
+	log.Errorf("Error while processing message through routing key %s:", routingKey)
 
 	var env *sensor_events.CbEnvironmentMsg
 	env, err := createEnvMessage(headers)
 	if err != nil {
-		log.Printf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
+		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
 			env.Endpoint.GetSensorHostName())
 	}
 
 	if len(body) < 4 {
-		log.Println("  Message is less than 4 bytes long; malformed")
+		log.Info("  Message is less than 4 bytes long; malformed")
 	} else {
-		log.Println("  First four bytes of message were:")
-		log.Printf("  %s", hex.Dump(body[0:4]))
+		log.Info("  First four bytes of message were:")
+		log.Errorf("  %s", hex.Dump(body[0:4]))
+	}
+
+	/*
+	 * We are going to store this bundle in the DebugStore
+	 */
+	if config.DebugFlag {
+		h := md5.New()
+		h.Write(body)
+		var fullFilePath string
+		fullFilePath = path.Join(config.DebugStore, fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
+		log.Debugf("Writing Bundle to disk: %s", fullFilePath)
+		ioutil.WriteFile(fullFilePath, body, 0444)
 	}
 }
 
@@ -246,7 +261,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 			delivery.Exchange)
 	}
 
-	log.Println("Worker exiting")
+	log.Info("Worker exiting")
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
@@ -265,7 +280,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	c.conn.NotifyClose(connection_error)
 
 	numProcessors := runtime.NumCPU() * 2
-	log.Printf("Starting %d message processors\n", numProcessors)
+	log.Infof("Starting %d message processors\n", numProcessors)
 
 	wg.Add(numProcessors)
 	for i := 0; i < numProcessors; i++ {
@@ -275,11 +290,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	for {
 		select {
 		case output_error := <-output_errors:
-			log.Printf("ERROR during output: %s", output_error.Error())
+			log.Errorf("ERROR during output: %s", output_error.Error())
 
 			// hack to exit if the error happens while we are writing to a file
 			if config.OutputType == FileOutputType {
-				log.Println("File output error; exiting immediately.")
+				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
 				os.Exit(1)
@@ -289,15 +304,15 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			status.LastConnectError = close_error.Error()
 			status.ErrorTime = time.Now()
 
-			log.Printf("Connection closed: %s", close_error.Error())
-			log.Println("Waiting for all workers to exit")
+			log.Errorf("Connection closed: %s", close_error.Error())
+			log.Info("Waiting for all workers to exit")
 			wg.Wait()
-			log.Println("All workers have exited")
+			log.Info("All workers have exited")
 
 			return close_error
 		}
 	}
-	log.Println("Loop exited for unknown reason")
+	log.Info("Loop exited for unknown reason")
 	c.Shutdown()
 	wg.Wait()
 
@@ -368,7 +383,7 @@ func startOutputs() error {
 		return ret
 	}))
 
-	log.Printf("Initialized output: %s\n", outputHandler.String())
+	log.Infof("Initialized output: %s\n", outputHandler.String())
 	return outputHandler.Go(results, output_errors)
 }
 
@@ -392,7 +407,7 @@ func main() {
 		if err != nil {
 			log.Fatal("Could not get cb version: " + err.Error())
 		} else {
-			log.Printf("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
+			log.Infof("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
 		}
 	}
 
@@ -409,12 +424,12 @@ func main() {
 		log.Fatal("Could not get IP addresses")
 	}
 
-	log.Printf("cb-event-forwarder version %s starting", version)
+	log.Infof("cb-event-forwarder version %s starting", version)
 
 	exportedVersion := expvar.NewString("version")
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
-		log.Printf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
+		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
 			hostname, config.HTTPServerPort)
 	} else {
 		exportedVersion.Set(version)
@@ -423,11 +438,11 @@ func main() {
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			log.Printf("Interface address %s", ipnet.IP.String())
+			log.Infof("Interface address %s", ipnet.IP.String())
 		}
 	}
 
-	log.Printf("Configured to capture events: %v", config.EventTypes)
+	log.Infof("Configured to capture events: %v", config.EventTypes)
 	if err := startOutputs(); err != nil {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
@@ -444,7 +459,7 @@ func main() {
 			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/static/", 301)
 			})
-			log.Printf("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
 			break
 		}
 	}
@@ -469,7 +484,7 @@ func main() {
 					_, _ = w.Write(errMsg)
 					return
 				}
-				log.Printf("Sent test message: %s\n", string(msg))
+				log.Errorf("Sent test message: %s\n", string(msg))
 			} else {
 				err = outputMessage(map[string]interface{}{
 					"type":    "debug.message",
@@ -480,7 +495,7 @@ func main() {
 					_, _ = w.Write(errMsg)
 					return
 				}
-				log.Println("Sent test debugging message")
+				log.Info("Sent test debugging message")
 			}
 
 			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
@@ -511,9 +526,5 @@ func main() {
 				time.Sleep(30 * time.Second)
 			}
 		}(i)
-	}
-
-	for {
-		time.Sleep(30 * time.Second)
 	}
 }

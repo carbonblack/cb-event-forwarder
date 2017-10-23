@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"path/filepath"
