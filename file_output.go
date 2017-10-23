@@ -62,9 +62,9 @@ func (o *FileOutput) Initialize(fileName string) error {
 		o.outputFileName = fileName
 	}
 
-	o.closeFile()
 	o.fileOpenedAt = time.Time{}
 	o.lastRolledOver = time.Time{}
+	o.closeFile()
 
 	// if the output file already exists, let's roll it over to start from scratch
 	fp, err := os.OpenFile(o.getOutputFileName(""), os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
