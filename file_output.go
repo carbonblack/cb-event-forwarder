@@ -63,7 +63,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	}
 
 	o.fileOpenedAt = time.Time{}
-	o.lastRolledOver = time.Time{}
+	o.lastRolledOver = time.Now()
 	o.closeFile()
 
 	// if the output file already exists, let's roll it over to start from scratch
