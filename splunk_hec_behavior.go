@@ -87,7 +87,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
         }
         fp.Seek(0, os.SEEK_SET)
 
-        if filetype.IsMIME(header, "application/gzip") {
+        /*if filetype.IsMIME(header, "application/gzip") {
             fileReader, err := gzip.NewReader(fp)
             if err != nil {
                 // TODO: find a better way to bubble this error up
@@ -97,7 +97,9 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
             defer fileReader.Close()
         } else {
             fileReader = fp
-        }
+        }*/
+
+	fileReader = gzip.NewReader(fp)
 
         scanner := bufio.NewScanner(fileReader)
         var i int64
