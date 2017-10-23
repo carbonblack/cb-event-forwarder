@@ -75,7 +75,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 
         defer close(events)
 
-        var fileReader io.Reader
+        var fileReader io.ReadCloser;
 
         // decompress file from disk if it's compressed
         header := make([]byte, 261)
