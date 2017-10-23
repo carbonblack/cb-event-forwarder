@@ -25,7 +25,6 @@ type FileOutput struct {
 	outputFileName string
 	outputFile     io.WriteCloser
 	outputGzWriter *gzip.Writer
-	gzipOSFilePtr  *os.File
 	fileOpenedAt   time.Time
 
 	lastRolledOver time.Time
@@ -74,7 +73,6 @@ func (o *FileOutput) Initialize(fileName string) error {
 		log.Println("File handler configured to compress data")
 		o.outputGzWriter = gzip.NewWriter(fp)
 		o.outputFile = o.outputGzWriter
-		o.gzipOSFilePtr = fp
 	} else {
 		o.outputFile = fp
 	}
@@ -214,12 +212,14 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 }
 
 func (o *FileOutput) closeFile() {
+	log.Printf("Closing FILE!")
 	if o.outputFile != nil {
 		o.outputFile.Close()
 		o.outputFile = nil
 	}
-	if o.gzipOSFilePtr != nil {
-		o.gzipOSFilePtr.Close()
-		o.gzipOSFilePtr = nil
+	if o.outputGzWriter != nil {
+		o.outputGzWriter.Flush()
+		o.outputGzWriter.Close()
 	}
+
 }
