@@ -41,14 +41,14 @@ func (o *FileOutput) Statistics() interface{} {
 	o.RLock()
 	defer o.RUnlock()
 
-	return FileStatistics{LastOpenTime: o.fileOpenedAt, FileName: o.outputFileName}
+	return FileStatistics{LastOpenTime: o.fileOpenedAt, FileName: o.getOutputFileName("")}
 }
 
 func (o *FileOutput) Key() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("file:%s", o.outputFileName)
+	return fmt.Sprintf("file:%s", o.getOutputFileName(""))
 }
 
 func (o *FileOutput) Initialize(fileName string) error {
@@ -158,7 +158,7 @@ func (o *FileOutput) String() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("File %s", o.outputFileName)
+	return fmt.Sprintf("File %s", o.getOutputFileName(""))
 }
 
 func (o *FileOutput) flushOutput(force bool) error {
@@ -228,7 +228,7 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	newName := o.getOutputFileName("." + o.lastRolledOver.Format(tf))
 	log.Printf("Rolling file %s to %s", o.getOutputFileName(""), newName)
-	err := os.Rename(o.outputFileName, newName)
+	err := os.Rename(o.getOutputFileName(""), newName)
 	if err != nil {
 		return "", err
 	} else {
