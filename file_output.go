@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
-	"unsafe"
 	"fmt"
 	"io"
 	"log"
@@ -25,6 +24,7 @@ type BufferOutput struct {
 type FileOutput struct {
 	outputFileName string
 	outputFile     io.WriteCloser
+	outputGzWriter *gzip.Writer
 	gzipOSFilePtr  *os.File
 	fileOpenedAt   time.Time
 
@@ -72,7 +72,8 @@ func (o *FileOutput) Initialize(fileName string) error {
 
 	if config.FileHandlerCompressData != false {
 		log.Println("File handler configured to compress data")
-		o.outputFile = gzip.NewWriter(fp)
+		o.outputGzWriter = gzip.NewWriter(fp)
+		o.outputFile = o.outputGzWriter
 		o.gzipOSFilePtr = fp
 	} else {
 		o.outputFile = fp
@@ -150,11 +151,8 @@ func (o *FileOutput) flushOutput(force bool) error {
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 		log.Printf("Writing to bufferoutput %d", o.bufferOutput.buffer.Len())
 		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
-		if config.FileHandlerCompressData  != false {
-			of_pointer := unsafe.Pointer(&o.outputFile)
-			w := *(* gzip.Writer)(of_pointer)
-			w.Flush()
-
+		if config.FileHandlerCompressData != false {
+			o.outputGzWriter.Flush()
 		}
 		// is the error temporary? reopen the file and see...
 		if err != nil {
