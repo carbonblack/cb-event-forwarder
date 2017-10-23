@@ -171,11 +171,11 @@ func (o *FileOutput) flushOutput(force bool) error {
 			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 
 			if err != nil {
-				log.Println("COMPRESSED Writing to bufferoutput failed")
+				log.Println("Writing to bufferoutput failed")
 				return err
 			}
 
-			log.Println("COMPRESSED Writing to buffer output did not fail")
+			log.Println("Writing to buffer output did not fail")
 			o.bufferOutput.buffer.Reset()
 			o.bufferOutput.lastFlush = time.Now()
 			return nil
