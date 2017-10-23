@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"gopkg.in/h2non/filetype.v1"
+	"log"
 	"net"
+	"os"
 )
 
 /*
@@ -88,4 +91,23 @@ func FastStringConcat(substrings ...string) string {
 		buffer.WriteString(substring)
 	}
 	return buffer.String()
+}
+
+func IsGzip(fp *os.File) bool {
+	// decompress file from disk if it's compressed
+	header := make([]byte, 261)
+
+	_, err := fp.Read(header)
+	if err != nil {
+		log.Fatalf("Could not read header information for file: %s", err.Error())
+		return false
+	}
+
+	fp.Seek(0, os.SEEK_SET)
+
+	if filetype.IsMIME(header, "application/gzip") {
+		return true
+	} else {
+		return false
+	}
 }
