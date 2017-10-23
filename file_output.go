@@ -117,6 +117,10 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
 
+		term := make(chan os.Signal, 1)
+		signal.Notify(term, syscall.SIGTERM)
+		signal.Notify(term, syscall.SIGINT)
+
 		defer o.flushOutput(true)
 		defer signal.Stop(hup)
 		defer o.closeFile()
@@ -147,6 +151,12 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					return
 				}
 
+			case <-term:
+				// handle exit gracefully
+				log.Println("Received SIGTERM. Exiting")
+				o.closeFile()
+				errorChan <- errors.New("SIGTERM received")
+				return
 			}
 		}
 	}()
