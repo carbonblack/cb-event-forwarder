@@ -222,7 +222,7 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 		return "", err
 	}
 
-	return newName, o.Initialize(o.outputFileName)
+	return newName, o.Initialize(newName)
 }
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
