@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"os"
 	"text/template"
-	"gopkg.in/h2non/filetype.v1"
-	/*"github.com/satori/go.uuid"*/
 )
 
 
@@ -75,7 +73,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 
         defer close(events)
 
-        var fileReader io.ReadCloser;
+        var fileReader io.ReadCloser
 
         // decompress file from disk if it's compressed
         header := make([]byte, 261)
@@ -99,7 +97,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
             fileReader = fp
         }*/
 
-	fileReader = gzip.NewReader(fp)
+	fileReader,err = gzip.NewReader(fp)
 
         scanner := bufio.NewScanner(fileReader)
         var i int64
