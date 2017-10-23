@@ -71,7 +71,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	if err != nil {
 		if os.IsExist(err) {
 			// the output file already exists, try to roll it over
-			o.rollOverRename("2006-01-02T15:04:05")
+			o.rollOverRename("2006-01-02T15:04:05.000")
 
 			// try again
 			fp, err = os.OpenFile(o.getOutputFileName(""), os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
@@ -142,7 +142,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case <-hup:
 				// reopen file
 				log.Println("Received SIGHUP, Rolling over file now.")
-				if _, err := o.rollOverFile("2006-01-02T15:04:05"); err != nil {
+				if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
 					errorChan <- err
 					return
 				}
@@ -227,7 +227,7 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	newName := o.getOutputFileName("." + o.lastRolledOver.Format(tf))
-	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
+	log.Printf("Rolling file %s to %s", o.getOutputFileName(""), newName)
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err
