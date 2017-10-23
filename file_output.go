@@ -60,7 +60,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.outputFileExtension = filepath.Ext(fileName)
 	o.outputFileName = strings.TrimSuffix(fileName, o.outputFileExtension)
 
-	if config.FileHandlerCompressData != false {
+	if config.FileHandlerCompressData != false && strings.Contains(o.outputFileExtension,".gz") == false {
 		o.outputFileExtension = o.outputFileExtension + ".gz"
 	}
 
