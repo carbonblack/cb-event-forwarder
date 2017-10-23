@@ -41,26 +41,21 @@ func (o *FileOutput) Statistics() interface{} {
 	o.RLock()
 	defer o.RUnlock()
 
-	return FileStatistics{LastOpenTime: o.fileOpenedAt, FileName: o.getOutputFileName("")}
+	return FileStatistics{LastOpenTime: o.fileOpenedAt, FileName: o.outputFileName}
 }
 
 func (o *FileOutput) Key() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("file:%s", o.getOutputFileName(""))
+	return fmt.Sprintf("file:%s", o.outputFileName)
 }
 
 func (o *FileOutput) Initialize(fileName string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	if config.FileHandlerCompressData != false {
-		// trim .gz off the fileName if we're outputting gzipped data (we will add it back in later)
-		o.outputFileName = strings.TrimSuffix(fileName, ".gz")
-	} else {
-		o.outputFileName = fileName
-	}
+	o.outputFileName = fileName
 
 	o.fileOpenedAt = time.Time{}
 	o.lastRolledOver = time.Now()
@@ -95,14 +90,6 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.bufferOutput.lastFlush = time.Now()
 
 	return nil
-}
-
-func (o *FileOutput) getOutputFileName(timestamp string) string {
-	if config.FileHandlerCompressData != false {
-		return o.outputFileName + timestamp + ".gz"
-	} else {
-		return o.outputFileName + timestamp
-	}
 }
 
 func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
@@ -168,7 +155,7 @@ func (o *FileOutput) String() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("File %s", o.getOutputFileName(""))
+	return fmt.Sprintf("File %s", o.outputFileName)
 }
 
 func (o *FileOutput) flushOutput(force bool) error {
@@ -236,7 +223,14 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 }
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
-	newName := o.getOutputFileName("." + o.lastRolledOver.Format(tf))
+	var newName string
+	if config.FileHandlerCompressData == true {
+		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
+		newName = fileNameWithoutExtension + "." + o.lastRolledOver.Format(tf) + ".gz"
+	} else {
+		newName = o.outputFileName + "." + o.lastRolledOver.Format(tf)
+	}
+
 	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
