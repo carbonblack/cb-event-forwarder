@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,11 +21,11 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
-	outputFileName string
+	outputFileName      string
 	outputFileExtension string
-	outputFile     io.WriteCloser
-	outputGzWriter *gzip.Writer
-	fileOpenedAt   time.Time
+	outputFile          io.WriteCloser
+	outputGzWriter      *gzip.Writer
+	fileOpenedAt        time.Time
 
 	lastRolledOver time.Time
 	sync.RWMutex
@@ -201,7 +200,6 @@ func (o *FileOutput) flushOutput(force bool) error {
 			return nil
 		}
 
-
 	}
 	return nil
 }
@@ -210,7 +208,7 @@ func (o *FileOutput) output(s string) error {
 	/*
 	 * Write to our buffer first
 	 */
-	log.Printf("WRiting to buffer: %s ",s)
+	log.Printf("WRiting to buffer: %s ", s)
 	o.bufferOutput.buffer.WriteString(s + "\n")
 	err := o.flushOutput(false)
 	return err
