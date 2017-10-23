@@ -166,7 +166,6 @@ func (o *FileOutput) flushOutput(force bool) error {
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-		log.Printf("Writing to bufferoutput %d", o.bufferOutput.buffer.Len())
 
 		if config.FileHandlerCompressData != false {
 
@@ -174,11 +173,9 @@ func (o *FileOutput) flushOutput(force bool) error {
 			o.outputGzWriter.Flush()
 
 			if err != nil {
-				log.Println("COMPRESSED Writing to bufferoutput failed")
 				return err
 			}
 
-			log.Println("COMPRESSED Writing to buffer output did not fail")
 			o.bufferOutput.buffer.Reset()
 			o.bufferOutput.lastFlush = time.Now()
 			return nil
@@ -187,11 +184,9 @@ func (o *FileOutput) flushOutput(force bool) error {
 			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 
 			if err != nil {
-				log.Println("Writing to bufferoutput failed")
 				return err
 			}
 
-			log.Println("Writing to buffer output did not fail")
 			o.bufferOutput.buffer.Reset()
 			o.bufferOutput.lastFlush = time.Now()
 			return nil
@@ -205,7 +200,6 @@ func (o *FileOutput) output(s string) error {
 	/*
 	 * Write to our buffer first
 	 */
-	log.Printf("WRiting to buffer: %s ", s)
 	o.bufferOutput.buffer.WriteString(s + "\n")
 	err := o.flushOutput(false)
 	return err
@@ -241,7 +235,6 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 }
 
 func (o *FileOutput) closeFile() {
-	log.Printf("Closing FILE!")
 	if o.outputFile != nil {
 		o.outputFile.Close()
 		o.outputFile = nil
