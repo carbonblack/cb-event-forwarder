@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"sync"
 	"time"
@@ -144,8 +145,10 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	if config.DebugFlag {
 		h := md5.New()
 		h.Write(body)
-		log.Debugf("Writing Bundle to disk: %s", config.DebugStore+fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
-		ioutil.WriteFile(config.DebugStore+fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)), body, 0444)
+		var fullFilePath string
+		fullFilePath = path.Join(config.DebugStore, fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
+		log.Debugf("Writing Bundle to disk: %s", fullFilePath)
+		ioutil.WriteFile(fullFilePath, body, 0444)
 	}
 }
 
@@ -163,7 +166,6 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		if err != nil {
 			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
-
 			return
 		}
 	} else if contentType == "application/protobuf" {

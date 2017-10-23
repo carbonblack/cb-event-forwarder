@@ -93,12 +93,10 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 				ioc_type := value.(map[string]interface{})
 				if md5value, ok := ioc_type["md5"]; ok {
 					if md5, ok := md5value.(string); ok {
-						if len(md5) == 32 {
-							log.WithFields(log.Fields{"MD5 Length": len(md5)}).Error("MD5 Length was 32")
-							ioc_type["md5"] = strings.ToUpper(md5)
-						} else {
-							log.WithFields(log.Fields{"MD5 Length": len(md5)}).Error("MD5 Length was not 32")
+						if len(md5) != 32 && len(md5) != 0 {
+							log.WithFields(log.Fields{"MD5 Length": len(md5)}).Warn("MD5 Length was not valid")
 						}
+						ioc_type["md5"] = strings.ToUpper(md5)
 					}
 				}
 			} else {
