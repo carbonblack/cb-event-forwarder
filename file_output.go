@@ -202,8 +202,16 @@ func (o *FileOutput) output(s string) error {
 
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	basename := filepath.Dir(o.outputFileName)
-	newName := fmt.Sprintf("%s.%s", filepath.Base(o.outputFileName),
-		o.lastRolledOver.Format(tf))
+
+	var newName string
+
+	if (config.FileHandlerCompressData != false){
+		newName = fmt.Sprintf("%s.%s.%s", filepath.Base(o.outputFileName),
+			o.lastRolledOver.Format(tf), o.outputFileExtension)
+	} else {
+		newName = fmt.Sprintf("%s.%s.%s", filepath.Base(o.outputFileName),
+			o.lastRolledOver.Format(tf), o.outputFileExtension)
+	}
 	newName = filepath.Join(basename, newName)
 
 	o.closeFile()
