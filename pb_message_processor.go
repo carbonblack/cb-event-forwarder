@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/sensor_events"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -68,7 +68,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
 		msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
 		if err != nil {
-			log.Printf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
+			log.Infof("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message.", i, err.Error())
 		} else if msg != nil {
 			msgs = append(msgs, msg)
 		}
@@ -104,20 +104,20 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 	for i, zf := range zipReader.File {
 		src, err := zf.Open()
 		if err != nil {
-			log.Printf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
+			log.Errorf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
 			continue
 		}
 
 		unzippedFile, err := ioutil.ReadAll(src)
 		src.Close()
 		if err != nil {
-			log.Printf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
+			log.Errorf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
 			continue
 		}
 
 		newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
 		if err != nil {
-			log.Printf("Errors above from processing zip filename %s", zf.Name)
+			log.Errorf("Errors above from processing zip filename %s", zf.Name)
 		}
 		msgs = append(msgs, newMsgs...)
 	}
@@ -378,10 +378,9 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		kv["username"] = message.OriginalMessage.Process.GetUsername()
 	}
 
-        if message.OriginalMessage.Process.Uid != nil {
+	if message.OriginalMessage.Process.Uid != nil {
 		kv["uid"] = message.OriginalMessage.Process.GetUid()
 	}
-
 
 }
 
@@ -456,7 +455,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["child_process_guid"])
 	}
 
-        kv["path"] = om.Childproc.GetPath()
+	kv["path"] = om.Childproc.GetPath()
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
 }
 

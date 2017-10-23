@@ -1,31 +1,31 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
-	"bytes"
 )
 
 type BufferOutput struct {
-	buffer 		bytes.Buffer
-	lastFlush 	time.Time
+	buffer    bytes.Buffer
+	lastFlush time.Time
 }
 
 type FileOutput struct {
-	outputFileName 	string
-	outputFile     	*os.File
-	fileOpenedAt  	time.Time
+	outputFileName string
+	outputFile     *os.File
+	fileOpenedAt   time.Time
 
-	lastRolledOver 	time.Time
+	lastRolledOver time.Time
 	sync.RWMutex
-	bufferOutput	BufferOutput
+	bufferOutput BufferOutput
 }
 
 type FileStatistics struct {
@@ -110,7 +110,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			case <-hup:
 				// reopen file
-				log.Println("Received SIGHUP, Rolling over file now.")
+				log.Info("Received SIGHUP, Rolling over file now.")
 				if _, err := o.rollOverFile("2006-01-02T15:04:05"); err != nil {
 					errorChan <- err
 					return
@@ -136,7 +136,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 * 1000000ns = 1ms
 	 */
 
-	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000  || force {
+	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 		_, err := o.outputFile.WriteString(o.bufferOutput.buffer.String())
 		// is the error temporary? reopen the file and see...
 		if err != nil {
@@ -166,7 +166,7 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 
 	o.close()
 
-	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
+	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err
