@@ -23,6 +23,7 @@ type BufferOutput struct {
 
 type FileOutput struct {
 	outputFileName string
+	outputFileExtension string
 	outputFile     io.WriteCloser
 	outputGzWriter *gzip.Writer
 	fileOpenedAt   time.Time
@@ -55,8 +56,12 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	if config.FileHandlerCompressData != false && !strings.HasSuffix(fileName, ".gz") {
-		fileName += ".gz"
+	// pull "extension" from file (assuming it's json or txt), adding '.gz' if we are gzipping the output file.
+	o.outputFileExtension = filepath.Ext(fileName)
+	o.outputFileName = strings.TrimSuffix(fileName, o.outputFileExtension)
+
+	if config.FileHandlerCompressData != false {
+		o.outputFileExtension = o.outputFileExtension + ".gz"
 	}
 
 	o.outputFileName = fileName
@@ -64,7 +69,8 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.fileOpenedAt = time.Time{}
 	o.lastRolledOver = time.Time{}
 
-	fp, err := os.OpenFile(fileName, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	// if the output file already exists, let's roll it over to start from scratch
+	fp, err := os.OpenFile(o.outputFileName + o.outputFileExtension, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
