@@ -56,27 +56,31 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	// pull "extension" from file (assuming it's json or txt), adding '.gz' if we are gzipping the output file.
-	o.outputFileExtension = filepath.Ext(fileName)
-	o.outputFileName = strings.TrimSuffix(fileName, o.outputFileExtension)
-
-	if strings.Contains(o.outputFileName, ".gz") {
-		o.outputFileName = strings.TrimSuffix(o.outputFileName,".gz")
+	if config.FileHandlerCompressData != false {
+		// trim .gz off the fileName if we're outputting gzipped data (we will add it back in later)
+		o.outputFileName = strings.TrimSuffix(fileName, ".gz")
+	} else {
+		o.outputFileName = fileName
 	}
 
-	if config.FileHandlerCompressData != false && strings.Contains(o.outputFileExtension,".gz") == false {
-		o.outputFileExtension = o.outputFileExtension + ".gz"
-	}
-
-	o.outputFileName = fileName
 	o.closeFile()
 	o.fileOpenedAt = time.Time{}
 	o.lastRolledOver = time.Time{}
 
 	// if the output file already exists, let's roll it over to start from scratch
-	fp, err := os.OpenFile(o.outputFileName + o.outputFileExtension, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+	fp, err := os.OpenFile(o.getOutputFileName(""), os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 	if err != nil {
-		return err
+		if os.IsExist(err) {
+			// the output file already exists, try to roll it over
+			o.rollOverRename("2006-01-02T15:04:05")
+
+			// try again
+			fp, err = os.OpenFile(o.getOutputFileName(""), os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+			if err != nil {
+				// give up if we still have an error
+				return err
+			}
+		}
 	}
 
 	if config.FileHandlerCompressData != false {
@@ -92,6 +96,14 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.bufferOutput.lastFlush = time.Now()
 
 	return nil
+}
+
+func (o *FileOutput) getOutputFileName(timestamp string) string {
+	if config.FileHandlerCompressData != false {
+		return o.outputFileName + timestamp + ".gz"
+	} else {
+		return o.outputFileName + timestamp
+	}
 }
 
 func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
@@ -205,28 +217,25 @@ func (o *FileOutput) output(s string) error {
 }
 
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
-	basename := filepath.Dir(o.outputFileName)
-
-	var newName string
-
-	if (config.FileHandlerCompressData != false){
-		newName = fmt.Sprintf("%s.%s%s", filepath.Base(o.outputFileName),
-			o.lastRolledOver.Format(tf), o.outputFileExtension)
-	} else {
-		newName = fmt.Sprintf("%s.%s", filepath.Base(o.outputFileName),
-			o.lastRolledOver.Format(tf))
-	}
-	newName = filepath.Join(basename, newName)
-
 	o.closeFile()
 
-	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
-	err := os.Rename(o.outputFileName, newName)
+	newName, err := o.rollOverRename(tf)
 	if err != nil {
 		return "", err
 	}
 
 	return newName, o.Initialize(o.outputFileName)
+}
+
+func (o *FileOutput) rollOverRename(tf string) (string, error) {
+	newName := o.getOutputFileName("." + o.lastRolledOver.Format(tf))
+	log.Printf("Rolling file %s to %s", o.outputFileName, newName)
+	err := os.Rename(o.outputFileName, newName)
+	if err != nil {
+		return "", err
+	} else {
+		return newName, nil
+	}
 }
 
 func (o *FileOutput) closeFile() {
