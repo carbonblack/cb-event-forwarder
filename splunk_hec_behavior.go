@@ -74,30 +74,19 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
         defer close(events)
 
         var fileReader io.ReadCloser
+	var err error
 
-        // decompress file from disk if it's compressed
-        header := make([]byte, 261)
-
-        _, err := fp.Read(header)
-        if err != nil {
-            log.Fatalf("Could not read header information for file: %s", err.Error())
-            return
-        }
-        fp.Seek(0, os.SEEK_SET)
-
-        /*if filetype.IsMIME(header, "application/gzip") {
-            fileReader, err := gzip.NewReader(fp)
-            if err != nil {
-                // TODO: find a better way to bubble this error up
-                log.Fatalf("Error reading file: %s", err.Error())
-                return
-            }
-            defer fileReader.Close()
-        } else {
-            fileReader = fp
-        }*/
-
-	fileReader,err = gzip.NewReader(fp)
+	if IsGzip(fp) {
+		fileReader, err = gzip.NewReader(fp)
+		if err != nil {
+			// TODO: find a better way to bubble this error up
+			log.Fatalf("Error reading file: %s", err.Error())
+			return
+		}
+		defer fileReader.Close()
+	} else {
+		fileReader = fp
+	}
 
         scanner := bufio.NewScanner(fileReader)
         var i int64
