@@ -314,6 +314,9 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		if _, ok := outmsg["md5"]; !ok {
 			outmsg["md5"] = GetMd5Hexdigest(inmsg.OriginalMessage.Header.GetProcessMd5())
 		}
+		if _, ok := outmsg["sha256"]; !ok {
+			outmsg["sha256"] = GetSha256Hexdigest(inmsg.OriginalMessage.Header.GetProcessSha256())
+		}
 
 		// add link to process in the Cb UI if the Cb hostname is set
 		// TODO: not happy about reaching in to the "config" object for this
@@ -344,6 +347,9 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		if message.OriginalMessage.Process.Md5Hash != nil {
 			kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Process.GetMd5Hash())
 		}
+		if message.OriginalMessage.Process.Sha256Hash !=nil {
+			kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Process.GetSha256Hash())
+		}
 	} else {
 		kv["type"] = "ingress.event.procend"
 	}
@@ -357,6 +363,10 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {
 		kv["parent_md5"] = GetMd5Hexdigest(om.Process.GetParentMd5())
+	}
+
+	if message.OriginalMessage.Process.ParentSha256 != nil {
+		kv["parent_sha256"] = GetSha256Hexdigest(om.Process.GetSha256Hash())
 	}
 
 	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
@@ -391,6 +401,7 @@ func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	file_path, _ := message.getStringByGuid(message.OriginalMessage.Header.GetFilepathStringGuid())
 	kv["path"] = file_path
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Modload.GetMd5Hash())
+	kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Modload.GetSha256Hash())
 
 }
 
@@ -426,6 +437,9 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Filemod.Md5Hash != nil {
 		kv["file_md5"] = GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
 	}
+	if message.OriginalMessage.Filemod.Sha256Hash != nil {
+		kv["file_sha256"] = GetSha256Hexdigest(message.OriginalMessage.Filemod.GetSha256Hash())
+	}
 }
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -457,6 +471,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 
 	kv["path"] = om.Childproc.GetPath()
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
+	kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Childproc.GetSha256Hash())
 }
 
 func regmodAction(a sensor_events.CbRegModMsg_CbRegModAction) string {
@@ -520,6 +535,7 @@ func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["type"] = "ingress.event.module"
 
 	kv["md5"] = strings.ToUpper(string(message.OriginalMessage.Module.GetMd5()))
+	kv["sha256"] = strings.ToUpper(string(message.OriginalMessage.Module.GetSha256()))
 	kv["size"] = message.OriginalMessage.Module.GetOriginalModuleLength()
 
 	digsigResult := make(map[string]interface{})
@@ -611,6 +627,7 @@ func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["target_pid"] = open.GetTargetPid()
 		kv["target_create_time"] = open.GetTargetProcCreateTime()
 		kv["target_md5"] = GetMd5Hexdigest(open.GetTargetProcMd5())
+		kv["target_sha256"] = GetSha256Hexdigest(open.GetTargetProcSha256())
 		kv["target_path"] = open.GetTargetProcPath()
 
 		pid32 := int32(open.GetTargetPid() & 0xffffffff)
@@ -623,6 +640,7 @@ func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["target_pid"] = rt.GetRemoteProcPid()
 		kv["target_create_time"] = rt.GetRemoteProcCreateTime()
 		kv["target_md5"] = GetMd5Hexdigest(rt.GetRemoteProcMd5())
+		kv["target_sha256"] = GetSha256Hexdigest(rt.GetRemoteProcSha256())
 		kv["target_path"] = rt.GetRemoteProcPath()
 
 		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(rt.GetRemoteProcPid()), int64(rt.GetRemoteProcCreateTime()))

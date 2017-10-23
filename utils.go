@@ -78,6 +78,10 @@ func GetMd5Hexdigest(src []byte) string {
 	return fmt.Sprintf("%X", src)
 }
 
+func GetSha256Hexdigest(src []byte) string{
+	return fmt.Sprintf("%X", src)
+}
+
 func GetUnicodeFromUTF8(src []byte) string {
 	return string(src)
 }
