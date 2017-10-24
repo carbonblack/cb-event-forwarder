@@ -528,5 +528,9 @@ func main() {
 		}(i)
 	}
 
+	for {
+		time.Sleep(30 * time.Second)
+	}
+
 	log.Info("cb-event-forwarder exiting")
 }
