@@ -184,18 +184,35 @@ func Encode(msg map[string]interface{}) (string, error) {
 			continue
 		}
 
-		switch reflect.ValueOf(msg[key]).Type().Kind() {
+
+		kind := reflect.ValueOf(msg[key]).Type().Kind()
+		switch kind {
 
 		case reflect.Map:
 		case reflect.Array:
 		case reflect.Slice:
 			// if the value is a map, array or slice, then format as JSON
-			t, err := json.Marshal(msg[key])
-			if err != nil {
-				log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-				continue
+			if kind.Len() != 1 {
+				t, err := json.Marshal(msg[key])
+				if err != nil {
+					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					continue
+				}
+				val = string(t)
+			} else {
+				if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
+				val = msg[key].(json.Number).String()
+				} else {
+					val = msg[key].(string)
+					if key == "type" {
+						messageType = val
+					} else if key == "cb_version" {
+						cbVersion = val
+					}
+				}
+				val = formatter.Replace(val)
 			}
-			val = string(t)
+
 
 		case reflect.String:
 			// make sure to format strings with the appropriate character escaping
