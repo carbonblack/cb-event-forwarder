@@ -176,80 +176,86 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 	sort.Strings(keyNames)
 	for _, key := range keyNames {
-
-		var val string
-
-		// remove all invalid values from the output
 		if !reflect.ValueOf(msg[key]).IsValid() {
 			continue
 		}
-		the_type := reflect.ValueOf(msg[key]).Type()
-		the_kind := the_type.Kind()
 
-		switch typed_msg_val := msg[key].(type) {
+		msg_func := func(msg map[string]interface{}, key string) string {
+			var val string
 
-		case map[string]interface{}:
+			the_type := reflect.ValueOf(msg[key]).Type()
+			the_kind := the_type.Kind()
 
-			if len(typed_msg_val) == 0 {
-				val = ""
-			} else {
-				t, err := json.Marshal(typed_msg_val)
-				if err != nil {
-					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-					continue
+			switch typed_msg_val := msg[key].(type) {
+
+			case map[string]interface{}:
+
+				if len(typed_msg_val) == 0 {
+					val = ""
+				} else {
+					t, err := json.Marshal(typed_msg_val)
+					if err != nil {
+						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+						return ""
+					}
+					val = string(t)
 				}
-				val = string(t)
-			}
 
-		case []string:
-			// if the value is a map, array or slice, then format as JSON
-			length_of_array := len(typed_msg_val)
-			if length_of_array == 0 {
-				val = ""
-			} else if length_of_array == 1 {
+			case []string:
+				// if the value is a map, array or slice, then format as JSON
+				length_of_array := len(typed_msg_val)
+				if length_of_array == 0 {
+					val = ""
+				} else if length_of_array == 1 {
+					if key == "type" {
+						messageType = typed_msg_val[0]
+					} else if key == "cb_version" {
+						cbVersion = typed_msg_val[0]
+					}
+					val = typed_msg_val[0]
+				} else {
+					t, err := json.Marshal(typed_msg_val)
+					if err != nil {
+						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+						return ""
+					}
+					val = string(t)
+				}
+
+			case json.Number:
+				val_str := typed_msg_val.String()
 				if key == "type" {
-					messageType = typed_msg_val[0]
+					messageType = val_str
 				} else if key == "cb_version" {
-					cbVersion = typed_msg_val[0]
+					cbVersion = val_str
 				}
-				val = typed_msg_val[0]
-			} else {
-				t, err := json.Marshal(typed_msg_val)
-				if err != nil {
-					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-					continue
+				val = formatter.Replace(val_str)
+
+			case string:
+				// make sure to format strings with the appropriate character escaping
+				// also make sure we reflect the "type" and "cb_version" on to the message header, if present
+				if key == "type" {
+					messageType = typed_msg_val
+				} else if key == "cb_version" {
+					cbVersion = typed_msg_val
 				}
-				val = string(t)
+				val = formatter.Replace(typed_msg_val)
+			case int, int32, int64, uint32, uint64, uint:
+				val = fmt.Sprintf("%d", typed_msg_val)
+			case bool:
+				val = fmt.Sprintf("%t", typed_msg_val)
+			default:
+				// simplify and use fmt.Sprintf to format the output
+				log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
+				val = fmt.Sprintf("%v", typed_msg_val)
 			}
-
-		case json.Number:
-			val_str := typed_msg_val.String()
-			if key == "type" {
-				messageType = val_str
-			} else if key == "cb_version" {
-				cbVersion = val_str
-			}
-			val = formatter.Replace(val_str)
-
-		case string:
-			// make sure to format strings with the appropriate character escaping
-			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-			if key == "type" {
-				messageType = typed_msg_val
-			} else if key == "cb_version" {
-				cbVersion = typed_msg_val
-			}
-			val = formatter.Replace(typed_msg_val)
-
-		default:
-			// simplify and use fmt.Sprintf to format the output
-			log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
-			val = fmt.Sprintf("%s", msg[key])
+			return val
 		}
 
-		log.Debugf("adding key = val to kvPairs %s=%s", key, val)
+		ret_val := msg_func(msg, key)
+		log.Debugf("adding key = val to kvPairs %s=%s", key, ret_val)
 
-		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
+		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, ret_val))
 	}
 
 	// override "procstart" with "process" as this is what the LEEF decoder in QRadar is expecting
