@@ -193,11 +193,12 @@ func Encode(msg map[string]interface{}) (string, error) {
 		switch typed_msg_val := msg[key].(type) {
 
 		case map[string] interface{}:
-
+			log.Infof("Typed msg val = %v",typed_msg_val)
 			val = fmt.Sprintf("%v",typed_msg_val)
 
 
 		case [] string:
+			log.Infof("Typed msg val = %v",typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
 			if (len(typed_msg_val) == 1){
 				if key == "type" {
@@ -216,6 +217,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			}
 
 		case json.Number:
+			log.Infof("Typed msg val = %v",typed_msg_val)
 			val_str := typed_msg_val.String()
 			if key == "type" {
 				messageType = val_str
@@ -225,6 +227,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = formatter.Replace(val_str)
 
 		case string:
+			log.Infof("Typed msg val = %v",typed_msg_val)
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
 			if key == "type" {
