@@ -184,7 +184,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			continue
 		}
 
-
+		msg_val := msg[key]
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
@@ -194,7 +194,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 		case reflect.Array:
 		case reflect.Slice:
 			// if the value is a map, array or slice, then format as JSON
-			if the_kind == reflect.Map || the_kind.Len() != 1 {
+			if the_kind == reflect.Map || msg_val.Len() != 1 {
 				t, err := json.Marshal(msg[key])
 				if err != nil {
 					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
