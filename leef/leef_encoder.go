@@ -189,6 +189,9 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
+		log.Info(the_type)
+		log.Info((the_kind)
+
 
 		switch the_kind {
 
@@ -196,50 +199,17 @@ func Encode(msg map[string]interface{}) (string, error) {
 		case reflect.Array:
 		case reflect.Slice:
 			// if the value is a map, array or slice, then format as JSON
-			if the_kind == reflect.Map  {
-				t, err := json.Marshal(msg[key])
-				if err != nil {
-					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-					continue
-				}
-				val = string(t)
-			} else {
-
-				var temp
-				if the_kind == reflect.Array {
-					temp = msg_val.(Array)
-				} else
-				{
-					temp = msg_val.(Slice)
-				}
-				length := temp.Len()
-				if (length == 1) {
-					temp = temp[0]
-					if the_type == jsonNumberType {
-						val = temp.(json.Number).String()
-					} else {
-						val = temp.(string)
-						if key == "type" {
-							messageType = val
-						} else if key == "cb_version" {
-							cbVersion = val
-						}
-					}
-					val = formatter.Replace(val)
-				} else {
-					t, err := json.Marshal(msg[key])
-					if err != nil {
-						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-						continue
-					}
-					val = string(t)
-				}
+			t, err := json.Marshal(msg[key])
+			if err != nil {
+				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+				continue
 			}
+			val = string(t)
 
 		case reflect.String:
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-			if the_type == jsonNumberType {
+			if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
 				val = msg[key].(json.Number).String()
 			} else {
 				val = msg[key].(string)
