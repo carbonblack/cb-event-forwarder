@@ -228,9 +228,12 @@ func Encode(msg map[string]interface{}) (string, error) {
 	}
 
 	log.Infof("kvPairs = %v",kvPairs)
-	log.Infof("joined kvparis = %v",strings.Join(kvPairs,"SEP"))
 
-	ret  := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "SEP"))
+	joined_kv := strings.Join(kvPairs,"\t")
+	log.Infof("joined kvparis = %v",joined_kv)
+	log.Infof("joined kvpairs = %s",joined_kv)
+
+	ret  := fmt.Sprintf("%s%v", generateHeader(cbVersion, messageType), joined_kv)
 
 	log.Infof("Returnining (from encode) : %v", ret)
 
