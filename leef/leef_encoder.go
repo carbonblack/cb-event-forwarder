@@ -193,22 +193,16 @@ func Encode(msg map[string]interface{}) (string, error) {
 		switch typed_msg_val := msg[key].(type) {
 
 		case map[string] interface{}:
-			if len(typed_msg_val) == 1 {
-				if key == "type" {
-					messageType = typed_msg_val[0]
-				} else if key == "cb_version" {
-					cbVersion = typed_msg_val[0]
-				}
-				val = typed_msg_val[0]
-			} else {
-				val = fmt.Sprintf("%v",typed_msg_val)
-			}
+
+			val = fmt.Sprintf("%v",typed_msg_val)
+
 
 		case [] string:
 			// if the value is a map, array or slice, then format as JSON
 			if (len(typed_msg_val) == 1){
+				var k = typed_msg_val.
 				if key == "type" {
-					messageType = typed_msg_val[0]
+					messageType = typed_msg_val
 				} else if key == "cb_version" {
 					cbVersion = typed_msg_val[0]
 				}
