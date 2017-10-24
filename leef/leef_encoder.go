@@ -200,7 +200,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 				}
 				val = string(t)
 			} else {
-				if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
+				if kind == jsonNumberType {
 				val = msg[key].(json.Number).String()
 				} else {
 					val = msg[key].(string)
