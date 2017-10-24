@@ -200,9 +200,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 		case [] string:
 			// if the value is a map, array or slice, then format as JSON
 			if (len(typed_msg_val) == 1){
-				var k = typed_msg_val.
 				if key == "type" {
-					messageType = typed_msg_val
+					messageType = typed_msg_val[0]
 				} else if key == "cb_version" {
 					cbVersion = typed_msg_val[0]
 				}
