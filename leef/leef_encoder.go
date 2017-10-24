@@ -191,36 +191,60 @@ func Encode(msg map[string]interface{}) (string, error) {
 		log.Infof("%v",the_kind)
 
 
-		switch the_kind {
+		switch typed_msg_val := msg_val.(type) {
 
-		case reflect.Map:
-		case reflect.Array:
-		case reflect.Slice:
-			// if the value is a map, array or slice, then format as JSON
-			t, err := json.Marshal(msg[key])
-			if err != nil {
-				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-				continue
+		case map[string] interface{}:
+			if len(typed_msg_val) == 1 {
+				if key == "type" {
+					messageType = typed_msg_val[0]
+				} else if key == "cb_version" {
+					cbVersion = typed_msg_val[0]
+				}
+				val = typed_msg_val[0]
+			} else {
+				val = fmt.Sprintf("%v",typed_msg_val)
 			}
-			val = string(t)
 
-		case reflect.String:
+		case [] string:
+			// if the value is a map, array or slice, then format as JSON
+			if (len(typed_msg_val) == 1){
+				if key == "type" {
+					messageType = typed_msg_val[0]
+				} else if key == "cb_version" {
+					cbVersion = typed_msg_val[0]
+				}
+				val = typed_msg_val[0]
+			} else {
+				t, err := json.Marshal(typed_msg_val)
+				if err != nil {
+					log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					continue
+				}
+				val = string(t)
+			}
+
+		case json.Number:
+			val_str := typed_msg_val.String()
+			if key == "type" {
+				messageType = val_str
+			} else if key == "cb_version" {
+				cbVersion = val_str
+			}
+			val = formatter.Replace(val_str)
+
+		case string:
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-			if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
-				val = msg[key].(json.Number).String()
-			} else {
-				val = msg[key].(string)
-				if key == "type" {
-					messageType = val
-				} else if key == "cb_version" {
-					cbVersion = val
-				}
+			if key == "type" {
+				messageType = typed_msg_val
+			} else if key == "cb_version" {
+				cbVersion = typed_msg_val
 			}
-			val = formatter.Replace(val)
+			val = formatter.Replace(typed_msg_val)
 
 		default:
 			// simplify and use fmt.Sprintf to format the output
+			log.Infof("Default case for leef encode: type/kind  = %s/%s ",the_type,the_kind)
 			val = fmt.Sprintf("%v", msg[key])
 		}
 
