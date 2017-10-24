@@ -227,9 +227,9 @@ func Encode(msg map[string]interface{}) (string, error) {
 		messageType = "ingress.event.process"
 	}
 
-	ret , err := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "\t")), nil
+	ret  := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "\t"))
 
 	log.Infof("Returnining (from encode) : %s", ret)
 
-	return ret,err
+	return ret,nil
 }
