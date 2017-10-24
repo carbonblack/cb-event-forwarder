@@ -194,6 +194,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 		case map[string] interface{}:
 			log.Infof("Typed msg val = %v",typed_msg_val)
+			log.Infof("Original map = %s",msg[key])
 			t, err := json.Marshal(typed_msg_val)
 			if err != nil {
 				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
