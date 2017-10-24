@@ -183,15 +183,14 @@ func Encode(msg map[string]interface{}) (string, error) {
 		if !reflect.ValueOf(msg[key]).IsValid() {
 			continue
 		}
-		msg_val := msg[key]
-		the_type := reflect.ValueOf(msg_val).Type()
+		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
 		log.Infof("%v",the_type)
 		log.Infof("%v",the_kind)
 
 
-		switch typed_msg_val := msg_val.(type) {
+		switch typed_msg_val := msg[key].(type) {
 
 		case map[string] interface{}:
 			if len(typed_msg_val) == 1 {
