@@ -7,7 +7,7 @@ import (
 
 	"fmt"
 	"github.com/Shopify/sarama"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
