@@ -1,4 +1,4 @@
-package leef
+	package leef
 
 import (
 	"encoding/json"
@@ -217,6 +217,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = fmt.Sprintf("%v", msg[key])
 		}
 
+		log.Infof("adding key = val to kvPairs %s=%s",key,val)
+
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
 
@@ -225,5 +227,9 @@ func Encode(msg map[string]interface{}) (string, error) {
 		messageType = "ingress.event.process"
 	}
 
-	return fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "\t")), nil
+	ret , err := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), strings.Join(kvPairs, "\t")), nil
+
+	log.Infof("Returnining (from encode) : %s", ret)
+
+	return ret,err
 }
