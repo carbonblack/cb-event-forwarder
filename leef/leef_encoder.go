@@ -189,10 +189,10 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		typemap := map[types.Type]{
+		typemap := map[types.Type] {
 			reflect.Map : Map ,
 			reflect.Slice : Slice,
-			reflect.Array : Array
+			reflect.Array : Array,
 		}
 
 		switch the_kind {
