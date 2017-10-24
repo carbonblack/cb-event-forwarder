@@ -189,11 +189,6 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		typemap := map[types.Type] types.Type {
-			reflect.Map : Map ,
-			reflect.Slice : Slice,
-			reflect.Array : Array,
-		}
 
 		switch the_kind {
 
@@ -209,7 +204,14 @@ func Encode(msg map[string]interface{}) (string, error) {
 				}
 				val = string(t)
 			} else {
-				temp := msg_val.(typemap[the_type])
+
+				var temp
+				if the_kind == reflect.Array {
+					temp = msg_val.(Array)
+				} else
+				{
+					temp = msg_val.(Slice)
+				}
 				length := temp.Len()
 				if (length == 1) {
 					temp = temp[0]
