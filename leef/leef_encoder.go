@@ -183,8 +183,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 		if !reflect.ValueOf(msg[key]).IsValid() {
 			continue
 		}
-
-		the_type := reflect.ValueOf(msg[key]).Type()
+		msg_val := msg[key]
+		the_type := reflect.ValueOf(msg_val).Type()
 		the_kind := the_type.Kind()
 
 		log.Infof("%v",the_type)
