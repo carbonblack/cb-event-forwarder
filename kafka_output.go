@@ -80,7 +80,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 					o.output(topicString, message)
 				} else {
-					log.Println("ERROR: Topic was not a string")
+					log.Info("ERROR: Topic was not a string")
 				}
 			}
 		}
@@ -95,7 +95,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 	go func() {
 		for err := range o.producer.Errors() {
-			log.Println(err)
+			log.Info(err)
 			atomic.AddInt64(&o.droppedEventCount, 1)
 			errorChan <- err
 		}

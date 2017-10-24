@@ -90,7 +90,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		// only remove the old file if there was no error
 		err = os.Remove(fileName)
 		if err != nil {
-			log.Printf("error removing %s: %s", fileName, err.Error())
+			log.Infof("error removing %s: %s", fileName, err.Error())
 		}
 	}
 }
@@ -260,16 +260,16 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 
 					o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
 
-					log.Printf("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
+					log.Infof("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
 				} else {
 					o.successfulUploads += 1
 					o.lastSuccessfulUpload = time.Now()
-					log.Printf("Successfully uploaded file %s to %s.", fileResult.fileName, o.behavior.String())
+					log.Infof("Successfully uploaded file %s to %s.", fileResult.fileName, o.behavior.String())
 				}
 
 			case <-hup:
 				// flush to S3 immediately
-				log.Printf("Received SIGHUP, sending data to %s immediately.", o.behavior.String())
+				log.Infof("Received SIGHUP, sending data to %s immediately.", o.behavior.String())
 				if err := o.rollOver(); err != nil {
 					errorChan <- err
 					return

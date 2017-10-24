@@ -77,7 +77,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	}
 
 	if config.FileHandlerCompressData != false {
-		log.Println("File handler configured to compress data")
+		log.Info("File handler configured to compress data")
 		o.outputGzWriter = gzip.NewWriter(fp)
 		o.outputFile = o.outputGzWriter
 	} else {
@@ -131,7 +131,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			case <-hup:
 				// reopen file
-				log.Println("Received SIGHUP, Rolling over file now.")
+				log.Info("Received SIGHUP, Rolling over file now.")
 				if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
 					errorChan <- err
 					return
@@ -139,7 +139,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			case <-term:
 				// handle exit gracefully
-				log.Println("Received SIGTERM. Exiting")
+				log.Info("Received SIGTERM. Exiting")
 				o.closeFile()
 				errorChan <- errors.New("SIGTERM received")
 				return

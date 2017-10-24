@@ -518,11 +518,11 @@ func main() {
 
 	for i := 0; i < numConsumers; i++ {
 		go func(consumerNumber int) {
-			log.Printf("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
+			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
 
 			for {
 				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-				log.Printf("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
 				time.Sleep(30 * time.Second)
 			}
 		}(i)

@@ -192,7 +192,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			// if the value is a map, array or slice, then format as JSON
 			t, err := json.Marshal(msg[key])
 			if err != nil {
-				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+				log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 				continue
 			}
 			val = string(t)

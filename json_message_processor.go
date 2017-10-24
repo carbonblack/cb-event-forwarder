@@ -289,7 +289,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						 * Get the report_title for this feed hit
 						 */
 						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
-						log.Printf("Report title = %s , Score = %s",reportTitle, reportScore)
+						log.Infof("Report title = %s , Score = %s",reportTitle, reportScore)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message
@@ -297,7 +297,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 							msg["report_title"] = reportTitle
 							msg["report_score"] = reportScore
 							/*
-								log.Printf("report title for id %s:%s == %s\n",
+								log.Infof("report title for id %s:%s == %s\n",
 									feedId.(json.Number).String(),
 									reportId.(string),
 									reportTitle)
