@@ -185,14 +185,16 @@ func Encode(msg map[string]interface{}) (string, error) {
 		}
 
 
-		kind := reflect.ValueOf(msg[key]).Type().Kind()
-		switch kind {
+		the_type := reflect.ValueOf(msg[key]).Type()
+		the_kind := type.Kind()
+
+		switch the_kind {
 
 		case reflect.Map:
 		case reflect.Array:
 		case reflect.Slice:
 			// if the value is a map, array or slice, then format as JSON
-			if kind == reflect.Map || kind.Len() != 1 {
+			if the_ == reflect.Map || the_kind.Len() != 1 {
 				t, err := json.Marshal(msg[key])
 				if err != nil {
 					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
@@ -200,7 +202,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 				}
 				val = string(t)
 			} else {
-				if kind == jsonNumberType {
+				if the_type == jsonNumberType {
 				val = msg[key].(json.Number).String()
 				} else {
 					val = msg[key].(string)
@@ -217,7 +219,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 		case reflect.String:
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-			if reflect.ValueOf(msg[key]).Type() == jsonNumberType {
+			if the_type == jsonNumberType {
 				val = msg[key].(json.Number).String()
 			} else {
 				val = msg[key].(string)
