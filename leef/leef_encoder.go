@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"go/types"
 )
 
 var (
@@ -189,8 +188,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		log.InfoF("%v",the_type)
-		log.Info("%v",the_kind)
+		log.Infof("%v",the_type)
+		log.Infof("%v",the_kind)
 
 
 		switch the_kind {
