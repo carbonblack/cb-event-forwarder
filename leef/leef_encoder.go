@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"go/types"
 )
 
 var (
@@ -188,13 +189,19 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
+		typemap := map[types.Type]{
+			reflect.Map : Map ,
+			reflect.Slice : Slice,
+			reflect.Array : Array
+		}
+
 		switch the_kind {
 
 		case reflect.Map:
 		case reflect.Array:
 		case reflect.Slice:
 			// if the value is a map, array or slice, then format as JSON
-			if the_kind == reflect.Map || msg_val.(the_kind).Len() != 1 {
+			if the_kind == reflect.Map  {
 				t, err := json.Marshal(msg[key])
 				if err != nil {
 					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
@@ -202,19 +209,30 @@ func Encode(msg map[string]interface{}) (string, error) {
 				}
 				val = string(t)
 			} else {
-				if the_type == jsonNumberType {
-				val = msg[key].(json.Number).String()
-				} else {
-					val = msg[key].(string)
-					if key == "type" {
-						messageType = val
-					} else if key == "cb_version" {
-						cbVersion = val
+				temp := msg_val.(typemap[the_type])
+				length := temp.Len()
+				if (length == 1) {
+					temp = temp[0]
+					if the_type == jsonNumberType {
+						val = temp.(json.Number).String()
+					} else {
+						val = temp.(string)
+						if key == "type" {
+							messageType = val
+						} else if key == "cb_version" {
+							cbVersion = val
+						}
 					}
+					val = formatter.Replace(val)
+				} else {
+					t, err := json.Marshal(msg[key])
+					if err != nil {
+						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+						continue
+					}
+					val = string(t)
 				}
-				val = formatter.Replace(val)
 			}
-
 
 		case reflect.String:
 			// make sure to format strings with the appropriate character escaping
