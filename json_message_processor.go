@@ -17,7 +17,6 @@ var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
 func parseFullGuid(v string) (string, int, error) {
 
-
 	var segmentNumber int64
 	var err error
 
@@ -36,7 +35,6 @@ func parseFullGuid(v string) (string, int, error) {
 	default:
 		err = errors.New("Truncated GUID")
 	}
-
 
 	return v[:36], int(segmentNumber), err
 }
@@ -73,7 +71,6 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 
 func fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
-
 
 	for key, value := range msg {
 		switch {
@@ -137,15 +134,14 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			if uniqueId, ok := value.(string); ok {
 				processGuid, segment, err := parseFullGuid(uniqueId)
 				if err == nil {
-					    msg["process_guid"] = processGuid
-					    msg["segment_id"] = fmt.Sprintf("%v", segment)
-					    hasProcessGUID = true
-			    }
+					msg["process_guid"] = processGuid
+					msg["segment_id"] = fmt.Sprintf("%v", segment)
+					hasProcessGUID = true
+				}
 
 			}
 		}
 	}
-
 
 	// fall back to process_id in the message
 	if !hasProcessGUID {
@@ -289,7 +285,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						 * Get the report_title for this feed hit
 						 */
 						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
-						log.Infof("Report title = %s , Score = %s",reportTitle, reportScore)
+						log.Infof("Report title = %s , Score = %s", reportTitle, reportScore)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message

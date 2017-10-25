@@ -5,14 +5,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"text/template"
 )
-
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
 type SplunkBehavior struct {
@@ -21,9 +20,9 @@ type SplunkBehavior struct {
 
 	client *http.Client
 
-    httpPostTemplate  *template.Template
-    firstEventTemplate *template.Template
-    subsequentEventTemplate *template.Template
+	httpPostTemplate        *template.Template
+	firstEventTemplate      *template.Template
+	subsequentEventTemplate *template.Template
 }
 
 type SplunkStatistics struct {
@@ -32,15 +31,15 @@ type SplunkStatistics struct {
 
 /* Construct the SplunkBehavior object */
 func (this *SplunkBehavior) Initialize(dest string) error {
-    this.httpPostTemplate = config.HttpPostTemplate
-    this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
-    this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
+	this.httpPostTemplate = config.HttpPostTemplate
+	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
+	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	this.headers = make(map[string]string)
 
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.SplunkToken != nil{
+	if config.SplunkToken != nil {
 		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
 	}
 
@@ -68,12 +67,11 @@ func (this *SplunkBehavior) Key() string {
 	return this.dest
 }
 
-
 func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 
-        defer close(events)
+	defer close(events)
 
-        var fileReader io.ReadCloser
+	var fileReader io.ReadCloser
 	var err error
 
 	if IsGzip(fp) {
@@ -88,44 +86,44 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		fileReader = fp
 	}
 
-        scanner := bufio.NewScanner(fileReader)
-        var i int64
+	scanner := bufio.NewScanner(fileReader)
+	var i int64
 
-        for scanner.Scan() {
-            var b bytes.Buffer
-            var err error
-            eventText := scanner.Text()
+	for scanner.Scan() {
+		var b bytes.Buffer
+		var err error
+		eventText := scanner.Text()
 
-            if len(eventText) == 0 {
-                // skip empty lines
-                continue
-            }
+		if len(eventText) == 0 {
+			// skip empty lines
+			continue
+		}
 
-            if config.CommaSeparateEvents {
-                if i == 0 {
-                    err = this.firstEventTemplate.Execute(&b, eventText)
-                } else {
-                    err = this.subsequentEventTemplate.Execute(&b, eventText)
-                }
-                eventText = b.String()
-            } else {
-                eventText = eventText + "\n"
-            }
+		if config.CommaSeparateEvents {
+			if i == 0 {
+				err = this.firstEventTemplate.Execute(&b, eventText)
+			} else {
+				err = this.subsequentEventTemplate.Execute(&b, eventText)
+			}
+			eventText = b.String()
+		} else {
+			eventText = eventText + "\n"
+		}
 
-            if err != nil {
-                log.Fatal(err)
-            }
+		if err != nil {
+			log.Fatal(err)
+		}
 
-            events <- UploadEvent{EventText: eventText, EventSeq: i}
-		    i += 1
+		events <- UploadEvent{EventText: eventText, EventSeq: i}
+		i += 1
 
-        }
+	}
 
-        if err := scanner.Err(); err != nil {
-            log.Fatal(err)
-        }
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
 
-    }
+}
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
@@ -143,7 +141,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	}
 	uploadData.Events = make(chan UploadEvent)
 
-	request, err := http.NewRequest("POST", this.dest , reader)
+	request, err := http.NewRequest("POST", this.dest, reader)
 
 	go func() {
 		defer writer.Close()

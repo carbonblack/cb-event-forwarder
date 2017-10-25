@@ -1,4 +1,4 @@
-	package leef
+package leef
 
 import (
 	"encoding/json"
@@ -186,36 +186,35 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		log.Infof("%s",the_type)
-		log.Infof("%s",the_kind)
-		log.Infof("%s",msg[key])
-
+		log.Debugf("%s", the_type)
+		log.Debugf("%s", the_kind)
+		log.Debugf("%s", msg[key])
 
 		switch typed_msg_val := msg[key].(type) {
 
-		case map[string] interface{}:
-			log.Info("map handler")
-			log.Infof("Typed msg val = %s",typed_msg_val)
-			log.Infof("Original map = %s",msg[key])
+		case map[string]interface{}:
+			log.Debug("map handler")
+			log.Debugf("Typed msg val = %s", typed_msg_val)
+			log.Debugf("Original map = %s", msg[key])
 			if len(typed_msg_val) == 0 {
 				val = ""
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Debugf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
 			}
 
-		case [] string:
-			log.Info("Array/Slice handler")
-			log.Infof("Typed msg val = %s",typed_msg_val)
+		case []string:
+			log.Debug("Array/Slice handler")
+			log.Debugf("Typed msg val = %s", typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
 			length_of_array := len(typed_msg_val)
 			if length_of_array == 0 {
 				val = ""
-			} else if length_of_array == 1{
+			} else if length_of_array == 1 {
 				if key == "type" {
 					messageType = typed_msg_val[0]
 				} else if key == "cb_version" {
@@ -225,15 +224,15 @@ func Encode(msg map[string]interface{}) (string, error) {
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Debugf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
 			}
 
 		case json.Number:
-			log.Info("json.number Handler")
-			log.Infof("Typed msg val = %s",typed_msg_val)
+			log.Debug("json.number Handler")
+			log.Debugf("Typed msg val = %s", typed_msg_val)
 			val_str := typed_msg_val.String()
 			if key == "type" {
 				messageType = val_str
@@ -243,8 +242,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = formatter.Replace(val_str)
 
 		case string:
-			log.Infof("string handler")
-			log.Infof("Typed msg val = %s",typed_msg_val)
+			log.Debugf("string handler")
+			log.Debugf("Typed msg val = %s", typed_msg_val)
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
 			if key == "type" {
@@ -256,11 +255,11 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 		default:
 			// simplify and use fmt.Sprintf to format the output
-			log.Infof("Default case for leef encode: type/kind  = %s/%s ",the_type,the_kind)
+			log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
 			val = fmt.Sprintf("%s", msg[key])
 		}
 
-		log.Infof("adding key = val to kvPairs %s=%s",key,val)
+		log.Debugf("adding key = val to kvPairs %s=%s", key, val)
 
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
@@ -270,14 +269,14 @@ func Encode(msg map[string]interface{}) (string, error) {
 		messageType = "ingress.event.process"
 	}
 
-	log.Infof("kvPairs = %s",kvPairs)
+	log.Debugf("kvPairs = %s", kvPairs)
 
-	joined_kv := strings.Join(kvPairs,"\t")
-	log.Infof("joined kvpairs = %s",joined_kv)
+	joined_kv := strings.Join(kvPairs, "\t")
+	log.Debugf("joined kvpairs = %s", joined_kv)
 
-	ret  := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), joined_kv)
+	ret := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), joined_kv)
 
-	log.Infof("Returnining (from encode) : %s", ret)
+	log.Debugf("Returnining (from encode) : %s", ret)
 
-	return ret,nil
+	return ret, nil
 }

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"gopkg.in/h2non/filetype.v1"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/h2non/filetype.v1"
 	"net"
 	"os"
 )
@@ -80,7 +80,7 @@ func GetMd5Hexdigest(src []byte) string {
 	return fmt.Sprintf("%X", src)
 }
 
-func GetSha256Hexdigest(src []byte) string{
+func GetSha256Hexdigest(src []byte) string {
 	return fmt.Sprintf("%X", src)
 }
 

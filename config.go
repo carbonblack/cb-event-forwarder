@@ -93,8 +93,8 @@ type Configuration struct {
 	KafkaBrokers     *string
 	KafkaTopicSuffix *string
 
-    //Splunkd
-    SplunkToken *string
+	//Splunkd
+	SplunkToken *string
 }
 
 type ConfigurationError struct {
@@ -431,7 +431,7 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.KafkaTopicSuffix = &kafkaTopicSuffix
 			}
 		case "splunk":
-		    parameterKey = "splunkout"
+			parameterKey = "splunkout"
 			config.OutputType = SplunkOutputType
 
 			token, ok := input.Get("splunk", "hec_token")
