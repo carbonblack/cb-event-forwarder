@@ -1,4 +1,4 @@
-package main
+	package main
 
 import (
 	leef "github.com/carbonblack/cb-event-forwarder/leef"
