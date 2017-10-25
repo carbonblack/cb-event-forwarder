@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"io"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -26,7 +26,7 @@ type FileOutput struct {
 	outputFile          io.WriteCloser
 	outputGzWriter      *gzip.Writer
 	fileOpenedAt        time.Time
-	lastRolledOver time.Time
+	lastRolledOver      time.Time
 	sync.RWMutex
 	bufferOutput BufferOutput
 }
@@ -107,9 +107,10 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		signal.Notify(term, syscall.SIGTERM)
 		signal.Notify(term, syscall.SIGINT)
 
+		defer o.closeFile()
 		defer o.flushOutput(true)
 		defer signal.Stop(hup)
-		defer o.closeFile()
+		defer signal.Stop(term)
 
 		for {
 
@@ -162,10 +163,9 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 * 1000000ns = 1ms
 	 */
 
-	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000  || force {
+	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-
-		if config.FileHandlerCompressData != false && o.outputGzWriter != nil{
+		if config.FileHandlerCompressData != false && o.outputGzWriter != nil {
 
 			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
@@ -179,7 +179,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 			return nil
 
 		} else {
-			_ , err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 
 			if err != nil {
 				return err
