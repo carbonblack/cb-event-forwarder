@@ -194,8 +194,9 @@ func Encode(msg map[string]interface{}) (string, error) {
 		switch typed_msg_val := msg[key].(type) {
 
 		case map[string] interface{}:
+			log.Info("map handler")
 			log.Infof("Typed msg val = %v",typed_msg_val)
-			log.Infof("Original map = %s",msg[key])
+			log.Infof("Original map = %v",msg[key])
 			if len(typed_msg_val) == 0 {
 				val = ""
 			} else {
@@ -208,6 +209,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			}
 
 		case [] string:
+			log.Info("Array/Slice handler")
 			log.Infof("Typed msg val = %v",typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
 			length_of_array := len(typed_msg_val)
@@ -230,6 +232,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			}
 
 		case json.Number:
+			log.Info("json.number Handler")
 			log.Infof("Typed msg val = %v",typed_msg_val)
 			val_str := typed_msg_val.String()
 			if key == "type" {
@@ -240,6 +243,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = formatter.Replace(val_str)
 
 		case string:
+			log.Infof("string handler")
 			log.Infof("Typed msg val = %v",typed_msg_val)
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
