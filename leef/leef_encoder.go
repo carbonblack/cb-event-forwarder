@@ -195,17 +195,24 @@ func Encode(msg map[string]interface{}) (string, error) {
 		case map[string] interface{}:
 			log.Infof("Typed msg val = %v",typed_msg_val)
 			log.Infof("Original map = %s",msg[key])
-			t, err := json.Marshal(typed_msg_val)
-			if err != nil {
-				log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-				continue
+			if len(typed_msg_val) == 0 {
+				val = ""
+			} else {
+				t, err := json.Marshal(typed_msg_val)
+				if err != nil {
+					log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					continue
+				}
+				val = string(t)
 			}
-			val = string(t)
 
 		case [] string:
 			log.Infof("Typed msg val = %v",typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
-			if (len(typed_msg_val) == 1){
+			length_of_array := len(typed_msg_val)
+			if length_of_array == 0 {
+				val = ""
+			} else if length_of_array == 1{
 				if key == "type" {
 					messageType = typed_msg_val[0]
 				} else if key == "cb_version" {
