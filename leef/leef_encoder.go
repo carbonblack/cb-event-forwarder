@@ -186,30 +186,22 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		log.Debugf("%s", the_type)
-		log.Debugf("%s", the_kind)
-		log.Debugf("%s", msg[key])
-
 		switch typed_msg_val := msg[key].(type) {
 
 		case map[string]interface{}:
-			log.Debug("map handler")
-			log.Debugf("Typed msg val = %s", typed_msg_val)
-			log.Debugf("Original map = %s", msg[key])
+
 			if len(typed_msg_val) == 0 {
 				val = ""
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Debugf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
 			}
 
 		case []string:
-			log.Debug("Array/Slice handler")
-			log.Debugf("Typed msg val = %s", typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
 			length_of_array := len(typed_msg_val)
 			if length_of_array == 0 {
@@ -224,15 +216,13 @@ func Encode(msg map[string]interface{}) (string, error) {
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Debugf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
 			}
 
 		case json.Number:
-			log.Debug("json.number Handler")
-			log.Debugf("Typed msg val = %s", typed_msg_val)
 			val_str := typed_msg_val.String()
 			if key == "type" {
 				messageType = val_str
@@ -242,8 +232,6 @@ func Encode(msg map[string]interface{}) (string, error) {
 			val = formatter.Replace(val_str)
 
 		case string:
-			log.Debugf("string handler")
-			log.Debugf("Typed msg val = %s", typed_msg_val)
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
 			if key == "type" {
@@ -272,11 +260,8 @@ func Encode(msg map[string]interface{}) (string, error) {
 	log.Debugf("kvPairs = %s", kvPairs)
 
 	joined_kv := strings.Join(kvPairs, "\t")
-	log.Debugf("joined kvpairs = %s", joined_kv)
 
 	ret := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), joined_kv)
-
-	log.Debugf("Returnining (from encode) : %s", ret)
 
 	return ret, nil
 }
