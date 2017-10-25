@@ -225,6 +225,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 			WriteProcessMessage(inmsg, outmsg)
 		} else if _, ok := config.EventMap["ingress.event.procstart"]; ok {
 			WriteProcessMessage(inmsg, outmsg)
+		} else if _, ok := config.EventMap["ingress.event.procend"]; ok {
+			WriteProcessMessage(inmsg, outmsg)
 		} else {
 			return nil, nil
 		}

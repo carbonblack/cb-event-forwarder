@@ -104,6 +104,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 	}{{"json", processJson}, {"protobuf", processProtobuf}}
 
 	config.CbServerURL = "https://cbtests/"
+	config.EventMap = make(map[string]bool)
 
 	for _, format := range formats {
 		pathname := path.Join("./tests/raw_data", format.formatType)
@@ -128,6 +129,9 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 
 			routingKey := info.Name()
 			os.MkdirAll(path.Join("./tests", outputDir, format.formatType, routingKey), 0755)
+
+			// add this routing key into the filtering map
+			config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())
@@ -166,6 +170,10 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 				msgs, err := format.process(routingKey, b)
 				if err != nil {
 					t.Errorf("Error processing %s: %s", path.Join(routingDir, fn.Name()), err)
+					continue
+				}
+				if len(msgs[0]) == 0 {
+					t.Errorf("got zero messages out of: %s/%s", routingDir, fn.Name())
 					continue
 				}
 
