@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/h2non/filetype.v1"
 	"net"
+	"os"
 )
 
 /*
@@ -78,7 +80,7 @@ func GetMd5Hexdigest(src []byte) string {
 	return fmt.Sprintf("%X", src)
 }
 
-func GetSha256Hexdigest(src []byte) string{
+func GetSha256Hexdigest(src []byte) string {
 	return fmt.Sprintf("%X", src)
 }
 
@@ -96,4 +98,23 @@ func FastStringConcat(substrings ...string) string {
 		buffer.WriteString(substring)
 	}
 	return buffer.String()
+}
+
+func IsGzip(fp *os.File) bool {
+	// decompress file from disk if it's compressed
+	header := make([]byte, 261)
+
+	_, err := fp.Read(header)
+	if err != nil {
+		log.Fatalf("Could not read header information for file: %s", err.Error())
+		return false
+	}
+
+	fp.Seek(0, os.SEEK_SET)
+
+	if filetype.IsMIME(header, "application/gzip") {
+		return true
+	} else {
+		return false
+	}
 }

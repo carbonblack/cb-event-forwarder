@@ -347,7 +347,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		if message.OriginalMessage.Process.Md5Hash != nil {
 			kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Process.GetMd5Hash())
 		}
-		if message.OriginalMessage.Process.Sha256Hash !=nil {
+		if message.OriginalMessage.Process.Sha256Hash != nil {
 			kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Process.GetSha256Hash())
 		}
 	} else {
@@ -470,6 +470,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	}
 
 	kv["path"] = om.Childproc.GetPath()
+
 	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
 	kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Childproc.GetSha256Hash())
 }

@@ -91,7 +91,8 @@ func (o *S3Behavior) Initialize(connString string) error {
 
 	_, err := o.out.HeadBucket(&s3.HeadBucketInput{Bucket: &o.bucketName})
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not open bucket %s: %s", o.bucketName, err))
+		// converting this to a warning, as you could have buckets with PutObject rights but not ListBucket
+		log.Infof("Could not open bucket %s: %s", o.bucketName, err)
 	}
 
 	return nil

@@ -16,6 +16,7 @@ import (
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
 func parseFullGuid(v string) (string, int, error) {
+
 	var segmentNumber int64
 	var err error
 
@@ -137,6 +138,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 					msg["segment_id"] = fmt.Sprintf("%v", segment)
 					hasProcessGUID = true
 				}
+
 			}
 		}
 	}
@@ -282,14 +284,16 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						/*
 						 * Get the report_title for this feed hit
 						 */
-						reportTitle, err := GetReportTitle(int(iFeedId), reportId.(string))
+						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
+						log.Infof("Report title = %s , Score = %s", reportTitle, reportScore)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message
 							 */
 							msg["report_title"] = reportTitle
+							msg["report_score"] = reportScore
 							/*
-								log.Printf("report title for id %s:%s == %s\n",
+								log.Infof("report title for id %s:%s == %s\n",
 									feedId.(json.Number).String(),
 									reportId.(string),
 									reportTitle)

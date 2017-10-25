@@ -13,8 +13,8 @@ import (
 	"text/template"
 )
 
-/* This is the HTTP implementation of the OutputHandler interface defined in main.go */
-type HttpBehavior struct {
+/* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
+type SplunkBehavior struct {
 	dest    string
 	headers map[string]string
 
@@ -25,23 +25,22 @@ type HttpBehavior struct {
 	subsequentEventTemplate *template.Template
 }
 
-type HttpStatistics struct {
+type SplunkStatistics struct {
 	Destination string `json:"destination"`
 }
 
-/* Construct the HttpBehavior object */
-func (this *HttpBehavior) Initialize(dest string) error {
+/* Construct the SplunkBehavior object */
+func (this *SplunkBehavior) Initialize(dest string) error {
 	this.httpPostTemplate = config.HttpPostTemplate
-	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
-	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
-
+	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
+	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	this.headers = make(map[string]string)
 
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.HttpAuthorizationToken != nil {
-		this.headers["Authorization"] = *config.HttpAuthorizationToken
+	if config.SplunkToken != nil {
+		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
 	}
 
 	this.headers["Content-Type"] = *config.HttpContentType
@@ -54,21 +53,22 @@ func (this *HttpBehavior) Initialize(dest string) error {
 	return nil
 }
 
-func (this *HttpBehavior) String() string {
-	return "HTTP POST " + this.Key()
+func (this *SplunkBehavior) String() string {
+	return "Splunk HTTP Event Collector " + this.Key()
 }
 
-func (this *HttpBehavior) Statistics() interface{} {
-	return HttpStatistics{
+func (this *SplunkBehavior) Statistics() interface{} {
+	return SplunkStatistics{
 		Destination: this.dest,
 	}
 }
 
-func (this *HttpBehavior) Key() string {
+func (this *SplunkBehavior) Key() string {
 	return this.dest
 }
 
-func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
+func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
+
 	defer close(events)
 
 	var fileReader io.ReadCloser
@@ -116,16 +116,18 @@ func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 
 		events <- UploadEvent{EventText: eventText, EventSeq: i}
 		i += 1
+
 	}
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
+func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -146,7 +148,6 @@ func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 		// spawn goroutine to read from the file
 		go this.readFromFile(fp, uploadData.Events)
-
 		this.httpPostTemplate.Execute(writer, uploadData)
 	}()
 

@@ -4,12 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"zvelo.io/ttlru"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+	"zvelo.io/ttlru"
 )
 
 type ThreatReport struct {
@@ -137,4 +137,41 @@ func GetReportTitle(FeedId int, ReportId string) (string, error) {
 
 		return threatReport.Title, nil
 	}
+}
+
+func GetReport(FeedId int, ReportId string) (string, int, error) {
+
+	threatReport := ThreatReport{}
+
+	key := strconv.Itoa(FeedId) + "|" + ReportId
+
+	raw_threat_report_p, cachePresent := FeedCache.Get(key)
+
+	if cachePresent {
+		if raw_threat_report_p != nil {
+			threat_report_p := (raw_threat_report_p).(*ThreatReport)
+			threat_report := *threat_report_p
+			var reportTitle string = threat_report.Title
+			var reportScore int = threat_report.Score
+			return reportTitle, reportScore, nil
+		}
+
+	}
+	//implicit ELSE
+	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	err = json.Unmarshal(body, &threatReport)
+
+	if err != nil {
+		return "", 0, err
+	}
+
+	FeedCache.Set(key, &threatReport)
+
+	return threatReport.Title, threatReport.Score, nil
+
 }

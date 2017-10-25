@@ -22,6 +22,8 @@ const (
 	UDPOutputType
 	SyslogOutputType
 	HttpOutputType
+	SplunkOutputType
+	KafkaOutputType
 )
 
 const (
@@ -43,6 +45,7 @@ type Configuration struct {
 	AMQPTLSClientKey     string
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
+	AMQPQueueName        string
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -75,6 +78,9 @@ type Configuration struct {
 	BundleSendTimeout   time.Duration
 	BundleSizeMax       int64
 
+	// Compress data on S3 or file output types
+	FileHandlerCompressData bool
+
 	TLSConfig *tls.Config
 
 	// optional post processing of feed hits to retrieve titles
@@ -82,6 +88,13 @@ type Configuration struct {
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
 	CbAPIProxyUrl             string
+
+	// Kafka-specific configuration
+	KafkaBrokers     *string
+	KafkaTopicSuffix *string
+
+	//Splunkd
+	SplunkToken *string
 }
 
 type ConfigurationError struct {
@@ -297,6 +310,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
+	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
+	if ok {
+		config.AMQPQueueName = rabbitQueueName
+	}
+
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
@@ -316,6 +334,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		val = strings.ToLower(val)
 		if val == "leef" {
 			config.OutputFormat = LEEFOutputFormat
+		}
+	}
+
+	config.FileHandlerCompressData = false
+	val, ok = input.Get("bridge", "compress_data")
+	if ok {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.FileHandlerCompressData = b
 		}
 	}
 
@@ -358,6 +385,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
 			}
+
 		case "http":
 			parameterKey = "httpout"
 			config.OutputType = HttpOutputType
@@ -390,6 +418,48 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
+		case "kafka":
+			config.OutputType = KafkaOutputType
+
+			kafkaBrokers, ok := input.Get("kafka", "brokers")
+			if ok {
+				config.KafkaBrokers = &kafkaBrokers
+			}
+
+			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
+			if ok {
+				config.KafkaTopicSuffix = &kafkaTopicSuffix
+			}
+		case "splunk":
+			parameterKey = "splunkout"
+			config.OutputType = SplunkOutputType
+
+			token, ok := input.Get("splunk", "hec_token")
+			if ok {
+				config.SplunkToken = &token
+			}
+
+			postTemplate, ok := input.Get("splunk", "http_post_template")
+			config.HttpPostTemplate = template.New("http_post_output")
+			if ok {
+				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+			} else {
+				if config.OutputFormat == JSONOutputFormat {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+						`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
+				} else {
+					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+				}
+			}
+
+			contentType, ok := input.Get("http", "content_type")
+			if ok {
+				config.HttpContentType = &contentType
+			} else {
+				jsonString := "application/json"
+				config.HttpContentType = &jsonString
+			}
+
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
@@ -574,15 +644,15 @@ func configureTLS(config Configuration) *tls.Config {
 	}
 
 	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
-		log.Printf("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
+		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
 		tlsConfig.ServerName = *config.TLSCName
 	}
 
 	if config.TLS12Only == true {
-		log.Println("Enforcing minimum TLS version 1.2")
+		log.Info("Enforcing minimum TLS version 1.2")
 		tlsConfig.MinVersion = tls.VersionTLS12
 	} else {
-		log.Println("Relaxing minimum TLS version to 1.0")
+		log.Info("Relaxing minimum TLS version to 1.0")
 		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
