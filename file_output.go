@@ -140,7 +140,6 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case <-term:
 				// handle exit gracefully
 				log.Info("Received SIGTERM. Exiting")
-				o.closeFile()
 				errorChan <- errors.New("SIGTERM received")
 				return
 			}
@@ -163,10 +162,10 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 * 1000000ns = 1ms
 	 */
 
-	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
+	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000  || force {
 
 
-		if config.FileHandlerCompressData != false {
+		if config.FileHandlerCompressData != false && o.outputGzWriter != nil{
 
 			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
@@ -180,7 +179,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 			return nil
 
 		} else {
-			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+			_ , err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
 
 			if err != nil {
 				return err
