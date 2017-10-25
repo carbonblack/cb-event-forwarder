@@ -186,23 +186,23 @@ func Encode(msg map[string]interface{}) (string, error) {
 		the_type := reflect.ValueOf(msg[key]).Type()
 		the_kind := the_type.Kind()
 
-		log.Infof("%v",the_type)
-		log.Infof("%v",the_kind)
-		log.Infof("%v",msg[key])
+		log.Infof("%s",the_type)
+		log.Infof("%s",the_kind)
+		log.Infof("%s",msg[key])
 
 
 		switch typed_msg_val := msg[key].(type) {
 
 		case map[string] interface{}:
 			log.Info("map handler")
-			log.Infof("Typed msg val = %v",typed_msg_val)
-			log.Infof("Original map = %v",msg[key])
+			log.Infof("Typed msg val = %s",typed_msg_val)
+			log.Infof("Original map = %s",msg[key])
 			if len(typed_msg_val) == 0 {
 				val = ""
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
@@ -210,7 +210,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 		case [] string:
 			log.Info("Array/Slice handler")
-			log.Infof("Typed msg val = %v",typed_msg_val)
+			log.Infof("Typed msg val = %s",typed_msg_val)
 			// if the value is a map, array or slice, then format as JSON
 			length_of_array := len(typed_msg_val)
 			if length_of_array == 0 {
@@ -225,7 +225,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			} else {
 				t, err := json.Marshal(typed_msg_val)
 				if err != nil {
-					log.Printf("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
+					log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
 					continue
 				}
 				val = string(t)
@@ -233,7 +233,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 		case json.Number:
 			log.Info("json.number Handler")
-			log.Infof("Typed msg val = %v",typed_msg_val)
+			log.Infof("Typed msg val = %s",typed_msg_val)
 			val_str := typed_msg_val.String()
 			if key == "type" {
 				messageType = val_str
@@ -244,7 +244,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 		case string:
 			log.Infof("string handler")
-			log.Infof("Typed msg val = %v",typed_msg_val)
+			log.Infof("Typed msg val = %s",typed_msg_val)
 			// make sure to format strings with the appropriate character escaping
 			// also make sure we reflect the "type" and "cb_version" on to the message header, if present
 			if key == "type" {
@@ -257,7 +257,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 		default:
 			// simplify and use fmt.Sprintf to format the output
 			log.Infof("Default case for leef encode: type/kind  = %s/%s ",the_type,the_kind)
-			val = fmt.Sprintf("%v", msg[key])
+			val = fmt.Sprintf("%s", msg[key])
 		}
 
 		log.Infof("adding key = val to kvPairs %s=%s",key,val)
@@ -270,15 +270,14 @@ func Encode(msg map[string]interface{}) (string, error) {
 		messageType = "ingress.event.process"
 	}
 
-	log.Infof("kvPairs = %v",kvPairs)
+	log.Infof("kvPairs = %s",kvPairs)
 
 	joined_kv := strings.Join(kvPairs,"\t")
-	log.Infof("joined kvparis = %v",joined_kv)
 	log.Infof("joined kvpairs = %s",joined_kv)
 
-	ret  := fmt.Sprintf("%s%v", generateHeader(cbVersion, messageType), joined_kv)
+	ret  := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), joined_kv)
 
-	log.Infof("Returnining (from encode) : %v", ret)
+	log.Infof("Returnining (from encode) : %s", ret)
 
 	return ret,nil
 }
