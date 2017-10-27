@@ -222,17 +222,15 @@ func (o *BundledOutput) Statistics() interface{} {
 func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
-		defer refreshTicker.Stop()
-		defer o.tempFileOutput.closeFile()
 
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
-
 
 		term := make(chan os.Signal, 1)
 		signal.Notify(term, syscall.SIGTERM)
 		signal.Notify(term, syscall.SIGINT)
 
+		defer refreshTicker.Stop()
 		defer o.tempFileOutput.closeFile()
 		defer o.tempFileOutput.flushOutput(true)
 		defer signal.Stop(hup)
