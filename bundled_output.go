@@ -228,7 +228,15 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
 
+
+		term := make(chan os.Signal, 1)
+		signal.Notify(term, syscall.SIGTERM)
+		signal.Notify(term, syscall.SIGINT)
+
+		defer o.tempFileOutput.closeFile()
+		defer o.tempFileOutput.flushOutput(true)
 		defer signal.Stop(hup)
+		defer signal.Stop(term)
 
 		for {
 			select {
@@ -274,6 +282,11 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					errorChan <- err
 					return
 				}
+			case <-term:
+				// handle exit gracefully
+				log.Info("Received SIGTERM. Exiting")
+				errorChan <- errors.New("SIGTERM received")
+				return
 			}
 		}
 	}()
