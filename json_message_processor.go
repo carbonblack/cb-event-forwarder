@@ -285,7 +285,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						 * Get the report_title for this feed hit
 						 */
 						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
-						log.Infof("Report title = %s , Score = %s", reportTitle, reportScore)
+						log.Debugf("Report title = %s , Score = %d", reportTitle, reportScore)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message

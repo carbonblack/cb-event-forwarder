@@ -151,8 +151,8 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 		if raw_threat_report_p != nil {
 			threat_report_p := (raw_threat_report_p).(*ThreatReport)
 			threat_report := *threat_report_p
-			var reportTitle string = threat_report.Title
-			var reportScore int = threat_report.Score
+			reportTitle := threat_report.Title
+			reportScore := threat_report.Score
 			return reportTitle, reportScore, nil
 		}
 
