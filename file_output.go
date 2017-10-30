@@ -226,10 +226,10 @@ func (o *FileOutput) rollOverRename(tf string,) (string, error) {
 		newName = o.outputFileName + "." + o.lastRolledOver.Format(tf)
 	}
 
-	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
 	if (strings.Contains(newName,".restart")) {
 		newName = strings.Replace(newName,".restart","",-1)
 	}
+	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err
