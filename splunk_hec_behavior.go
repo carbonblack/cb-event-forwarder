@@ -67,6 +67,10 @@ func (this *SplunkBehavior) Key() string {
 	return this.dest
 }
 
+func moveFileToDebug(fp * os.file) {
+	os.Rename(fp.name,"/var/cb/data/event-forwarder/debug"+os.filepath.fp.name)
+}
+
 func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 
 	defer close(events)
@@ -79,6 +83,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		if err != nil {
 			// TODO: find a better way to bubble this error up
 			log.Debugf("Error reading file: %s", err.Error())
+			moveFileToDebug(fp)
 			return
 		}
 		defer fileReader.Close()
