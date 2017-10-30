@@ -71,7 +71,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 				o.outputFileName = newname
 			}
 			// try again
-			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_CREATE, 0644)
 			if err != nil {
 				// give up if we still have an error
 				return err
