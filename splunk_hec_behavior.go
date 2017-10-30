@@ -78,7 +78,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		fileReader, err = gzip.NewReader(fp)
 		if err != nil {
 			// TODO: find a better way to bubble this error up
-			log.Fatalf("Error reading file: %s", err.Error())
+			log.Debugf("Error reading file: %s", err.Error())
 			return
 		}
 		defer fileReader.Close()
@@ -111,7 +111,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		}
 
 		if err != nil {
-			log.Fatal(err)
+			log.Debug(err)
 		}
 
 		events <- UploadEvent{EventText: eventText, EventSeq: i}
@@ -120,7 +120,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Debug(err)
 	}
 
 }

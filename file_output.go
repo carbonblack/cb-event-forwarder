@@ -65,7 +65,8 @@ func (o *FileOutput) Initialize(fileName string) error {
 	if err != nil {
 		if os.IsExist(err) {
 			// the output file already exists, try to roll it over
-			o.rollOverRename("2006-01-02T15:04:05.000")
+			//o.rollOverRename("2006-01-02T15:04:05.000")
+			o.restartRollOverRename("2006-01-02T15:04:05:000")
 
 			// try again
 			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
@@ -214,13 +215,31 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	return newName, o.Initialize(o.outputFileName)
 }
 
-func (o *FileOutput) rollOverRename(tf string) (string, error) {
+func (o *FileOutput) rollOverRename(tf string,) (string, error) {
 	var newName string
 	if config.FileHandlerCompressData == true {
 		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
 		newName = fileNameWithoutExtension + "." + o.lastRolledOver.Format(tf) + ".gz"
 	} else {
 		newName = o.outputFileName + "." + o.lastRolledOver.Format(tf)
+	}
+
+	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
+	err := os.Rename(o.outputFileName, newName)
+	if err != nil {
+		return "", err
+	} else {
+		return newName, nil
+	}
+}
+
+func (o *FileOutput) restartRollOverRename(tf string) (string, error) {
+	var newName string
+	if config.FileHandlerCompressData == true {
+		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
+		newName = fileNameWithoutExtension + ".restart." + o.lastRolledOver.Format(tf) + ".gz"
+	} else {
+		newName = o.outputFileName +  ".restart." + o.lastRolledOver.Format(tf)
 	}
 
 	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
