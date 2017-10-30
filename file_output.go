@@ -66,8 +66,10 @@ func (o *FileOutput) Initialize(fileName string) error {
 		if os.IsExist(err) {
 			// the output file already exists, try to roll it over
 			//o.rollOverRename("2006-01-02T15:04:05.000")
-			o.restartRollOverRename("2006-01-02T15:04:05:000")
-
+			newname , err := o.restartRollOverRename("2006-01-02T15:04:05:000")
+			if err == nil {
+				o.outputFileName = newname
+			}
 			// try again
 			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 			if err != nil {
@@ -225,6 +227,9 @@ func (o *FileOutput) rollOverRename(tf string,) (string, error) {
 	}
 
 	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
+	if (strings.Contains(newName,".restart")) {
+		newName = strings.Replace(newName, "")
+	}
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err
