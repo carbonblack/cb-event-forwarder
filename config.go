@@ -546,7 +546,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	// Bundle configuration
 
 	// default to sending empty files to S3/HTTP POST endpoint
-	if outType != "splunk" {
+	if outType == "splunk" {
 		config.UploadEmptyFiles = false
 		log.Infof("Surpressing upload of empty files because splunkout is configured")
 	} else {
