@@ -192,8 +192,12 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 
 	c.EventMap = make(map[string]bool)
 
+	log.Info("Raw Event Filtering Configuration:")
 	for _, eventName := range c.EventTypes {
 		c.EventMap[eventName] = true
+		if strings.HasPrefix(eventName, "ingress.event.") {
+			log.Infof("%s: %t", eventName, c.EventMap[eventName])
+		}
 	}
 }
 
