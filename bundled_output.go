@@ -76,13 +76,24 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		fp.Close()
 		return
 	} else {
-		if fileInfo.Size() > 0 || config.UploadEmptyFiles {
-			// only upload if the file size is greater than zero
-			uploadStatus := o.behavior.Upload(fileName, fp)
-			err = uploadStatus.result
-			o.fileResultChan <- uploadStatus
+		if strings.HasSuffix(fileName,".gz") {
+
+			fp , err = gzip.NewReader(fp)
+			if fp.size() > 0 || config.UploadEmptyFiles {
+				// only upload if the file size is greater than zero
+				uploadStatus := o.behavior.Upload(fileName, fp)
+				err = uploadStatus.result
+				o.fileResultChan <- uploadStatus
+			}
+
+		} else {
+			if fileInfo.Size() > 0 || config.UploadEmptyFiles {
+				// only upload if the file size is greater than zero
+				uploadStatus := o.behavior.Upload(fileName, fp)
+				err = uploadStatus.result
+				o.fileResultChan <- uploadStatus
+			}
 		}
-	}
 
 	fp.Close()
 
