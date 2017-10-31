@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"text/template"
 )
 
@@ -68,11 +69,12 @@ func (this *SplunkBehavior) Key() string {
 }
 
 func moveFileToDebug(fp *os.File) {
-	src := fp.Name()
-
+	src := filepath.Base(fp.Name())
 	dest := fmt.Sprintf("%s/%s%s", config.DebugStore, src, ".debug")
+	log.Debugf("slunk_hec_behavior::moveFileToDebug mv %s %s", src, dest)
 	os.Rename(src, dest)
 }
+
 func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
 
 	defer close(events)
@@ -85,6 +87,7 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		if err != nil {
 			// TODO: find a better way to bubble this error up
 			log.Debugf("Error reading file: %s", err.Error())
+			moveFileToDebug(fp)
 			return
 		}
 		defer fileReader.Close()
@@ -115,7 +118,6 @@ func (this *SplunkBehavior) readFromFile(fp *os.File, events chan<- UploadEvent)
 		} else {
 			eventText = eventText + "\n"
 		}
-
 		if err != nil {
 			log.Debug(err)
 		}
@@ -165,17 +167,22 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
 	if err != nil {
-		return UploadStatus{fileName: fileName, result: err}
+		return UploadStatus{fileName: fileName, result: err, removeFromQueue: true}
 	}
 	defer resp.Body.Close()
 
 	/* Some sort of issue with the POST */
 	if resp.StatusCode != 200 {
+		var removeFromQueue bool = false
+		if resp.StatusCode == 400 {
+			moveFileToDebug(fp)
+			removeFromQueue = true
+		}
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
 		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("HTTP request failed: Error code %s", errorData)}
+			result: fmt.Errorf("HTTP request failed: Error code %s", errorData), removeFromQueue: removeFromQueue}
 	}
 	return UploadStatus{fileName: fileName, result: err}
 }

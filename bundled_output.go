@@ -14,8 +14,9 @@ import (
 )
 
 type UploadStatus struct {
-	fileName string
-	result   error
+	fileName        string
+	result          error
+	removeFromQueue bool
 }
 
 type BundledOutput struct {
@@ -283,8 +284,9 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					o.uploadErrors += 1
 					o.lastUploadError = fileResult.result.Error()
 					o.lastUploadErrorTime = time.Now()
-
-					o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
+					if fileResult.removeFromQueue == false {
+						o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
+					}
 
 					log.Infof("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
 				} else {
