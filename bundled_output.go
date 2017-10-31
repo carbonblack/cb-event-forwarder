@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -76,14 +77,21 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		fp.Close()
 		return
 	} else {
-		if strings.HasSuffix(fileName,".gz") {
+		if strings.HasSuffix(fileName, ".gz") && config.UploadEmptyFiles == false {
 
-			fp , err = gzip.NewReader(fp)
-			if fp.size() > 0 || config.UploadEmptyFiles {
-				// only upload if the file size is greater than zero
-				uploadStatus := o.behavior.Upload(fileName, fp)
-				err = uploadStatus.result
-				o.fileResultChan <- uploadStatus
+			reader, err := gzip.NewReader(fp)
+			b := make([]byte, 1)
+			if err == nil {
+				n, err := reader.Read(b)
+				if n == 1 && err == nil {
+					log.Info("The gzip is not empty, submitting")
+					// only upload if the file size is greater than zero
+					uploadStatus := o.behavior.Upload(fileName, fp)
+					err = uploadStatus.result
+					o.fileResultChan <- uploadStatus
+				} else {
+					log.Info("The gzip is empty")
+				}
 			}
 
 		} else {
@@ -94,6 +102,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 				o.fileResultChan <- uploadStatus
 			}
 		}
+	}
 
 	fp.Close()
 

@@ -101,8 +101,14 @@ func FastStringConcat(substrings ...string) string {
 }
 
 func IsGzip(fp *os.File) bool {
+	stats, stats_err := fp.Stat()
+	if stats_err == nil {
+		log.Debugf("File stats = %s:%d:%v", stats.Name(), stats.Size(), stats.Mode())
+	}
 	// decompress file from disk if it's compressed
 	header := make([]byte, 261)
+
+	fp.Seek(0, os.SEEK_SET)
 
 	_, err := fp.Read(header)
 	if err != nil {
