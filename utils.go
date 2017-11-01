@@ -128,7 +128,7 @@ func IsGzip(fp *os.File) bool {
 
 func MoveFileToDebug(name string) {
 	baseName := filepath.Base(name)
-	dest := fmt.Sprintf("%s/%s%s", config.DebugStore, baseName, ".debug")
+	dest := fmt.Sprintf("%s/%s", config.DebugStore, baseName)
 	log.Debugf("slunk_hec_behavior::moveFileToDebug mv %s %s", name, dest)
 	err := os.Rename(name, dest)
 	if err != nil {
