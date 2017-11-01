@@ -244,15 +244,17 @@ func ParseConfig(fn string) (Configuration, error) {
 			customFormatter.FullTimestamp = true
 
 			log.Debug("Debugging output is set to True")
-
-			debugStore, ok := input.Get("bridge", "debug_store")
-			if ok {
-				config.DebugStore = debugStore
-			}
-
-			log.Debugf("Debug Store is %s", config.DebugStore)
 		}
 	}
+
+	debugStore, ok := input.Get("bridge", "debug_store")
+	if ok {
+		config.DebugStore = debugStore
+	} else {
+		config.DebugStore = "/var/log/cb/integrations/cb-event-forwarder"
+	}
+
+	log.Debugf("Debug Store is %s", config.DebugStore)
 
 	val, ok = input.Get("bridge", "http_server_port")
 	if ok {
