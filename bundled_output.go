@@ -14,9 +14,9 @@ import (
 )
 
 type UploadStatus struct {
-	fileName        string
-	result          error
-	removeFromQueue bool
+	fileName string
+	result   error
+	status   int
 }
 
 type BundledOutput struct {
@@ -78,7 +78,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		fp.Close()
 		return
 	} else {
-		if strings.HasSuffix(fileName, ".gz") && config.UploadEmptyFiles == false {
+		if IsGzip(fp) && config.UploadEmptyFiles == false {
 
 			reader, err := gzip.NewReader(fp)
 			b := make([]byte, 1)
@@ -93,7 +93,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 				} else {
 					log.Debug("The gzip is empty")
 				}
-				fp.Seek(0, os.SEEK_SET) // make sure we are back at the start 
+				fp.Seek(0, os.SEEK_SET) // make sure we are back at the start
 			}
 
 		} else {
@@ -285,8 +285,11 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					o.uploadErrors += 1
 					o.lastUploadError = fileResult.result.Error()
 					o.lastUploadErrorTime = time.Now()
-					if fileResult.removeFromQueue == false {
+					//Handle 400s - lets stop processing the file and move it to debug zone
+					if fileResult.status != 400 {
 						o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
+					} else {
+						MoveFileToDebug(fileResult.fileName)
 					}
 
 					log.Infof("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
@@ -305,8 +308,11 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 				}
 			case <-term:
 				// handle exit gracefully
-				log.Info("Received SIGTERM. Exiting")
 				errorChan <- errors.New("SIGTERM received")
+				o.tempFileOutput.flushOutput(true)
+				o.tempFileOutput.closeFile()
+				refreshTicker.Stop()
+				log.Fatal("Received SIGTERM. Exiting")
 				return
 			}
 		}

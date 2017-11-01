@@ -8,6 +8,7 @@ import (
 	"gopkg.in/h2non/filetype.v1"
 	"net"
 	"os"
+	"path/filepath"
 )
 
 /*
@@ -122,5 +123,15 @@ func IsGzip(fp *os.File) bool {
 		return true
 	} else {
 		return false
+	}
+}
+
+func MoveFileToDebug(name string) {
+	baseName := filepath.Base(name)
+	dest := fmt.Sprintf("%s/%s%s", config.DebugStore, baseName, ".debug")
+	log.Debugf("slunk_hec_behavior::moveFileToDebug mv %s %s", name, dest)
+	err := os.Rename(name, dest)
+	if err != nil {
+		log.Debugf("MoveFileToDebug mv error: %v", err)
 	}
 }

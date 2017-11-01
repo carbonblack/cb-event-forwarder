@@ -168,7 +168,7 @@ func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		errorData := resp.Status + "\n" + string(body)
 
 		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("HTTP request failed: Error code %s", errorData)}
+			result: fmt.Errorf("HTTP request failed: Error code %s", errorData), status: resp.StatusCode}
 	}
-	return UploadStatus{fileName: fileName, result: err}
+	return UploadStatus{fileName: fileName, result: err, status: 200}
 }

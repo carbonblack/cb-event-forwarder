@@ -57,16 +57,23 @@ func (o *FileOutput) Initialize(fileName string) error {
 	o.outputFileName = fileName
 
 	o.fileOpenedAt = time.Time{}
-	o.lastRolledOver = time.Now()
+	o.lastRolledOver = time.Time{}
 	o.closeFile()
-
 	// if the output file already exists, let's roll it over to start from scratch
 	fp, err := os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+	o.outputFile = fp
+	o.closeFile()
 	if err != nil {
 		if os.IsExist(err) {
+			//remember to close the original FD so we can MV it
+			if fp != nil {
+				fp.Close()
+			}
 			// the output file already exists, try to roll it over
-			o.rollOverRename("2006-01-02T15:04:05.000.restart")
-
+			_, err = o.rollOverRename("2006-01-02T15:04:05.000.restart")
+			if err != nil {
+				log.Infof("Error rolling over file during restart: %v", err)
+			}
 			// try again
 			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 			if err != nil {
@@ -140,8 +147,8 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			case <-term:
 				// handle exit gracefully
-				log.Info("Received SIGTERM. Exiting")
 				errorChan <- errors.New("SIGTERM received")
+				log.Info("Received SIGTERM. Exiting")
 				return
 			}
 		}
@@ -224,7 +231,10 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	}
 	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
 	err := os.Rename(o.outputFileName, newName)
+	log.Infof("Rolled file %s to %s", o.outputFileName, newName)
+	log.Debugf("rollOverRename error: %v", err)
 	if err != nil {
+		log.Debugf("rollOverRename error: %v", err)
 		return "", err
 	} else {
 		return newName, nil
@@ -232,8 +242,8 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 }
 
 func (o *FileOutput) closeFile() {
-	log.Debug("Closing file")
 	if o.outputFile != nil {
+		log.Debug("Closing file")
 		o.outputFile.Close()
 		o.outputFile = nil
 	}
