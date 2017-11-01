@@ -127,13 +127,11 @@ func IsGzip(fp *os.File) bool {
 }
 
 func MoveFileToDebug(name string) {
-	if config.DebugFlag {
-		baseName := filepath.Base(name)
-		dest := filepath.Join(config.DebugStore, baseName)
-		log.Debugf("MoveFileToDebug mv %s %s", name, dest)
-		err := os.Rename(name, dest)
-		if err != nil {
-			log.Debugf("MoveFileToDebug mv error: %v", err)
-		}
+	baseName := filepath.Base(name)
+	dest := filepath.Join(config.DebugStore, baseName)
+	log.Debugf("MoveFileToDebug mv %s %s", name, dest)
+	err := os.Rename(name, dest)
+	if err != nil {
+		log.Debugf("MoveFileToDebug mv error: %v", err)
 	}
 }
