@@ -85,14 +85,15 @@ func (o *BundledOutput) uploadOne(fileName string) {
 			if err == nil {
 				n, err := reader.Read(b)
 				if n == 1 && err == nil {
-					log.Info("The gzip is not empty, submitting")
+					log.Debug("The gzip is not empty, submitting")
 					// only upload if the file size is greater than zero
 					uploadStatus := o.behavior.Upload(fileName, fp)
 					err = uploadStatus.result
 					o.fileResultChan <- uploadStatus
 				} else {
-					log.Info("The gzip is empty")
+					log.Debug("The gzip is empty")
 				}
+				fp.Seek(0, os.SEEK_SET) // make sure we are back at the start 
 			}
 
 		} else {

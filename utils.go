@@ -112,7 +112,7 @@ func IsGzip(fp *os.File) bool {
 
 	_, err := fp.Read(header)
 	if err != nil {
-		log.Fatalf("Could not read header information for file: %s", err.Error())
+		log.Debugf("Could not read header information for file: %s", err.Error())
 		return false
 	}
 
