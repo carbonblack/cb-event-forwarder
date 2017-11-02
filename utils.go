@@ -129,7 +129,7 @@ func IsGzip(fp *os.File) bool {
 func MoveFileToDebug(name string) {
 	if config.DebugFlag {
 		baseName := filepath.Base(name)
-		dest := fmt.Sprintf("%s/%s", config.DebugStore, baseName)
+		dest := filepath.Join(config.DebugStore, baseName)
 		log.Debugf("MoveFileToDebug mv %s %s", name, dest)
 		err := os.Rename(name, dest)
 		if err != nil {
