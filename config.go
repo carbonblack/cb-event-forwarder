@@ -552,7 +552,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	// default to sending empty files to S3/HTTP POST endpoint
 	if outType == "splunk" {
 		config.UploadEmptyFiles = false
-		log.Infof("Surpressing upload of empty files because splunkout is configured")
+		log.Info("Splunk HEC does not accept empty files as input, ignoring upload_empty_files=true for 'splunkout'")
 	} else {
 		config.UploadEmptyFiles = true
 	}

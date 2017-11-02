@@ -165,7 +165,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-		if config.FileHandlerCompressData != false && o.outputGzWriter != nil {
+		if config.FileHandlerCompressData && o.outputGzWriter != nil {
 
 			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
