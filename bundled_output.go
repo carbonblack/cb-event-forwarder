@@ -266,8 +266,13 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					o.lastUploadErrorTime = time.Now()
 					//Handle 400s - lets stop processing the file and move it to debug zone
 					if fileResult.status != 400 {
+						// our default behavior is to try and upload the file next time around...
 						o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
 					} else {
+						// if we receive HTTP 400 error code (Bad Request), we assume the error is "permanent" and
+						//  due not to some transient issue on the server side (overloading, service not available, etc)
+						//  and instead an issue with the data we've sent. So move the file to the debug area and
+						//  don't try to upload it again.
 						MoveFileToDebug(fileResult.fileName)
 					}
 
@@ -291,7 +296,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 				o.tempFileOutput.flushOutput(true)
 				o.tempFileOutput.closeFile()
 				refreshTicker.Stop()
-				log.Fatal("Received SIGTERM. Exiting")
+				log.Info("Received SIGTERM. Exiting")
 				return
 			}
 		}

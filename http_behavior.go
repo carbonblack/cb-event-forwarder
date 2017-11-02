@@ -1,11 +1,7 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"compress/gzip"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -68,61 +64,6 @@ func (this *HttpBehavior) Key() string {
 	return this.dest
 }
 
-func (this *HttpBehavior) readFromFile(fp *os.File, events chan<- UploadEvent) {
-	defer close(events)
-
-	var fileReader io.ReadCloser
-	var err error
-
-	if IsGzip(fp) {
-		fileReader, err = gzip.NewReader(fp)
-		if err != nil {
-			// TODO: find a better way to bubble this error up
-			log.Fatalf("Error reading file: %s", err.Error())
-			return
-		}
-		defer fileReader.Close()
-	} else {
-		fileReader = fp
-	}
-
-	scanner := bufio.NewScanner(fileReader)
-	var i int64
-
-	for scanner.Scan() {
-		var b bytes.Buffer
-		var err error
-		eventText := scanner.Text()
-
-		if len(eventText) == 0 {
-			// skip empty lines
-			continue
-		}
-
-		if config.CommaSeparateEvents {
-			if i == 0 {
-				err = this.firstEventTemplate.Execute(&b, eventText)
-			} else {
-				err = this.subsequentEventTemplate.Execute(&b, eventText)
-			}
-			eventText = b.String()
-		} else {
-			eventText = eventText + "\n"
-		}
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		events <- UploadEvent{EventText: eventText, EventSeq: i}
-		i += 1
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-}
-
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
 func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
@@ -145,7 +86,7 @@ func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go this.readFromFile(fp, uploadData.Events)
+		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
 		this.httpPostTemplate.Execute(writer, uploadData)
 	}()

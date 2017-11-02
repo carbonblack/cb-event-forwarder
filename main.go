@@ -293,7 +293,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			log.Errorf("ERROR during output: %s", output_error.Error())
 
 			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType {
+			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HttpOutputType {
 				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
