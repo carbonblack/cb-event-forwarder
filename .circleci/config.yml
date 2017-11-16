@@ -19,7 +19,7 @@ jobs:
       - deploy:
           name: Deploy latest to docker
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            if [ "${CIRCLE_BRANCH}" == "kafka-output" ]; then
               docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
               docker push redcanary/cb-event-forwarder
             fi
