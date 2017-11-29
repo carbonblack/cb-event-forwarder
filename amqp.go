@@ -13,7 +13,7 @@ import (
  * AMQP bookkeeping
  */
 
-func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
+func NewConsumer(amqpURI, queueName string, autoDelete bool, ctag string, bindToRawExchange bool,
 	routingKeys []string) (*Consumer, <-chan amqp.Delivery, error) {
 	c := &Consumer{
 		conn:    nil,
@@ -66,7 +66,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 	queue, err := c.channel.QueueDeclare(
 		queueName,
 		false, // durable,
-		true,  // delete when unused
+		autoDelete,  // delete when unused
 		false, // exclusive
 		false, // nowait
 		nil,   // arguments
