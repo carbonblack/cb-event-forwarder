@@ -590,7 +590,7 @@ func WriteNetconn2Message(message *ConvertedCbMessage, kv map[string]interface{}
 	kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetRemotePort()))
 
 	kv["local_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetLocalIpAddress())
-	kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
+	kv["local_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
 }
 
 func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
