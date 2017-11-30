@@ -43,15 +43,10 @@ func MakeGUID(sensor_id, pid int32, create_time int64) string {
 }
 
 func GetIPv4Address(addr uint32) string {
-	buf := bytes.Buffer{}
+	buf := make([]byte, 4)
 
-	if err := binary.Write(&buf, binary.LittleEndian, addr); err != nil {
-		return "<unknown>"
-	}
-
-	b := buf.Bytes()
-
-	return net.IPv4(b[0], b[1], b[2], b[3]).String()
+	binary.LittleEndian.PutUint32(buf, addr)
+	return net.IP(buf).String()
 }
 
 /*

@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -219,6 +220,9 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	// is the message from an endpoint event process?
 	eventMsg := true
 
+	// select only one of network or networkv2
+	gotNetworkV2Message := false
+
 	switch {
 	case cbMessage.Process != nil:
 		if _, ok := config.EventMap["ingress.event.process"]; ok {
@@ -243,7 +247,14 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 			return nil, nil
 		}
 
-	case cbMessage.Network != nil:
+	case cbMessage.Networkv2 != nil:
+		gotNetworkV2Message = true
+		if _, ok := config.EventMap["ingress.event.netconn"]; ok {
+			WriteNetconn2Message(inmsg, outmsg)
+		} else {
+			return nil, nil
+		}
+	case cbMessage.Network != nil && !gotNetworkV2Message:
 		if _, ok := config.EventMap["ingress.event.netconn"]; ok {
 			WriteNetconnMessage(inmsg, outmsg)
 		} else {
@@ -531,6 +542,55 @@ func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		kv["local_ip"] = GetIPv4Address(message.OriginalMessage.Network.GetLocalIpAddress())
 		kv["local_port"] = ntohs(uint16(message.OriginalMessage.Network.GetLocalPort()))
 	}
+}
+
+func GetIPAddress(ipAddress *sensor_events.CbIpAddr) string {
+	if ipAddress.GetBIsIpv6() {
+		b := make([]byte, 16)
+		binary.LittleEndian.PutUint64(b[:8], ipAddress.GetIpv6High())
+		binary.LittleEndian.PutUint64(b[8:], ipAddress.GetIpv6Low())
+
+		ipString := net.IP(b).String()
+		if ipAddress.Ipv6Scope != nil {
+			return fmt.Sprintf("%s%%%s", ipString, ipAddress.GetIpv6Scope())
+		} else {
+			return ipString
+		}
+	} else {
+		return GetIPv4Address(ipAddress.GetIpv4Address())
+	}
+}
+
+func WriteNetconn2Message(message *ConvertedCbMessage, kv map[string]interface{}) {
+	kv["event_type"] = "netconn"
+	kv["type"] = "ingress.event.netconn"
+
+	kv["domain"] = GetUnicodeFromUTF8(message.OriginalMessage.Networkv2.GetUtf8Netpath())
+	kv["protocol"] = int32(message.OriginalMessage.Networkv2.GetProtocol())
+
+	if message.OriginalMessage.Networkv2.GetOutbound() {
+		kv["direction"] = "outbound"
+	} else {
+		kv["direction"] = "inbound"
+	}
+
+	// we are deprecating the "ipv4" and "port" keys here, since this message is guaranteed to have remote &
+	// local ip and port numbers.
+
+	if message.OriginalMessage.Networkv2.GetProxyConnection() {
+		kv["proxy"] = true
+		kv["proxy_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.ProxyIpAddress)
+		kv["proxy_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetProxyPort()))
+		kv["proxy_domain"] = message.OriginalMessage.Networkv2.GetProxyNetPath()
+	} else {
+		kv["proxy"] = false
+	}
+
+	kv["remote_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetRemoteIpAddress())
+	kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetRemotePort()))
+
+	kv["local_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetLocalIpAddress())
+	kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
 }
 
 func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
