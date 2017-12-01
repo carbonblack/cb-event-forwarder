@@ -170,6 +170,9 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 		{"events_binary_upload", []string{
 			"binarystore.#",
 		}},
+		{"events_storage_partition", []string{
+			"events.partition.#",
+		}},
 	}
 
 	for _, eventType := range eventTypes {
