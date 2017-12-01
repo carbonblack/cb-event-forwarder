@@ -73,6 +73,9 @@ func (o *FileOutput) Initialize(fileName string) error {
 				// give up if we still have an error
 				return err
 			}
+		} else {
+			// the error is not EEXIST, error out instead
+			return err
 		}
 	}
 
