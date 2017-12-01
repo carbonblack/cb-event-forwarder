@@ -222,6 +222,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 
 	// select only one of network or networkv2
 	gotNetworkV2Message := false
+	gotNetblockV2Message := false
 
 	switch {
 	case cbMessage.Process != nil:
@@ -284,7 +285,10 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		} else {
 			return nil, nil
 		}
-	case cbMessage.NetconnBlocked != nil:
+	case cbMessage.NetconnBlockedv2 != nil:
+		gotNetblockV2Message = true
+		WriteNetconn2BlockMessage(inmsg, outmsg)
+	case cbMessage.NetconnBlocked != nil && !gotNetblockV2Message:
 		WriteNetconnBlockedMessage(inmsg, outmsg)
 	case cbMessage.TamperAlert != nil:
 		if _, ok := config.EventMap["ingress.event.tamper"]; ok {
@@ -579,7 +583,7 @@ func WriteNetconn2Message(message *ConvertedCbMessage, kv map[string]interface{}
 
 	if message.OriginalMessage.Networkv2.GetProxyConnection() {
 		kv["proxy"] = true
-		kv["proxy_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.ProxyIpAddress)
+		kv["proxy_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetProxyIpAddress())
 		kv["proxy_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetProxyPort()))
 		kv["proxy_domain"] = message.OriginalMessage.Networkv2.GetProxyNetPath()
 	} else {
@@ -834,5 +838,38 @@ func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]inter
 	if blocked.LocalIpAddress != nil {
 		kv["local_ip"] = GetIPv4Address(blocked.GetLocalIpAddress())
 		kv["local_port"] = ntohs(uint16(blocked.GetLocalPort()))
+	}
+}
+
+func WriteNetconn2BlockMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
+	kv["event_type"] = "blocked_netconn"
+	// TODO: need ingress event type for netconn blocks
+
+	blocked := message.OriginalMessage.NetconnBlockedv2
+
+	kv["domain"] = GetUnicodeFromUTF8(blocked.GetUtf8Netpath())
+	// we are deprecating the "ipv4" and "port" keys here, since this message is guaranteed to have remote &
+	// local ip and port numbers.
+
+	kv["protocol"] = int32(blocked.GetProtocol())
+
+	if blocked.GetOutbound() {
+		kv["direction"] = "outbound"
+	} else {
+		kv["direction"] = "inbound"
+	}
+	kv["remote_ip"] = GetIPAddress(blocked.GetRemoteIpAddress())
+	kv["remote_port"] = ntohs(uint16(blocked.GetRemotePort()))
+
+	kv["local_ip"] = GetIPAddress(blocked.GetLocalIpAddress())
+	kv["local_port"] = ntohs(uint16(blocked.GetLocalPort()))
+
+	if blocked.GetProxyConnection() {
+		kv["proxy"] = true
+		kv["proxy_ip"] = GetIPAddress(blocked.GetProxyIpAddress())
+		kv["proxy_port"] = ntohs(uint16(blocked.GetProxyPort()))
+		kv["proxy_domain"] = blocked.GetProxyNetPath()
+	} else {
+		kv["proxy"] = false
 	}
 }
