@@ -262,6 +262,14 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+    val, ok = input.Get("bridge", "rabbit_mq_auto_delete_queue")
+    if ok {
+        b, err := strconv.ParseBool(val)
+        if err == nil {
+            config.AMQPAutoDeleteQueue = b
+        }
+    }
+
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
 		config.AMQPUsername, config.AMQPPassword, err = parseCbConf()
 		if err != nil {
