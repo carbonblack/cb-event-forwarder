@@ -271,7 +271,7 @@ func logFileProcessingLoop() <-chan error {
 
 	spawn_tailer := func(fName string) {
 
-		log.Debug("Spawn tailer: %s", fName)
+		log.Debugf("Spawn tailer: %s", fName)
 
 		_, deliveries, err := NewFileConsumer(fName)
 
@@ -282,7 +282,7 @@ func logFileProcessingLoop() <-chan error {
 		}
 
 		for delivery := range deliveries {
-			log.Debug("Trying to deliver log message")
+			log.Debug("Trying to deliver log message %s", delivery)
 			msg_map := make(map[string]interface{})
 			//strip trailing newline
 			msg_map["log"] = strings.TrimSuffix(delivery, "\n")

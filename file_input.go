@@ -1,40 +1,27 @@
 package main
 
 import (
+	"github.com/hpcloud/tail"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"os"
-	"time"
 )
 
 type FileConsumer struct {
 	fileName string
 }
 
-func (f FileConsumer) tailFile(fname string, c chan<- string) {
-	file, err := os.Open(fname)
-	if err != nil {
-		log.Debugf("Failed to open file: %s", fname)
-		return
-	}
-	log.Debugf("Opened file: %s", fname)
-	defer file.Close()
-	offset, err := file.Seek(0, io.SeekEnd)
-	buffer := make([]byte, 1024, 1024)
-	for {
-		readBytes, err := file.ReadAt(buffer, offset)
-		if err != nil {
-			if err != io.EOF {
-				log.Debugf("Error reading lines: %v", err)
-				break
-			}
+func (f FileConsumer) tailFile(fName string, c chan<- string) error {
+	seek_info := tail.SeekInfo{Offset: 0, Whence: io.SeekEnd}
+	t, err := tail.TailFile(fName, tail.Config{Follow: true, ReOpen: true, Poll: true, Location: &seek_info})
+	if err == nil {
+		for line := range t.Lines {
+			log.Debug(line.Text)
+			c <- line.Text
 		}
-		offset += int64(readBytes)
-		if readBytes != 0 {
-			s := string(buffer[:readBytes])
-			c <- s
-		}
-		time.Sleep(time.Second)
+		return nil
+	} else {
+		log.Debugf("Error tailing file %s : %v", fName, err)
+		return err
 	}
 }
 
@@ -44,7 +31,7 @@ func NewFileConsumer(fName string) (*FileConsumer, <-chan string, error) {
 
 	c := make(chan string)
 
-	go consumer.tailFile(fName, c)
+	err := consumer.tailFile(fName, c)
 
-	return consumer, c, nil
+	return consumer, c, err
 }
