@@ -95,6 +95,7 @@ type Configuration struct {
 
 	//Splunkd
 	SplunkToken *string
+	AuditLog    bool
 }
 
 type ConfigurationError struct {
@@ -352,6 +353,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
 			config.FileHandlerCompressData = b
+		}
+	}
+
+	config.AuditLog = true
+	val, ok = input.Get("bridge", "audit_log")
+	if ok {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.AuditLog = b
 		}
 	}
 

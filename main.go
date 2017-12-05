@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -262,6 +263,66 @@ func worker(deliveries <-chan amqp.Delivery) {
 	}
 
 	log.Info("Worker exiting")
+}
+
+func logFileProcessingLoop() <-chan error {
+
+	err_chan := make(chan error)
+
+	spawn_tailer := func(fName string) {
+
+		log.Debug("Spawn tailer: %s", fName)
+
+		_, deliveries, err := NewFileConsumer(fName)
+
+		if err != nil {
+			status.LastConnectError = err.Error()
+			status.ErrorTime = time.Now()
+			err_chan <- err
+		}
+
+		for delivery := range deliveries {
+			log.Debug("Trying to deliver log message")
+			msg_map := make(map[string]interface{})
+			//strip trailing newline
+			msg_map["log"] = strings.TrimSuffix(delivery, "\n")
+			outputMessage(msg_map)
+		}
+
+	}
+
+	var recurse_directories func(fName string)
+
+	recurse_directories = func(dir string) {
+
+		log.Debugf("Recursing dir %s", dir)
+
+		files, err := ioutil.ReadDir(dir)
+
+		if err != nil {
+			err_chan <- err
+		}
+
+		for _, f := range files {
+			fn := path.Join(dir, f.Name())
+			log.Debugf("%v", fn)
+			if f.IsDir() == true {
+				log.Infof("%s is a directory", fn)
+				recurse_directories(fn)
+			} else {
+				log.Debugf("%s is a file", fn)
+				if !(strings.HasSuffix(f.Name(), ".gz")) && strings.HasSuffix(f.Name(), ".log") {
+					go spawn_tailer(fn)
+				} else {
+					log.Debugf("%s is not a log file so ignoring it", fn)
+				}
+			}
+		}
+	}
+
+	go recurse_directories("/var/log/cb/liveresponse")
+
+	return err_chan
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
@@ -519,13 +580,28 @@ func main() {
 	for i := 0; i < numConsumers; i++ {
 		go func(consumerNumber int) {
 			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-
 			for {
 				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
 				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
 				time.Sleep(30 * time.Second)
 			}
 		}(i)
+	}
+
+	if config.AuditLog == true {
+		log.Info("starting log file processing loop")
+		go func() {
+			err_chan := logFileProcessingLoop()
+			for {
+				select {
+				case err := <-err_chan:
+					log.Infof("%v", err)
+				}
+			}
+		}()
+
+	} else {
+		log.Info("Not starting file processing loop")
 	}
 
 	for {
