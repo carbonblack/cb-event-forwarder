@@ -284,7 +284,7 @@ func logFileProcessingLoop() <-chan error {
 		for delivery := range deliveries {
 			log.Debug("Trying to deliver log message %s", delivery)
 			msg_map := make(map[string]interface{})
-			//strip trailing newline
+			/*//strip trailing newline
 			//2017-12-03 14:12:28 [2637] <warning>  cb.auth.auth - User Authentication Activity: User Id=1, Status=200, Ip Address=::ffff:172.17.178.1, Timestamp=2017-12-03 19:12:28.957788+00:00
 			//start by detecting start of k=v,k1=v1 pairs
 			first_equals_char_index := strings.Index(delivery, "=")
@@ -297,7 +297,7 @@ func logFileProcessingLoop() <-chan error {
 				split_kv := strings.Split(kv, "=")
 				msg_map[split_kv[0]] = split_kv[1]
 			}
-			msg_map["log_header"] = header
+			msg_map["log_header"] = header */
 			msg_map["log"] = strings.TrimSuffix(delivery, "\n")
 			outputMessage(msg_map)
 		}
