@@ -311,7 +311,7 @@ func logFileProcessingLoop() <-chan error {
 				recurse_directories(fn)
 			} else {
 				log.Debugf("%s is a file", fn)
-				if !(strings.HasSuffix(f.Name(), ".gz")) && strings.HasSuffix(f.Name(), ".log") {
+				if !(strings.HasSuffix(f.Name(), ".gz")) && strings.Contains(f.Name(), ".log") {
 					go spawn_tailer(fn)
 				} else {
 					log.Debugf("%s is not a log file so ignoring it", fn)
@@ -320,7 +320,18 @@ func logFileProcessingLoop() <-chan error {
 		}
 	}
 
-	go recurse_directories("/var/log/cb/liveresponse")
+	/*/var/log/cb/audit/live-response.log*
+
+/var/log/cb/audit/isolation.log*
+
+/var/log/cb/audit/banning.log*
+
+/var/log/cb/coreservices/debug*
+
+/var/log/cb/coreservices/access* */
+
+	go recurse_directories("/var/log/cb/audit")
+	go recurse_directories("/var/log/cb/coresevices")
 
 	return err_chan
 }
