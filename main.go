@@ -306,7 +306,7 @@ func logFileProcessingLoop() <-chan error {
 			fn := path.Join(dir, f.Name())
 			log.Debugf("%v", fn)
 			if f.IsDir() == true {
-				log.Infof("%s is a directory", fn)
+				log.Debugf("%s is a directory", fn)
 				recurse_directories(fn)
 			} else {
 				log.Debugf("%s is a file", fn)
