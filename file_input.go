@@ -31,7 +31,7 @@ func NewFileConsumer(fName string) (*FileConsumer, <-chan string, error) {
 
 	c := make(chan string)
 
-	err := consumer.tailFile(fName, c)
+	go consumer.tailFile(fName, c)
 
-	return consumer, c, err
+	return consumer, c, nil
 }
