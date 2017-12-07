@@ -284,7 +284,8 @@ func logFileProcessingLoop() <-chan error {
 		for delivery := range deliveries {
 			log.Debug("Trying to deliver log message %s", delivery)
 			msg_map := make(map[string]interface{})
-			msg_map["log"] = strings.TrimSuffix(delivery, "\n")
+			msg_map["log_entry"] = strings.TrimSuffix(delivery, "\n")
+			msg_map["log_name"] = fName
 			outputMessage(msg_map)
 		}
 
