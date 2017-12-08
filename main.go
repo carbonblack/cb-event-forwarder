@@ -311,6 +311,7 @@ func logFileProcessingLoop() <-chan error {
 				recurse_directories(fn)
 			} else {
 				log.Debugf("%s is a file", fn)
+				//exclude gzips and anything that is not a .log* file
 				if !(strings.HasSuffix(f.Name(), ".gz")) && strings.Contains(f.Name(), ".log") {
 					go spawn_tailer(fn)
 				} else {
@@ -331,7 +332,7 @@ func logFileProcessingLoop() <-chan error {
 	/var/log/cb/coreservices/access* */
 
 	go recurse_directories("/var/log/cb/audit")
-	go recurse_directories("/var/log/cb/coresevices")
+	go recurse_directories("/var/log/cb/coreservices")
 
 	return err_chan
 }
