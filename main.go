@@ -220,7 +220,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 }
 
-func outputMessage(msg map[string]interface{}) error {
+func outputMessage(msg map[string]ineterface{}) error {
 	var err error
 
 	//
@@ -269,7 +269,7 @@ func logFileProcessingLoop() <-chan error {
 
 	err_chan := make(chan error)
 
-	spawn_tailer := func(fName string) {
+	spawn_tailer := func(fName string, label string) {
 
 		log.Debugf("Spawn tailer: %s", fName)
 
@@ -281,45 +281,17 @@ func logFileProcessingLoop() <-chan error {
 			err_chan <- err
 		}
 
+
 		for delivery := range deliveries {
 			log.Debug("Trying to deliver log message %s", delivery)
 			msg_map := make(map[string]interface{})
 			msg_map["log_entry"] = strings.TrimSuffix(delivery, "\n")
-			msg_map["log_name"] = fName
+			msg_map["type"] = label
 			outputMessage(msg_map)
 		}
 
 	}
 
-	var recurse_directories func(fName string)
-
-	recurse_directories = func(dir string) {
-
-		log.Debugf("Recursing dir %s", dir)
-
-		files, err := ioutil.ReadDir(dir)
-
-		if err != nil {
-			err_chan <- err
-		}
-
-		for _, f := range files {
-			fn := path.Join(dir, f.Name())
-			log.Debugf("%v", fn)
-			if f.IsDir() == true {
-				log.Debugf("%s is a directory", fn)
-				recurse_directories(fn)
-			} else {
-				log.Debugf("%s is a file", fn)
-				//exclude gzips and anything that is not a .log* file
-				if !(strings.HasSuffix(f.Name(), ".gz")) && strings.Contains(f.Name(), ".log") {
-					go spawn_tailer(fn)
-				} else {
-					log.Debugf("%s is not a log file so ignoring it", fn)
-				}
-			}
-		}
-	}
 
 	/*/var/log/cb/audit/live-response.log*
 
@@ -330,9 +302,20 @@ func logFileProcessingLoop() <-chan error {
 	/var/log/cb/coreservices/debug*
 
 	/var/log/cb/coreservices/access* */
+	/* maps audit log labels to event types
+AUDIT_TYPES = {
+    "cb-audit-isolation": Audit_Log_Isolation,
+    "cb-audit-banning": Audit_Log_Banning,
+    "cb-audit-live-response": Audit_Log_Liveresponse,
+    "cb-audit-useractivity": Audit_Log_Useractivity
+}
+*/
+	go spawn_tailer("/var/log/cb/audit/live-response.log","cb-audit-live-response")
+	go spawn_tailer("/var/log/cb/audit/banning.log","cb-audit-banning")
+	go spawn_tailer("/var/log/cb/audit/isolation.log","cb-audit-isolation")
+	go spawn_tailer("/var/log/cb/coreservices/debug.log","cb-audit-useractivity")
 
-	go recurse_directories("/var/log/cb/audit")
-	go recurse_directories("/var/log/cb/coreservices")
+
 
 	return err_chan
 }
