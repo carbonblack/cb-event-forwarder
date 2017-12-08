@@ -220,7 +220,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 }
 
-func outputMessage(msg map[string]ineterface{}) error {
+func outputMessage(msg map[string]interface{}) error {
 	var err error
 
 	//
