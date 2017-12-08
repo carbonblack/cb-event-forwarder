@@ -285,7 +285,7 @@ func logFileProcessingLoop() <-chan error {
 		for delivery := range deliveries {
 			log.Debug("Trying to deliver log message %s", delivery)
 			msg_map := make(map[string]interface{})
-			msg_map["log_entry"] = strings.TrimSuffix(delivery, "\n")
+			msg_map["message"] = strings.TrimSuffix(delivery, "\n")
 			msg_map["type"] = label
 			outputMessage(msg_map)
 		}
@@ -310,12 +310,10 @@ AUDIT_TYPES = {
     "cb-audit-useractivity": Audit_Log_Useractivity
 }
 */
-	go spawn_tailer("/var/log/cb/audit/live-response.log","cb-audit-live-response")
-	go spawn_tailer("/var/log/cb/audit/banning.log","cb-audit-banning")
-	go spawn_tailer("/var/log/cb/audit/isolation.log","cb-audit-isolation")
-	go spawn_tailer("/var/log/cb/coreservices/debug.log","cb-audit-useractivity")
-
-
+	go spawn_tailer("/var/log/cb/audit/live-response.log","audit.log.liveresponse")
+	go spawn_tailer("/var/log/cb/audit/banning.log","audit.log.banning")
+	go spawn_tailer("/var/log/cb/audit/isolation.log","audit.log.isolation")
+	go spawn_tailer("/var/log/cb/coreservices/debug.log","audit.log.useractivity")
 
 	return err_chan
 }
