@@ -313,7 +313,7 @@ AUDIT_TYPES = {
 	go spawn_tailer("/var/log/cb/audit/live-response.log","audit.log.liveresponse")
 	go spawn_tailer("/var/log/cb/audit/banning.log","audit.log.banning")
 	go spawn_tailer("/var/log/cb/audit/isolation.log","audit.log.isolation")
-	go spawn_tailer("/var/log/cb/coreservices/debug.log","audit.log.useractivity")
+	go spawn_tailer("/var/log/cb/coreservices/useractivity.log","audit.log.useractivity")
 
 	return err_chan
 }
