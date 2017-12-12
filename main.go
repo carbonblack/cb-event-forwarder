@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -262,6 +263,48 @@ func worker(deliveries <-chan amqp.Delivery) {
 	}
 
 	log.Info("Worker exiting")
+}
+
+func logFileProcessingLoop() <-chan error {
+
+	err_chan := make(chan error)
+
+	spawn_tailer := func(fName string, label string) {
+
+		log.Debugf("Spawn tailer: %s", fName)
+
+		_, deliveries, err := NewFileConsumer(fName)
+
+		if err != nil {
+			status.LastConnectError = err.Error()
+			status.ErrorTime = time.Now()
+			err_chan <- err
+		}
+
+
+		for delivery := range deliveries {
+			log.Debug("Trying to deliver log message %s", delivery)
+			msg_map := make(map[string]interface{})
+			msg_map["message"] = strings.TrimSuffix(delivery, "\n")
+			msg_map["type"] = label
+			outputMessage(msg_map)
+		}
+
+	}
+
+	/* maps audit log labels to event types
+AUDIT_TYPES = {
+    "cb-audit-isolation": Audit_Log_Isolation,
+    "cb-audit-banning": Audit_Log_Banning,
+    "cb-audit-live-response": Audit_Log_Liveresponse,
+    "cb-audit-useractivity": Audit_Log_Useractivity
+}
+*/
+	go spawn_tailer("/var/log/cb/audit/live-response.log","audit.log.liveresponse")
+	go spawn_tailer("/var/log/cb/audit/banning.log","audit.log.banning")
+	go spawn_tailer("/var/log/cb/audit/isolation.log","audit.log.isolation")
+	go spawn_tailer("/var/log/cb/audit/useractivity.log","audit.log.useractivity")
+	return err_chan
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
@@ -519,13 +562,28 @@ func main() {
 	for i := 0; i < numConsumers; i++ {
 		go func(consumerNumber int) {
 			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-
 			for {
 				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
 				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
 				time.Sleep(30 * time.Second)
 			}
 		}(i)
+	}
+
+	if config.AuditLog == true {
+		log.Info("starting log file processing loop")
+		go func() {
+			err_chan := logFileProcessingLoop()
+			for {
+				select {
+				case err := <-err_chan:
+					log.Infof("%v", err)
+				}
+			}
+		}()
+
+	} else {
+		log.Info("Not starting file processing loop")
 	}
 
 	for {
