@@ -292,16 +292,6 @@ func logFileProcessingLoop() <-chan error {
 
 	}
 
-
-	/*/var/log/cb/audit/live-response.log*
-
-	/var/log/cb/audit/isolation.log*
-
-	/var/log/cb/audit/banning.log*
-
-	/var/log/cb/coreservices/debug*
-
-	/var/log/cb/coreservices/access* */
 	/* maps audit log labels to event types
 AUDIT_TYPES = {
     "cb-audit-isolation": Audit_Log_Isolation,
