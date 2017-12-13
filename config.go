@@ -356,7 +356,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	config.AuditLog = true
+	config.AuditLog = false 
 	val, ok = input.Get("bridge", "audit_log")
 	if ok {
 		b, err := strconv.ParseBool(val)
