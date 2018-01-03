@@ -86,6 +86,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 		Key:                  &baseName,
 		ServerSideEncryption: config.S3ServerSideEncryption,
 		ACL:                  config.S3ACLPolicy,
+        StorageClass:         config.S3StorageClass,
 	})
 
 	fp.Close()

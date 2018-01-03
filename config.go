@@ -37,8 +37,8 @@ type Configuration struct {
 	DebugFlag            bool
 	OutputType           int
 	OutputFormat         int
-	AMQPUsername         string
-	AMQPPassword         string
+    AMQPUsername         string
+    AMQPPassword         string
 	AMQPPort             int
 	AMQPTLSEnabled       bool
 	AMQPTLSClientKey     string
@@ -51,16 +51,15 @@ type Configuration struct {
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
-	MonitoredLogs        []string
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3StorageClass          *string
 	S3VerboseKey            bool
 	S3CompressData          bool
-
 	// Syslog-specific configuration
 	TLSClientKey  *string
 	TLSClientCert *string
@@ -197,15 +196,6 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 	}
 }
 
-func (c *Configuration) parseMonitoredLogs(input ini.File) {
-	val, ok := input.Get("bridge", "monitored_logs")
-	if ok {
-		for _, monitored_log := range strings.Split(val, ",") {
-			c.MonitoredLogs = append(c.MonitoredLogs, monitored_log)
-		}
-	}
-}
-
 func ParseConfig(fn string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
@@ -224,9 +214,11 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.HTTPServerPort = 33706
 	config.AMQPPort = 5004
 
+
 	config.S3ACLPolicy = nil
 	config.S3ServerSideEncryption = nil
 	config.S3CredentialProfileName = nil
+	config.S3StorageClass = nil
 	config.AMQPAutoDeleteQueue = true
 
 	// required values
@@ -367,6 +359,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			aclPolicy, ok := input.Get("s3", "acl_policy")
 			if ok {
 				config.S3ACLPolicy = &aclPolicy
+			}
+
+			storageClass, ok := input.Get("s3", "storage_class")
+			if ok {
+				config.S3StorageClass = &storageClass
+			    log.Println("Set storage class: ", storageClass)
+			} else {
+			    log.Println("Unable to set storage class: ", storageClass)
 			}
 
 			sseType, ok := input.Get("s3", "server_side_encryption")
@@ -603,8 +603,6 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.parseEventTypes(input)
-
-	config.parseMonitoredLogs(input)
 
 	if !errs.Empty {
 		return config, errs
