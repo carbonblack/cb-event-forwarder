@@ -258,9 +258,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.SurpressHighlightsByDoc = b
 		}
-		config.SurpressHighlightsByDoc = False
+		config.SurpressHighlightsByDoc = false
 	} else {
-		config.SurpressHighlightsByDoc = False
+		config.SurpressHighlightsByDoc = false
 	}
 
 	debugStore, ok := input.Get("bridge", "debug_store")
