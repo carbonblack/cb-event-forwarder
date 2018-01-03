@@ -205,6 +205,9 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
+		if config.SurpressHighlightsByDoc {
+			delete(msg, "highlights_by_doc")
+		}
 		if config.PerformFeedPostprocessing {
 			go func(msg map[string]interface{}) {
 				outputMsg := PostprocessJSONMessage(msg)

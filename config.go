@@ -95,6 +95,8 @@ type Configuration struct {
 
 	//Splunkd
 	SplunkToken *string
+
+	SurpressHighlightsByDoc bool
 }
 
 type ConfigurationError struct {
@@ -248,6 +250,17 @@ func ParseConfig(fn string) (Configuration, error) {
 
 			log.Debug("Debugging output is set to True")
 		}
+	}
+
+	highlights_by_docs, ok := input.Get("bridge", "highlights_by_doc")
+	if ok {
+		b, err := strconv.ParseBool(highlights_by_docs)
+		if err == nil {
+			config.SurpressHighlightsByDoc = b
+		}
+		config.SurpressHighlightsByDoc = False
+	} else {
+		config.SurpressHighlightsByDoc = False
 	}
 
 	debugStore, ok := input.Get("bridge", "debug_store")
