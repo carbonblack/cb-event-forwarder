@@ -37,8 +37,8 @@ type Configuration struct {
 	DebugFlag            bool
 	OutputType           int
 	OutputFormat         int
-	AMQPUsername         string
-	AMQPPassword         string
+    AMQPUsername         string
+    AMQPPassword         string
 	AMQPPort             int
 	AMQPTLSEnabled       bool
 	AMQPTLSClientKey     string
@@ -57,9 +57,9 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3StorageClass          *string
 	S3VerboseKey            bool
 	S3CompressData          bool
-
 	// Syslog-specific configuration
 	TLSClientKey  *string
 	TLSClientCert *string
@@ -214,9 +214,11 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.HTTPServerPort = 33706
 	config.AMQPPort = 5004
 
+
 	config.S3ACLPolicy = nil
 	config.S3ServerSideEncryption = nil
 	config.S3CredentialProfileName = nil
+	config.S3StorageClass = nil
 	config.AMQPAutoDeleteQueue = true
 
 	// required values
@@ -357,6 +359,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			aclPolicy, ok := input.Get("s3", "acl_policy")
 			if ok {
 				config.S3ACLPolicy = &aclPolicy
+			}
+
+			storageClass, ok := input.Get("s3", "storage_class")
+			if ok {
+				config.S3StorageClass = &storageClass
+			    log.Println("Set storage class: ", storageClass)
+			} else {
+			    log.Println("Unable to set storage class: ", storageClass)
 			}
 
 			sseType, ok := input.Get("s3", "server_side_encryption")
