@@ -228,7 +228,7 @@ func outputMessage(msg map[string]interface{}) error {
 	msg["cb_server"] = config.ServerName
 
 	// Remove keys that have been configured to be removed
-	for _, v := range Config.RemoveFromOutput {
+	for _, v := range config.RemoveFromOutput {
 		delete(msg, v)
 	}
 

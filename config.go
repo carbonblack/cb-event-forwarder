@@ -255,7 +255,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	removeFromOutput, ok := input.Get("bridge", "remove_from_output")
 	if ok {
 		thingsToRemove := strings.Split(removeFromOutput, ",")
-		numberOfThingsToRemove = len(thingsToRemove)
+		numberOfThingsToRemove := len(thingsToRemove)
 		if numberOfThingsToRemove > 0 {
 			config.RemoveFromOutput = thingsToRemove
 		} else {
