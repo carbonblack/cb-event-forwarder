@@ -205,9 +205,6 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
-		if config.SupressHighlightsByDoc {
-			delete(msg, "highlights_by_doc")
-		}
 		if config.PerformFeedPostprocessing {
 			go func(msg map[string]interface{}) {
 				outputMsg := PostprocessJSONMessage(msg)
@@ -229,6 +226,11 @@ func outputMessage(msg map[string]interface{}) error {
 	// Marshal result into the correct output format
 	//
 	msg["cb_server"] = config.ServerName
+
+	// Remove keys that have been configured to be removed
+	for _, v := range Config.RemoveFromOutput {
+		delete(msg, v)
+	}
 
 	var outmsg string
 

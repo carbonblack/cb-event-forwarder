@@ -96,7 +96,7 @@ type Configuration struct {
 	//Splunkd
 	SplunkToken *string
 
-	SupressHighlightsByDoc bool
+	RemoveFromOutput []string
 }
 
 type ConfigurationError struct {
@@ -252,15 +252,12 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	highlights_by_docs, ok := input.Get("bridge", "highlights_by_doc")
+	remove_from_output, ok := input.Get("bridge", "remove_from_output")
 	if ok {
-		b, err := strconv.ParseBool(highlights_by_docs)
-		if err == nil {
-			config.SupressHighlightsByDoc = b
-		}
-		config.SupressHighlightsByDoc = false
+		things_to_remove := strings.Split(remove_from_output, ",")
+		Config.RemoveFromOutput = things_to_remove
 	} else {
-		config.SupressHighlightsByDoc = false
+		Config.RemoveFromOutput = make([]string, 0)
 	}
 
 	debugStore, ok := input.Get("bridge", "debug_store")
