@@ -252,12 +252,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	remove_from_output, ok := input.Get("bridge", "remove_from_output")
+	removeFromOutput, ok := input.Get("bridge", "remove_from_output")
 	if ok {
-		things_to_remove := strings.Split(remove_from_output, ",")
-		Config.RemoveFromOutput = things_to_remove
+		thingsToRemove := strings.Split(removeFromOutput, ",")
+		numberOfThingsToRemove = len(thingsToRemove)
+		if numberOfThingsToRemove > 0 {
+			config.RemoveFromOutput = thingsToRemove
+		} else {
+			config.RemoveFromOutput = make([]string, 0)
+		}
 	} else {
-		Config.RemoveFromOutput = make([]string, 0)
+		config.RemoveFromOutput = make([]string, 0)
 	}
 
 	debugStore, ok := input.Get("bridge", "debug_store")
