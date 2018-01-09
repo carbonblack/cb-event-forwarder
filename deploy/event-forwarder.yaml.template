@@ -1,0 +1,47 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: @@NAME@@
+spec:
+  replicas: @@REPLICAS@@
+  template:
+    metadata:
+      labels:
+        app: @@NAME@@
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+    spec:
+      volumes:
+      - name: config-volume
+        secret:
+          secretName: @@NAME@@-config
+      - name: cred-volume
+        secret:
+          secretName: credentials
+      containers:
+      - name: cb-event-forwarder
+        image: redcanary/cb-event-forwarder:latest
+        imagePullPolicy: Always
+        command: ["@@COMMAND@@"]
+        args: ["@@ARGS@@"]
+        volumeMounts:
+        - name: config-volume
+          readOnly: true
+          mountPath: /etc/cb
+        - name: cred-volume
+          readOnly: true
+          mountPath: /var/cb/.aws
+        resources:
+          limits:
+            cpu: @@CPU_LIMIT@@
+            memory: @@MEM_LIMIT@@
+          requests:
+            cpu: @@CPU_REQUEST@@
+            memory: @@MEM_REQUEST@@
+        env:
+
+      imagePullSecrets:
+        - name: regsecret
+
+      restartPolicy: Always
