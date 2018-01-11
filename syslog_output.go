@@ -46,6 +46,7 @@ func (o *SyslogOutput) Initialize(netConn string) error {
 
 	if o.connected {
 		o.outputSocket.Close()
+		o.connected = false
 	}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
