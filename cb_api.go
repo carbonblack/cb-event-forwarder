@@ -153,7 +153,8 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 			threat_report := *threat_report_p
 			reportTitle := threat_report.Title
 			reportScore := threat_report.Score
-			return reportTitle, reportScore, nil
+			reportLink := threat_report.Link
+			return reportTitle, reportScore, reportLink, nil
 		}
 
 	}
@@ -172,6 +173,6 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 
 	FeedCache.Set(key, &threatReport)
 
-	return threatReport.Title, threatReport.Score, nil
+	return threatReport.Title, threatReport.Score, threatReport.Link, nil
 
 }
