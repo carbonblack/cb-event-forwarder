@@ -2701,7 +2701,7 @@
 
 	    if (process.env.NODE_ENV !== 'production') {
 	      process.env.NODE_ENV !== 'production' ? warning(!Constructor.prototype.componentShouldUpdate, '%s has a method called ' + 'componentShouldUpdate(). Did you mean shouldComponentUpdate()? ' + 'The name is phrased as a question because the function is ' + 'expected to return a value.', spec.displayName || 'A component') : void 0;
-	      process.env.NODE_ENV !== 'production' ? warning(!Constructor.prototype.componentWillRecieveProps, '%s has a method called ' + 'componentWillRecieveProps(). Did you mean componentWillReceiveProps()?', spec.displayName || 'A component') : void 0;
+	      process.env.NODE_ENV !== 'production' ? warning(!Constructor.prototype.componentWillReceiveProps, '%s has a method called ' + 'componentWillReceiveProps(). Did you mean componentWillReceiveProps()?', spec.displayName || 'A component') : void 0;
 	    }
 
 	    // Reduce time spent doing lookups by setting these on the prototype.
@@ -11259,7 +11259,7 @@
 	        } else if (props.is) {
 	          el = ownerDocument.createElement(this._currentElement.type, props.is);
 	        } else {
-	          // Separate else branch instead of using `props.is || undefined` above becuase of a Firefox bug.
+	          // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
 	          // See discussion in https://github.com/facebook/react/pull/6896
 	          // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
 	          el = ownerDocument.createElement(this._currentElement.type);
@@ -15214,7 +15214,7 @@
 	      process.env.NODE_ENV !== 'production' ? warning(!inst.contextTypes, 'contextTypes was defined as an instance property on %s. Use a ' + 'static property to define contextTypes instead.', this.getName() || 'a component') : void 0;
 	      process.env.NODE_ENV !== 'production' ? warning(typeof inst.componentShouldUpdate !== 'function', '%s has a method called ' + 'componentShouldUpdate(). Did you mean shouldComponentUpdate()? ' + 'The name is phrased as a question because the function is ' + 'expected to return a value.', this.getName() || 'A component') : void 0;
 	      process.env.NODE_ENV !== 'production' ? warning(typeof inst.componentDidUnmount !== 'function', '%s has a method called ' + 'componentDidUnmount(). But there is no such lifecycle method. ' + 'Did you mean componentWillUnmount()?', this.getName() || 'A component') : void 0;
-	      process.env.NODE_ENV !== 'production' ? warning(typeof inst.componentWillRecieveProps !== 'function', '%s has a method called ' + 'componentWillRecieveProps(). Did you mean componentWillReceiveProps()?', this.getName() || 'A component') : void 0;
+	      process.env.NODE_ENV !== 'production' ? warning(typeof inst.componentWillReceiveProps !== 'function', '%s has a method called ' + 'componentWillReceiveProps(). Did you mean componentWillReceiveProps()?', this.getName() || 'A component') : void 0;
 	    }
 
 	    var initialState = inst.state;
@@ -23689,13 +23689,13 @@
 	        }
 	    };
 
-	    // avaliable options
+	    // available options
 	    numeral.options = options;
 
-	    // avaliable formats
+	    // available formats
 	    numeral.formats = formats;
 
-	    // avaliable formats
+	    // available formats
 	    numeral.locales = locales;
 
 	    // This function sets the current locale.  If
@@ -26466,13 +26466,13 @@
 	                weekdayOverflow = true;
 	            }
 	        } else if (w.e != null) {
-	            // local weekday -- counting starts from begining of week
+	            // local weekday -- counting starts from beginning of week
 	            weekday = w.e + dow;
 	            if (w.e < 0 || w.e > 6) {
 	                weekdayOverflow = true;
 	            }
 	        } else {
-	            // default to begining of week
+	            // default to beginning of week
 	            weekday = dow;
 	        }
 	    }
@@ -35874,7 +35874,7 @@
 	};
 
 	var paIn = moment.defineLocale('pa-in', {
-	    // There are months name as per Nanakshahi Calender but they are not used as rigidly in modern Punjabi.
+	    // There are months name as per Nanakshahi Calendar but they are not used as rigidly in modern Punjabi.
 	    months : 'ਜਨਵਰੀ_ਫ਼ਰਵਰੀ_ਮਾਰਚ_ਅਪ੍ਰੈਲ_ਮਈ_ਜੂਨ_ਜੁਲਾਈ_ਅਗਸਤ_ਸਤੰਬਰ_ਅਕਤੂਬਰ_ਨਵੰਬਰ_ਦਸੰਬਰ'.split('_'),
 	    monthsShort : 'ਜਨਵਰੀ_ਫ਼ਰਵਰੀ_ਮਾਰਚ_ਅਪ੍ਰੈਲ_ਮਈ_ਜੂਨ_ਜੁਲਾਈ_ਅਗਸਤ_ਸਤੰਬਰ_ਅਕਤੂਬਰ_ਨਵੰਬਰ_ਦਸੰਬਰ'.split('_'),
 	    weekdays : 'ਐਤਵਾਰ_ਸੋਮਵਾਰ_ਮੰਗਲਵਾਰ_ਬੁਧਵਾਰ_ਵੀਰਵਾਰ_ਸ਼ੁੱਕਰਵਾਰ_ਸ਼ਨੀਚਰਵਾਰ'.split('_'),
