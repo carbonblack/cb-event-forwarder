@@ -139,7 +139,7 @@ func GetReportTitle(FeedId int, ReportId string) (string, error) {
 	}
 }
 
-func GetReport(FeedId int, ReportId string) (string, int, error) {
+func GetReport(FeedId int, ReportId string) (string, int, string, error) {
 
 	threatReport := ThreatReport{}
 
@@ -162,13 +162,13 @@ func GetReport(FeedId int, ReportId string) (string, int, error) {
 	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
 
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 
 	err = json.Unmarshal(body, &threatReport)
 
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 
 	FeedCache.Set(key, &threatReport)
