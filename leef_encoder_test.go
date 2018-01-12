@@ -3,16 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	leef "github.com/carbonblack/cb-event-forwarder/leef"
 	"testing"
 )
 
-func generateLeefOutput(exampleJsonInput string) error {
+func generateLeefOutput(exampleJSONInput string) error {
 	var msg map[string]interface{}
 
-	decoder := json.NewDecoder(bytes.NewReader([]byte(exampleJsonInput)))
+	decoder := json.NewDecoder(bytes.NewReader([]byte(exampleJSONInput)))
 
 	// Ensure that we decode numbers in the JSON as integers and *not* float64s
 	decoder.UseNumber()
@@ -28,7 +27,7 @@ func generateLeefOutput(exampleJsonInput string) error {
 
 	for i, msg := range msgs {
 		if _, err := leef.Encode(msg); err != nil {
-			return errors.New(fmt.Sprintf("Error encoding message %s [index %d]: %s", msg, i, err))
+			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}
 

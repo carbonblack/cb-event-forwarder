@@ -55,7 +55,7 @@ var status Status
 
 var (
 	results       chan string
-	output_errors chan error
+	outputErrors chan error
 )
 
 /*
@@ -91,7 +91,7 @@ func init() {
 	}))
 
 	results = make(chan string, 100)
-	output_errors = make(chan error)
+	outputErrors = make(chan error)
 
 	status.StartTime = time.Now()
 }
@@ -267,9 +267,9 @@ func worker(deliveries <-chan amqp.Delivery) {
 
 func logFileProcessingLoop() <-chan error {
 
-	err_chan := make(chan error)
+	errChan := make(chan error)
 
-	spawn_tailer := func(fName string, label string) {
+	spawnTailer := func(fName string, label string) {
 
 		log.Debugf("Spawn tailer: %s", fName)
 
@@ -278,15 +278,15 @@ func logFileProcessingLoop() <-chan error {
 		if err != nil {
 			status.LastConnectError = err.Error()
 			status.ErrorTime = time.Now()
-			err_chan <- err
+			errChan <- err
 		}
 
 		for delivery := range deliveries {
 			log.Debug("Trying to deliver log message %s", delivery)
-			msg_map := make(map[string]interface{})
-			msg_map["message"] = strings.TrimSuffix(delivery, "\n")
-			msg_map["type"] = label
-			outputMessage(msg_map)
+			msgMap := make(map[string]interface{})
+			msgMap["message"] = strings.TrimSuffix(delivery, "\n")
+			msgMap["type"] = label
+			outputMessage(msgMap)
 		}
 
 	}
@@ -299,15 +299,15 @@ func logFileProcessingLoop() <-chan error {
 	    "cb-audit-useractivity": Audit_Log_Useractivity
 	}
 	*/
-	go spawn_tailer("/var/log/cb/audit/live-response.log", "audit.log.liveresponse")
-	go spawn_tailer("/var/log/cb/audit/banning.log", "audit.log.banning")
-	go spawn_tailer("/var/log/cb/audit/isolation.log", "audit.log.isolation")
-	go spawn_tailer("/var/log/cb/audit/useractivity.log", "audit.log.useractivity")
-	return err_chan
+	go spawnTailer("/var/log/cb/audit/live-response.log", "audit.log.liveresponse")
+	go spawnTailer("/var/log/cb/audit/banning.log", "audit.log.banning")
+	go spawnTailer("/var/log/cb/audit/isolation.log", "audit.log.isolation")
+	go spawnTailer("/var/log/cb/audit/useractivity.log", "audit.log.useractivity")
+	return errChan
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
-	connection_error := make(chan *amqp.Error, 1)
+	connectionError := make(chan *amqp.Error, 1)
 
 	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
 	if err != nil {
@@ -319,7 +319,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	status.LastConnectTime = time.Now()
 	status.IsConnected = true
 
-	c.conn.NotifyClose(connection_error)
+	c.conn.NotifyClose(connectionError)
 
 	numProcessors := runtime.NumCPU() * 2
 	log.Infof("Starting %d message processors\n", numProcessors)
@@ -331,27 +331,27 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 	for {
 		select {
-		case output_error := <-output_errors:
-			log.Errorf("ERROR during output: %s", output_error.Error())
+		case outputError := <-outputErrors:
+			log.Errorf("ERROR during output: %s", outputError.Error())
 
 			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HttpOutputType {
+			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType {
 				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
 				os.Exit(1)
 			}
-		case close_error := <-connection_error:
+		case closeError := <-connectionError:
 			status.IsConnected = false
-			status.LastConnectError = close_error.Error()
+			status.LastConnectError = closeError.Error()
 			status.ErrorTime = time.Now()
 
-			log.Errorf("Connection closed: %s", close_error.Error())
+			log.Errorf("Connection closed: %s", closeError.Error())
 			log.Info("Waiting for all workers to exit")
 			wg.Wait()
 			log.Info("All workers have exited")
 
-			return close_error
+			return closeError
 		}
 	}
 	log.Info("Loop exited for unknown reason")
@@ -381,14 +381,14 @@ func startOutputs() error {
 		outputHandler = &BundledOutput{behavior: &S3Behavior{}}
 	case SyslogOutputType:
 		outputHandler = &SyslogOutput{}
-	case HttpOutputType:
-		outputHandler = &BundledOutput{behavior: &HttpBehavior{}}
+	case HTTPOutputType:
+		outputHandler = &BundledOutput{behavior: &HTTPBehavior{}}
 	case SplunkOutputType:
 		outputHandler = &BundledOutput{behavior: &SplunkBehavior{}}
 	case KafkaOutputType:
 		outputHandler = &KafkaOutput{}
 	default:
-		return errors.New(fmt.Sprintf("No valid output handler found (%d)", config.OutputType))
+		return fmt.Errorf("No valid output handler found (%d)", config.OutputType)
 	}
 
 	err := outputHandler.Initialize(parameters)
@@ -416,7 +416,7 @@ func startOutputs() error {
 			ret["type"] = "net"
 		case S3OutputType:
 			ret["type"] = "s3"
-		case HttpOutputType:
+		case HTTPOutputType:
 			ret["type"] = "http"
 		case SplunkOutputType:
 			ret["type"] = "splunk"
@@ -426,7 +426,7 @@ func startOutputs() error {
 	}))
 
 	log.Infof("Initialized output: %s\n", outputHandler.String())
-	return outputHandler.Go(results, output_errors)
+	return outputHandler.Go(results, outputErrors)
 }
 
 func main() {
@@ -572,10 +572,10 @@ func main() {
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")
 		go func() {
-			err_chan := logFileProcessingLoop()
+			errChan := logFileProcessingLoop()
 			for {
 				select {
-				case err := <-err_chan:
+				case err := <-errChan:
 					log.Infof("%v", err)
 				}
 			}

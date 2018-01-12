@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func processJson(routingKey string, indata []byte) ([]map[string]interface{}, error) {
+func processJSON(routingKey string, indata []byte) ([]map[string]interface{}, error) {
 	var msg map[string]interface{}
 
 	decoder := json.NewDecoder(bytes.NewReader(indata))
@@ -25,12 +25,11 @@ func processJson(routingKey string, indata []byte) ([]map[string]interface{}, er
 	msgs, err := ProcessJSONMessage(msg, routingKey)
 	if err != nil {
 		return nil, err
-	} else {
-		return msgs, nil
 	}
+	return msgs, nil
 }
 
-func marshalJson(msgs []map[string]interface{}) (string, error) {
+func marshalJSON(msgs []map[string]interface{}) (string, error) {
 	var ret string
 
 	for _, msg := range msgs {
@@ -51,11 +50,10 @@ func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}
 	msg, err := ProcessProtobufMessage(routingKey, indata, *emptyHeaders)
 	if err != nil {
 		return nil, err
-	} else {
-		msgs := make([]map[string]interface{}, 0, 1)
-		msgs = append(msgs, msg)
-		return msgs, nil
 	}
+	msgs := make([]map[string]interface{}, 0, 1)
+	msgs = append(msgs, msg)
+	return msgs, nil
 }
 
 func BenchmarkProtobufEventProcessing(b *testing.B) {
@@ -74,7 +72,7 @@ func BenchmarkJsonEventProcessing(b *testing.B) {
 	d, _ := ioutil.ReadAll(fp)
 
 	for i := 0; i < b.N; i++ {
-		processJson("watchlist.hit.process", d)
+		processJSON("watchlist.hit.process", d)
 	}
 }
 
@@ -94,14 +92,14 @@ type outputMessageFunc func([]map[string]interface{}) (string, error)
 
 func TestEventProcessing(t *testing.T) {
 	t.Log("Generating JSON output to go_output...")
-	processTestEvents(t, "go_output", marshalJson)
+	processTestEvents(t, "go_output", marshalJSON)
 }
 
 func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageFunc) {
 	formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
-	}{{"json", processJson}, {"protobuf", processProtobuf}}
+	}{{"json", processJSON}, {"protobuf", processProtobuf}}
 
 	config.CbServerURL = "https://cbtests/"
 	config.EventMap = make(map[string]bool)

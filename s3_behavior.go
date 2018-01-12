@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -66,8 +65,8 @@ func (o *S3Behavior) Initialize(connString string) error {
 		o.bucketName = parts[1]
 		o.region = parts[0]
 	} else {
-		return errors.New(fmt.Sprintf("Invalid connection string: '%s' should look like (temp-file-directory):(region):bucket-name",
-			connString))
+		return fmt.Errorf("Invalid connection string: '%s' should look like (temp-file-directory):(region):bucket-name",
+			connString)
 	}
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
