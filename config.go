@@ -256,8 +256,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	if ok {
 		thingsToRemove := strings.Split(removeFromOutput, ",")
 		numberOfThingsToRemove := len(thingsToRemove)
+		strippedThingsToRemove := make([]string, numberOfThingsToRemove)
+		for index, element := range thingsToRemove {
+			strippedThingsToRemove[index] = strings.StringSpace(element)
+		}
 		if numberOfThingsToRemove > 0 {
-			config.RemoveFromOutput = thingsToRemove
+			config.RemoveFromOutput = strippedThingsToRemove
 		} else {
 			config.RemoveFromOutput = make([]string, 0)
 		}
