@@ -10,24 +10,24 @@ import (
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
-type HttpBehavior struct {
+type HTTPBehavior struct {
 	dest    string
 	headers map[string]string
 
 	client *http.Client
 
-	httpPostTemplate        *template.Template
+	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
 }
 
-type HttpStatistics struct {
+type HTTPStatistics struct {
 	Destination string `json:"destination"`
 }
 
-/* Construct the HttpBehavior object */
-func (this *HttpBehavior) Initialize(dest string) error {
-	this.httpPostTemplate = config.HttpPostTemplate
+/* Construct the HTTPBehavior object */
+func (this *HTTPBehavior) Initialize(dest string) error {
+	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
 
@@ -36,11 +36,11 @@ func (this *HttpBehavior) Initialize(dest string) error {
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.HttpAuthorizationToken != nil {
-		this.headers["Authorization"] = *config.HttpAuthorizationToken
+	if config.HTTPAuthorizationToken != nil {
+		this.headers["Authorization"] = *config.HTTPAuthorizationToken
 	}
 
-	this.headers["Content-Type"] = *config.HttpContentType
+	this.headers["Content-Type"] = *config.HTTPContentType
 
 	transport := &http.Transport{
 		TLSClientConfig: config.TLSConfig,
@@ -50,23 +50,23 @@ func (this *HttpBehavior) Initialize(dest string) error {
 	return nil
 }
 
-func (this *HttpBehavior) String() string {
+func (this *HTTPBehavior) String() string {
 	return "HTTP POST " + this.Key()
 }
 
-func (this *HttpBehavior) Statistics() interface{} {
-	return HttpStatistics{
+func (this *HTTPBehavior) Statistics() interface{} {
+	return HTTPStatistics{
 		Destination: this.dest,
 	}
 }
 
-func (this *HttpBehavior) Key() string {
+func (this *HTTPBehavior) Key() string {
 	return this.dest
 }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
+func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -88,7 +88,7 @@ func (this *HttpBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		// spawn goroutine to read from the file
 		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
-		this.httpPostTemplate.Execute(writer, uploadData)
+		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
 	/* Set the header values of the post */

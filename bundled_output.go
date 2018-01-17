@@ -76,13 +76,12 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
 		fp.Close()
 		return
-	} else {
-		if fileInfo.Size() > 0 || config.UploadEmptyFiles {
-			// only upload if the file size is greater than zero
-			uploadStatus := o.behavior.Upload(fileName, fp)
-			err = uploadStatus.result
-			o.fileResultChan <- uploadStatus
-		}
+	}
+	if fileInfo.Size() > 0 || config.UploadEmptyFiles {
+		// only upload if the file size is greater than zero
+		uploadStatus := o.behavior.Upload(fileName, fp)
+		err = uploadStatus.result
+		o.fileResultChan <- uploadStatus
 	}
 
 	fp.Close()
@@ -261,7 +260,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 
 			case fileResult := <-o.fileResultChan:
 				if fileResult.result != nil {
-					o.uploadErrors += 1
+					o.uploadErrors++
 					o.lastUploadError = fileResult.result.Error()
 					o.lastUploadErrorTime = time.Now()
 					//Handle 400s - lets stop processing the file and move it to debug zone
@@ -278,7 +277,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 
 					log.Infof("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
 				} else {
-					o.successfulUploads += 1
+					o.successfulUploads++
 					o.lastSuccessfulUpload = time.Now()
 					log.Infof("Successfully uploaded file %s to %s.", fileResult.fileName, o.behavior.String())
 				}

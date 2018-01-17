@@ -16,7 +16,7 @@ type SplunkBehavior struct {
 
 	client *http.Client
 
-	httpPostTemplate        *template.Template
+	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
 }
@@ -25,9 +25,9 @@ type SplunkStatistics struct {
 	Destination string `json:"destination"`
 }
 
-/* Construct the SplunkBehavior object */
+/* Construct the syslog_output.go object */
 func (this *SplunkBehavior) Initialize(dest string) error {
-	this.httpPostTemplate = config.HttpPostTemplate
+	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
 	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	this.headers = make(map[string]string)
@@ -39,7 +39,7 @@ func (this *SplunkBehavior) Initialize(dest string) error {
 		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
 	}
 
-	this.headers["Content-Type"] = *config.HttpContentType
+	this.headers["Content-Type"] = *config.HTTPContentType
 
 	transport := &http.Transport{
 		TLSClientConfig: config.TLSConfig,
@@ -86,7 +86,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 		// spawn goroutine to read from the file
 		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
-		this.httpPostTemplate.Execute(writer, uploadData)
+		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
 	/* Set the header values of the post */

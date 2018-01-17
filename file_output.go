@@ -181,17 +181,16 @@ func (o *FileOutput) flushOutput(force bool) error {
 			o.bufferOutput.lastFlush = time.Now()
 			return nil
 
-		} else {
-			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
-
-			if err != nil {
-				return err
-			}
-
-			o.bufferOutput.buffer.Reset()
-			o.bufferOutput.lastFlush = time.Now()
-			return nil
 		}
+		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+
+		if err != nil {
+			return err
+		}
+
+		o.bufferOutput.buffer.Reset()
+		o.bufferOutput.lastFlush = time.Now()
+		return nil
 
 	}
 	return nil
@@ -230,9 +229,9 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	err := os.Rename(o.outputFileName, newName)
 	if err != nil {
 		return "", err
-	} else {
-		return newName, nil
 	}
+	return newName, nil
+
 }
 
 func (o *FileOutput) closeFile() {

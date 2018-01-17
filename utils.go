@@ -15,31 +15,31 @@ import (
  * conversion routines
  */
 
-func WindowsTimeToUnixTime(windows_time int64) int64 {
+func WindowsTimeToUnixTime(windowsTime int64) int64 {
 	// number of milliseconds between Jan 1st 1601 and Jan 1st 1970
-	var time_shift int64
-	time_shift = 11644473600000
+	var timeShift int64
+	timeShift = 11644473600000
 
-	if windows_time == 0 {
-		return windows_time
+	if windowsTime == 0 {
+		return windowsTime
 	}
 
-	windows_time /= 10000      // ns to ms
-	windows_time -= time_shift // since 1601 to since 1970
-	windows_time /= 1000
-	return windows_time
+	windowsTime /= 10000      // ns to ms
+	windowsTime -= timeShift // since 1601 to since 1970
+	windowsTime /= 1000
+	return windowsTime
 }
 
-func MakeGUID(sensor_id, pid int32, create_time int64) string {
-	guid_part_1 := uint32(sensor_id)
-	guid_part_2 := uint16(pid >> 16)
-	guid_part_3 := uint16(pid & 0xffff)
-	guid_part_4 := uint16(create_time >> 48)
-	guid_part_5 := uint16((create_time >> 32) & 0xffff)
-	guid_part_6 := uint32(create_time & 0xffffffff)
+func MakeGUID(sensorID, pid int32, createTime int64) string {
+	guidPart1 := uint32(sensorID)
+	guidPart2 := uint16(pid >> 16)
+	guidPart3 := uint16(pid & 0xffff)
+	guidPart4 := uint16(createTime >> 48)
+	guidPart5 := uint16((createTime >> 32) & 0xffff)
+	guidPart6 := uint32(createTime & 0xffffffff)
 
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%04x%08x", guid_part_1, guid_part_2, guid_part_3, guid_part_4,
-		guid_part_5, guid_part_6)
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%04x%08x", guidPart1, guidPart2, guidPart3, guidPart4,
+		guidPart5, guidPart6)
 }
 
 func GetIPv4Address(addr uint32) string {
@@ -97,8 +97,8 @@ func FastStringConcat(substrings ...string) string {
 }
 
 func IsGzip(fp *os.File) bool {
-	stats, stats_err := fp.Stat()
-	if stats_err == nil {
+	stats, statsErr := fp.Stat()
+	if statsErr == nil {
 		log.Debugf("File stats = %s:%d:%v", stats.Name(), stats.Size(), stats.Mode())
 	}
 	// decompress file from disk if it's compressed
@@ -116,9 +116,8 @@ func IsGzip(fp *os.File) bool {
 
 	if filetype.IsMIME(header, "application/gzip") {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 func MoveFileToDebug(name string) {
