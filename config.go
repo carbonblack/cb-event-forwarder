@@ -95,6 +95,8 @@ type Configuration struct {
 
 	//Splunkd
 	SplunkToken *string
+
+	RemoveFromOutput []string
 	AuditLog    bool
 }
 
@@ -249,6 +251,23 @@ func ParseConfig(fn string) (Configuration, error) {
 
 			log.Debug("Debugging output is set to True")
 		}
+	}
+
+	removeFromOutput, ok := input.Get("bridge", "remove_from_output")
+	if ok {
+		thingsToRemove := strings.Split(removeFromOutput, ",")
+		numberOfThingsToRemove := len(thingsToRemove)
+		strippedThingsToRemove := make([]string, numberOfThingsToRemove)
+		for index, element := range thingsToRemove {
+			strippedThingsToRemove[index] = strings.TrimSpace(element)
+		}
+		if numberOfThingsToRemove > 0 {
+			config.RemoveFromOutput = strippedThingsToRemove
+		} else {
+			config.RemoveFromOutput = make([]string, 0)
+		}
+	} else {
+		config.RemoveFromOutput = make([]string, 0)
 	}
 
 	debugStore, ok := input.Get("bridge", "debug_store")
