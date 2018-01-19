@@ -259,7 +259,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		numberOfThingsToRemove := len(thingsToRemove)
 		strippedThingsToRemove := make([]string, numberOfThingsToRemove)
 		for index, element := range thingsToRemove {
-			strippedThingsToRemove[index] = strings.StringSpace(element)
+			strippedThingsToRemove[index] = strings.TrimSpace(element)
 		}
 		if numberOfThingsToRemove > 0 {
 			config.RemoveFromOutput = strippedThingsToRemove
