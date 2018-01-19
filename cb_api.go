@@ -13,7 +13,7 @@ import (
 )
 
 type ThreatReport struct {
-	FeedId       int         `json:"feed_id"`
+	FeedID       int         `json:"feed_id"`
 	Timestamp    int         `json:"timestamp"`
 	FeedCategory string      `json:"feed_category"`
 	CreateTime   int         `json:"create_time"`
@@ -26,7 +26,7 @@ type ThreatReport struct {
 	Score        int         `json:"score"`
 }
 
-type ApiInfo struct {
+type APIInfo struct {
 	BanningEnabled          bool        `json:"banningEnabled"`
 	BinaryOrder             string      `json:"binaryOrder"`
 	BinaryPageSize          int         `json:"binaryPageSize"`
@@ -56,17 +56,17 @@ func GetCb(route string) ([]byte, error) {
 
 	var proxyRequest func(*http.Request) (*url.URL, error)
 
-	if config.CbAPIProxyUrl == "" {
+	if config.CbAPIProxyURL == "" {
 		/*
 		 * No Proxy was specified
 		 */
 		proxyRequest = nil
 	} else {
-		proxyUrl, err := url.Parse(config.CbAPIProxyUrl)
+		proxyURL, err := url.Parse(config.CbAPIProxyURL)
 		if err != nil {
 			return nil, err
 		}
-		proxyRequest = http.ProxyURL(proxyUrl)
+		proxyRequest = http.ProxyURL(proxyURL)
 	}
 
 	tr := &http.Transport{
@@ -88,7 +88,7 @@ func GetCb(route string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Cb Response Server returned a %d status code.\n", resp.StatusCode)
+		return nil, fmt.Errorf("Cb Response Server returned a %d status code", resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -96,7 +96,7 @@ func GetCb(route string) ([]byte, error) {
 }
 
 func GetCbVersion() (version string, err error) {
-	cbInfo := ApiInfo{}
+	cbInfo := APIInfo{}
 
 	/*
 	 * NOTE: CbAPIServerUrl ends with a '/'
@@ -112,66 +112,66 @@ func GetCbVersion() (version string, err error) {
 	return
 }
 
-func GetReportTitle(FeedId int, ReportId string) (string, error) {
+func GetReportTitle(FeedID int, ReportID string) (string, error) {
 	threatReport := ThreatReport{}
 
-	key := strconv.Itoa(FeedId) + "|" + ReportId
+	key := strconv.Itoa(FeedID) + "|" + ReportID
 
 	reportTitle, cachePresent := FeedCache.Get(key)
 
 	if cachePresent && reportTitle != nil {
 		return reportTitle.(string), nil
-	} else {
-		body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
-		if err != nil {
-			return "", err
-		}
-
-		err = json.Unmarshal(body, &threatReport)
-
-		if err != nil {
-			return "", err
-		}
-
-		FeedCache.Set(key, threatReport.Title)
-
-		return threatReport.Title, nil
 	}
-}
-
-func GetReport(FeedId int, ReportId string) (string, int, error) {
-
-	threatReport := ThreatReport{}
-
-	key := strconv.Itoa(FeedId) + "|" + ReportId
-
-	raw_threat_report_p, cachePresent := FeedCache.Get(key)
-
-	if cachePresent {
-		if raw_threat_report_p != nil {
-			threat_report_p := (raw_threat_report_p).(*ThreatReport)
-			threat_report := *threat_report_p
-			reportTitle := threat_report.Title
-			reportScore := threat_report.Score
-			return reportTitle, reportScore, nil
-		}
-
-	}
-	//implicit ELSE
-	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedId, ReportId))
-
+	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
 	err = json.Unmarshal(body, &threatReport)
 
 	if err != nil {
-		return "", 0, err
+		return "", err
+	}
+
+	FeedCache.Set(key, threatReport.Title)
+
+	return threatReport.Title, nil
+}
+
+func GetReport(FeedID int, ReportID string) (string, int, string, error) {
+
+	threatReport := ThreatReport{}
+
+	key := strconv.Itoa(FeedID) + "|" + ReportID
+
+	rawThreatReportP, cachePresent := FeedCache.Get(key)
+
+	if cachePresent {
+		if rawThreatReportP != nil {
+			threatReportP := (rawThreatReportP).(*ThreatReport)
+			threatReport := *threatReportP
+			reportTitle := threatReport.Title
+			reportScore := threatReport.Score
+			reportLink := threatReport.Link
+			return reportTitle, reportScore, reportLink, nil
+		}
+
+	}
+	//implicit ELSE
+	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
+
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	err = json.Unmarshal(body, &threatReport)
+
+	if err != nil {
+		return "", 0, "", err
 	}
 
 	FeedCache.Set(key, &threatReport)
 
-	return threatReport.Title, threatReport.Score, nil
+	return threatReport.Title, threatReport.Score, threatReport.Link, nil
 
 }

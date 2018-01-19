@@ -15,7 +15,7 @@ import (
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
-func parseFullGuid(v string) (string, int, error) {
+func parseFullGUID(v string) (string, int, error) {
 
 	var segmentNumber int64
 	var err error
@@ -91,23 +91,23 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			// if the ioc_type is a map and it contains a key of "md5", uppercase it
 			v := reflect.ValueOf(value)
 			if v.Kind() == reflect.Map && v.Type().Key().Kind() == reflect.String {
-				ioc_type := value.(map[string]interface{})
-				if md5value, ok := ioc_type["md5"]; ok {
+				iocType := value.(map[string]interface{})
+				if md5value, ok := iocType["md5"]; ok {
 					if md5, ok := md5value.(string); ok {
 						if len(md5) != 32 && len(md5) != 0 {
 							log.WithFields(log.Fields{"MD5 Length": len(md5)}).Warn("MD5 Length was not valid")
 						}
-						ioc_type["md5"] = strings.ToUpper(md5)
+						iocType["md5"] = strings.ToUpper(md5)
 					}
 				}
 			} else {
-				if ioc_type, ok := value.(string); ok {
-					if ioc_type == "query" {
+				if iocType, ok := value.(string); ok {
+					if iocType == "query" {
 						// decode the IOC query
-						if raw_ioc_value, ok := msg["ioc_value"].(string); ok {
-							var ioc_value map[string]string
-							if json.Unmarshal([]byte(raw_ioc_value), &ioc_value) == nil {
-								if queryIndex, rawQuery, err := parseQueryString(ioc_value); err == nil {
+						if rawIocValue, ok := msg["ioc_value"].(string); ok {
+							var iocValue map[string]string
+							if json.Unmarshal([]byte(rawIocValue), &iocValue) == nil {
+								if queryIndex, rawQuery, err := parseQueryString(iocValue); err == nil {
 									msg["ioc_query_index"] = queryIndex
 									msg["ioc_query_string"] = rawQuery
 								}
@@ -126,17 +126,17 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		}
 	}
 
-	hasProcessGUID := false
+	hasprocessGUID := false
 
 	// figure out the canonical process guid associated with this message
 	if !strings.HasPrefix(messageType, "alert.") {
 		if value, ok := msg["unique_id"]; ok {
-			if uniqueId, ok := value.(string); ok {
-				processGuid, segment, err := parseFullGuid(uniqueId)
+			if uniqueID, ok := value.(string); ok {
+				processGUID, segment, err := parseFullGUID(uniqueID)
 				if err == nil {
-					msg["process_guid"] = processGuid
+					msg["process_guid"] = processGUID
 					msg["segment_id"] = fmt.Sprintf("%v", segment)
-					hasProcessGUID = true
+					hasprocessGUID = true
 				}
 
 			}
@@ -144,22 +144,22 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	}
 
 	// fall back to process_id in the message
-	if !hasProcessGUID {
+	if !hasprocessGUID {
 		if value, ok := msg["process_id"]; ok {
-			if uniqueId, ok := value.(string); ok {
-				processGuid, segment, _ := parseFullGuid(uniqueId)
-				msg["process_guid"] = processGuid
+			if uniqueID, ok := value.(string); ok {
+				processGUID, segment, _ := parseFullGUID(uniqueID)
+				msg["process_guid"] = processGUID
 				msg["segment_id"] = fmt.Sprintf("%v", segment)
-				hasProcessGUID = true
+				hasprocessGUID = true
 			}
 		}
 	}
 
 	// also deal with parent links
 	if value, ok := msg["parent_unique_id"]; ok {
-		if uniqueId, ok := value.(string); ok {
-			processGuid, segment, _ := parseFullGuid(uniqueId)
-			msg["parent_guid"] = processGuid
+		if uniqueID, ok := value.(string); ok {
+			processGUID, segment, _ := parseFullGUID(uniqueID)
+			msg["parent_guid"] = processGUID
 			msg["parent_segment_id"] = fmt.Sprintf("%v", segment)
 		}
 	}
@@ -174,9 +174,9 @@ func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}
 	// add sensor links when applicable
 	if value, ok := msg["sensor_id"]; ok {
 		if value, ok := value.(json.Number); ok {
-			hostId, err := strconv.ParseInt(value.String(), 10, 32)
+			hostID, err := strconv.ParseInt(value.String(), 10, 32)
 			if err == nil {
-				msg["link_sensor"] = fmt.Sprintf("%s#/host/%d", serverURL, hostId)
+				msg["link_sensor"] = fmt.Sprintf("%s#/host/%d", serverURL, hostID)
 			}
 		}
 	}
@@ -194,19 +194,19 @@ func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}
 	}
 
 	// add process links
-	if processGuid, ok := msg["process_guid"]; ok {
-		if segmentId, ok := msg["segment_id"]; ok {
-			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGuid, segmentId)
+	if processGUID, ok := msg["process_guid"]; ok {
+		if segmentID, ok := msg["segment_id"]; ok {
+			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGUID, segmentID)
 		} else {
-			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGuid, 1)
+			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGUID, 1)
 		}
 	}
 
-	if parentGuid, ok := msg["parent_guid"]; ok {
-		if segmentId, ok := msg["parent_segment_id"]; ok {
-			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGuid, segmentId)
+	if parentGUID, ok := msg["parent_guid"]; ok {
+		if segmentID, ok := msg["parent_segment_id"]; ok {
+			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGUID, segmentID)
 		} else {
-			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGuid, 1)
+			msg["link_parent"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, parentGUID, 1)
 		}
 	}
 }
@@ -214,9 +214,8 @@ func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}
 func fixupMessageType(routingKey string) string {
 	if feedParserRegex.MatchString(routingKey) {
 		return fmt.Sprintf("feed.%s", feedParserRegex.FindStringSubmatch(routingKey)[2])
-	} else {
-		return routingKey
 	}
+	return routingKey
 }
 
 func PrettyPrintMap(msg map[string]interface{}) {
@@ -266,36 +265,37 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 		messageType := val.(string)
 
 		if strings.HasPrefix(messageType, "feed.") {
-			feedId, feedIdPresent := msg["feed_id"]
-			reportId, reportIdPresent := msg["report_id"]
+			feedID, feedIDPresent := msg["feed_id"]
+			reportID, reportIDPresent := msg["report_id"]
 
 			/*
 			 * First make sure these fields are present
 			 */
-			if feedIdPresent && reportIdPresent {
+			if feedIDPresent && reportIDPresent {
 				/*
-				 * feedId should be of type json.Number which is typed as a string
-				 * reportId should be of type string as well
+				 * feedID should be of type json.Number which is typed as a string
+				 * reportID should be of type string as well
 				 */
-				if reflect.TypeOf(feedId).Kind() == reflect.String &&
-					reflect.TypeOf(reportId).Kind() == reflect.String {
-					iFeedId, err := feedId.(json.Number).Int64()
+				if reflect.TypeOf(feedID).Kind() == reflect.String &&
+					reflect.TypeOf(reportID).Kind() == reflect.String {
+					iFeedID, err := feedID.(json.Number).Int64()
 					if err == nil {
 						/*
 						 * Get the report_title for this feed hit
 						 */
-						reportTitle, reportScore, err := GetReport(int(iFeedId), reportId.(string))
-						log.Debugf("Report title = %s , Score = %d", reportTitle, reportScore)
+						reportTitle, reportScore, reportLink, err := GetReport(int(iFeedID), reportID.(string))
+						log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
 						if err == nil {
 							/*
 							 * Finally save the report_title into this message
 							 */
 							msg["report_title"] = reportTitle
 							msg["report_score"] = reportScore
+							msg["report_link"] = reportLink
 							/*
 								log.Infof("report title for id %s:%s == %s\n",
-									feedId.(json.Number).String(),
-									reportId.(string),
+									feedID.(json.Number).String(),
+									reportID.(string),
 									reportTitle)
 							*/
 						}

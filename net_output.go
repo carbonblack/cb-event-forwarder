@@ -64,7 +64,7 @@ func (o *NetOutput) Initialize(netConn string) error {
 	o.outputSocket, err = net.Dial(o.protocolName, o.remoteHostname)
 
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error connecting to '%s': %s", netConn, err))
+		return fmt.Errorf("Error connecting to '%s': %s", netConn, err)
 	}
 
 	o.markConnected()

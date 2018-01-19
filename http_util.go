@@ -67,7 +67,7 @@ func convertFileIntoTemplate(fp *os.File, events chan<- UploadEvent, firstEventT
 		}
 
 		events <- UploadEvent{EventText: eventText, EventSeq: i}
-		i += 1
+		i++
 
 	}
 

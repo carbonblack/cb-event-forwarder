@@ -46,6 +46,7 @@ func (o *SyslogOutput) Initialize(netConn string) error {
 
 	if o.connected {
 		o.outputSocket.Close()
+		o.connected = false
 	}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
@@ -57,7 +58,7 @@ func (o *SyslogOutput) Initialize(netConn string) error {
 	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, config.TLSConfig)
 
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error connecting to '%s': %s", netConn, err))
+		return fmt.Errorf("Error connecting to '%s': %s", netConn, err)
 	}
 
 	o.markConnected()

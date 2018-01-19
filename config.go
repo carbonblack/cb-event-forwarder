@@ -21,7 +21,7 @@ const (
 	TCPOutputType
 	UDPOutputType
 	SyslogOutputType
-	HttpOutputType
+	HTTPOutputType
 	SplunkOutputType
 	KafkaOutputType
 )
@@ -68,9 +68,9 @@ type Configuration struct {
 	TLS12Only     bool
 
 	// HTTP-specific configuration
-	HttpAuthorizationToken *string
-	HttpPostTemplate       *template.Template
-	HttpContentType        *string
+	HTTPAuthorizationToken *string
+	HTTPPostTemplate       *template.Template
+	HTTPContentType        *string
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -87,7 +87,7 @@ type Configuration struct {
 	PerformFeedPostprocessing bool
 	CbAPIToken                string
 	CbAPIVerifySSL            bool
-	CbAPIProxyUrl             string
+	CbAPIProxyURL             string
 
 	// Kafka-specific configuration
 	KafkaBrokers     *string
@@ -97,6 +97,7 @@ type Configuration struct {
 	SplunkToken *string
 
 	RemoveFromOutput []string
+	AuditLog    bool
 }
 
 type ConfigurationError struct {
@@ -374,6 +375,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.AuditLog = false
+	val, ok = input.Get("bridge", "audit_log")
+	if ok {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.AuditLog = b
+		}
+	}
+
 	outType, ok := input.Get("bridge", "output_type")
 	var parameterKey string
 	if ok {
@@ -416,32 +426,32 @@ func ParseConfig(fn string) (Configuration, error) {
 
 		case "http":
 			parameterKey = "httpout"
-			config.OutputType = HttpOutputType
+			config.OutputType = HTTPOutputType
 
 			token, ok := input.Get("http", "authorization_token")
 			if ok {
-				config.HttpAuthorizationToken = &token
+				config.HTTPAuthorizationToken = &token
 			}
 
 			postTemplate, ok := input.Get("http", "http_post_template")
-			config.HttpPostTemplate = template.New("http_post_output")
+			config.HTTPPostTemplate = template.New("http_post_output")
 			if ok {
-				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
 			} else {
 				if config.OutputFormat == JSONOutputFormat {
-					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
 						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
 				} else {
-					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
 				}
 			}
 
 			contentType, ok := input.Get("http", "content_type")
 			if ok {
-				config.HttpContentType = &contentType
+				config.HTTPContentType = &contentType
 			} else {
 				jsonString := "application/json"
-				config.HttpContentType = &jsonString
+				config.HTTPContentType = &jsonString
 			}
 		case "syslog":
 			parameterKey = "syslogout"
@@ -468,24 +478,24 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 
 			postTemplate, ok := input.Get("splunk", "http_post_template")
-			config.HttpPostTemplate = template.New("http_post_output")
+			config.HTTPPostTemplate = template.New("http_post_output")
 			if ok {
-				config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(postTemplate))
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
 			} else {
 				if config.OutputFormat == JSONOutputFormat {
-					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(
+					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
 						`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
 				} else {
-					config.HttpPostTemplate = template.Must(config.HttpPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
 				}
 			}
 
 			contentType, ok := input.Get("http", "content_type")
 			if ok {
-				config.HttpContentType = &contentType
+				config.HTTPContentType = &contentType
 			} else {
 				jsonString := "application/json"
-				config.HttpContentType = &jsonString
+				config.HTTPContentType = &jsonString
 			}
 
 		default:
@@ -631,19 +641,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.PerformFeedPostprocessing = true
 	}
 
-	config.CbAPIProxyUrl = ""
+	config.CbAPIProxyURL = ""
 	val, ok = input.Get("bridge", "api_proxy_url")
 	if ok {
-		config.CbAPIProxyUrl = val
+		config.CbAPIProxyURL = val
 	}
 
 	config.parseEventTypes(input)
 
 	if !errs.Empty {
 		return config, errs
-	} else {
-		return config, nil
 	}
+	return config, nil
 }
 
 func configureTLS(config Configuration) *tls.Config {
