@@ -467,7 +467,7 @@ func childProcType(a sensor_events.CbChildProcessMsg_CbChildProcType) string {
 	case sensor_events.CbChildProcessMsg_childProcFork:
 		return "fork"
 	case sensor_events.CbChildProcessMsg_childProcOtherExec:
-		return "other"
+		return "other_exec"
 	}
 	return fmt.Sprintf("unknown (%d)", int32(a))
 }
