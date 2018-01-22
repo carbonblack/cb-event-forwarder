@@ -504,8 +504,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	kv["tamper"] = om.Childproc.GetTamper()
 	kv["tamper_sent"] = om.Childproc.GetTamperSent()
 
-	childProctype := om.Childproc.GetChildProcType()
-	kv["child_proc_type"] = childProcType(childProctype)
+	procType := om.Childproc.GetChildProcType()
+	kv["child_proc_type"] = childProcType(procType)
 	kv["parent_guid"] = om.Childproc.GetParentGuid()
 	kv["child_guid"] = om.Childproc.GetChildGuid()
 
