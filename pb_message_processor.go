@@ -493,6 +493,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["child_process_guid"] = om.Childproc.GetChildGuid()
 	}
 
+
 	if om.Childproc.GetSuppressed() != nil {
 		kv["commandline"] = GetUnicodeFromUTF8(om.Childproc.GetCommandline())
 		kv["username"] = om.Childproc.GetUsername()
@@ -508,6 +509,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	kv["child_proc_type"] = childProcType(procType)
 	kv["parent_guid"] = om.Childproc.GetParentGuid()
 	kv["child_guid"] = om.Childproc.GetChildGuid()
+	kv["child_pid"] = om.Childproc.GetPid()
+
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if config.CbServerURL != "" {
@@ -516,8 +519,23 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 
 	kv["path"] = om.Childproc.GetPath()
 
+
 	kv["md5"] = GetMd5Hexdigest(om.Childproc.GetMd5Hash())
 	kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
+  
+	childProcType := message.OriginalMessage.Childproc.GetChildProcType()
+	kv["childproc_type"] = strings.TrimPrefix(sensor_events.CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
+		"childProc")
+
+	// handle suppressed children
+	if message.OriginalMessage.Childproc.Suppressed != nil &&
+		message.OriginalMessage.Childproc.Suppressed.GetBIsSuppressed() {
+		kv["child_suppressed"] = true
+		kv["child_command_line"] = message.OriginalMessage.Childproc.GetCommandline()
+		kv["child_username"] = message.OriginalMessage.Childproc.GetUsername()
+	} else {
+		kv["child_suppressed"] = false
+	}
 }
 
 func regmodAction(a sensor_events.CbRegModMsg_CbRegModAction) string {
