@@ -346,9 +346,9 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.AMQPAutomaticAcking = true
-	rabbitManualAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
+	rabbitAutomaticAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
 	if ok {
-		boolval, err := strconv.ParseBool(rabbitManualAcking)
+		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
 		if err == nil {
 			if boolval == false {
 				config.AMQPAutomaticAcking = false
