@@ -575,7 +575,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	tlsInsecure, ok := input.Get(outType, "insecure_tls")
 	if ok {
 		boolval, err := strconv.ParseBool(tlsInsecure)
-		if err == nil && boolval == false {
+		if err == nil && boolval == true {
 			config.TLS12Only = false
 		} else {
 			errs.addErrorString("Unknown value for 'insecure_tls': ")
