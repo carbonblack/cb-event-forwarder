@@ -504,8 +504,6 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	}
 
 	kv["path"] = om.Childproc.GetPath()
-
-
 	kv["md5"] = GetMd5Hexdigest(om.Childproc.GetMd5Hash())
 	kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
 
@@ -516,8 +514,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	// handle suppressed children
 	if om.Childproc.Suppressed != nil &&
 		om.Childproc.Suppressed.GetBIsSuppressed() {
-		kv["suppressed"] = true
-		kv["child_command_line"] = om.Childproc.GetCommandline()
+		kv["child_suppressed"] = true
+		kv["child_command_line"] = GetUnicodeFromUTF8(om.Childproc.GetCommandline())
 		kv["child_username"] = om.Childproc.GetUsername()
 	} else {
 		kv["child_suppressed"] = false
