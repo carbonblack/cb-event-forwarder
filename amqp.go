@@ -93,7 +93,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 	deliveries, err := c.channel.Consume(
 		queue.Name,
 		c.tag,
-		true,  // automatic ack
+		config.AMQPAutomaticAcking,  // automatic or manual acking
 		false, // exclusive
 		false, // noLocal
 		false, // noWait

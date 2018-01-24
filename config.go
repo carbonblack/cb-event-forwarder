@@ -46,6 +46,7 @@ type Configuration struct {
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
 	AMQPQueueName        string
+	AMQPAutomaticAcking  bool
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -97,7 +98,7 @@ type Configuration struct {
 	SplunkToken *string
 
 	RemoveFromOutput []string
-	AuditLog    bool
+	AuditLog         bool
 }
 
 type ConfigurationError struct {
@@ -342,6 +343,19 @@ func ParseConfig(fn string) (Configuration, error) {
 	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
 	if ok {
 		config.AMQPQueueName = rabbitQueueName
+	}
+
+	config.AMQPAutomaticAcking = true
+	rabbitManualAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
+	if ok {
+		boolval, err := strconv.ParseBool(rabbitManualAcking)
+		if err == nil {
+			if boolval == false {
+				config.AMQPAutomaticAcking = false
+			}
+		} else {
+			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
+		}
 	}
 
 	val, ok = input.Get("bridge", "cb_server_hostname")
