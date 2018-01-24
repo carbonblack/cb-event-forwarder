@@ -460,18 +460,6 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["tamper_sent"] = message.OriginalMessage.Filemod.GetTamperSent()
 }
 
-func childProcType(a sensor_events.CbChildProcessMsg_CbChildProcType) string {
-	switch a {
-	case sensor_events.CbChildProcessMsg_childProcExec:
-		return "exec"
-	case sensor_events.CbChildProcessMsg_childProcFork:
-		return "fork"
-	case sensor_events.CbChildProcessMsg_childProcOtherExec:
-		return "other_exec"
-	}
-	return fmt.Sprintf("unknown (%d)", int32(a))
-}
-
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "childproc"
 	kv["type"] = "ingress.event.childproc"
