@@ -505,10 +505,11 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 
 	kv["path"] = om.Childproc.GetPath()
 
+
 	kv["md5"] = GetMd5Hexdigest(om.Childproc.GetMd5Hash())
 	kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
 
-	childProcType := om.Childproc.GetChildProcType()
+	childProcType := message.OriginalMessage.Childproc.GetChildProcType()
 	kv["childproc_type"] = strings.TrimPrefix(sensor_events.CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
 		"childProc")
 
