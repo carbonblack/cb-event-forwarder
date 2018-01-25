@@ -46,6 +46,7 @@ type Configuration struct {
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
 	AMQPQueueName        string
+	AMQPAutomaticAcking  bool
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -97,7 +98,7 @@ type Configuration struct {
 	SplunkToken *string
 
 	RemoveFromOutput []string
-	AuditLog    bool
+	AuditLog         bool
 }
 
 type ConfigurationError struct {
@@ -344,6 +345,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPQueueName = rabbitQueueName
 	}
 
+	config.AMQPAutomaticAcking = true
+	rabbitAutomaticAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
+	if ok {
+		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
+		if err == nil && boolval == false {
+			config.AMQPAutomaticAcking = false
+		} else {
+			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
+		}
+	}
+
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {
 		config.AMQPHostname = val
@@ -552,10 +564,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	tlsVerify, ok := input.Get(outType, "tls_verify")
 	if ok {
 		boolval, err := strconv.ParseBool(tlsVerify)
-		if err == nil {
-			if boolval == false {
-				config.TLSVerify = false
-			}
+		if err == nil && boolval == false {
+			config.TLSVerify = false
 		} else {
 			errs.addErrorString("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
 		}
@@ -565,10 +575,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	tlsInsecure, ok := input.Get(outType, "insecure_tls")
 	if ok {
 		boolval, err := strconv.ParseBool(tlsInsecure)
-		if err == nil {
-			if boolval == true {
-				config.TLS12Only = false
-			}
+		if err == nil && boolval == true {
+			config.TLS12Only = false
 		} else {
 			errs.addErrorString("Unknown value for 'insecure_tls': ")
 		}
@@ -593,10 +601,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
 	if ok {
 		boolval, err := strconv.ParseBool(sendEmptyFiles)
-		if err == nil {
-			if boolval == false {
-				config.UploadEmptyFiles = false
-			}
+		if err == nil && boolval == false {
+			config.UploadEmptyFiles = false
 		} else {
 			errs.addErrorString("Unknown value for 'upload_empty_files': valid values are true, false, 1, 0. Default is 'true'")
 		}
