@@ -615,10 +615,34 @@ func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["sha256"] = strings.ToUpper(string(message.OriginalMessage.Module.GetSha256()))
 	kv["size"] = message.OriginalMessage.Module.GetOriginalModuleLength()
 
-	digsigResult := make(map[string]interface{})
-	digsigResult["result"] = message.OriginalMessage.Module.GetUtf8_DigSig_Result()
+	kv["utf8_copied_module_length"] = message.OriginalMessage.Module.GetCopiedModuleLength()
+	kv["utf8_file_description"] = message.OriginalMessage.Module.GetUtf8_FileDescription()
+	kv["utf8_company_name"] = message.OriginalMessage.Module.GetUtf8_CompanyName()
+	kv["utf8_product_name"] = message.OriginalMessage.Module.GetUtf8_ProductName()
+	kv["utf8_file_version"] = message.OriginalMessage.Module.GetUtf8_FileVersion()
+	kv["utf8_comments"] = message.OriginalMessage.Module.GetUtf8_Comments()
+	kv["utf8_legal_copyright"] = message.OriginalMessage.Module.GetUtf8_LegalCopyright()
+	kv["utf8_legal_trademark"] = message.OriginalMessage.Module.GetUtf8_LegalTrademark()
+	kv["utf8_internal_name"] = message.OriginalMessage.Module.GetUtf8_InternalName()
+	kv["utf8_original_file_name"] = message.OriginalMessage.Module.GetUtf8_OriginalFileName()
+	kv["utf8_product_description"] = message.OriginalMessage.Module.GetUtf8_ProductDescription()
+	kv["utf8_product_version"] = message.OriginalMessage.Module.GetUtf8_ProductVersion()
+	kv["utf8_private_build"] = message.OriginalMessage.Module.GetUtf8_PrivateBuild()
+	kv["utf8_special_build"] = message.OriginalMessage.Module.GetUtf8_SpecialBuild()
+	kv["icon"] = message.OriginalMessage.Module.GetIcon()
+	kv["image_file_header"] = message.OriginalMessage.Module.GetImageFileHeader()
+	kv["utf8_on_disk_filename"] = message.OriginalMessage.Module.GetUtf8_OnDiskFilename()
 
-	kv["digsig"] = digsigResult
+	digsig := make(map[string]interface{})
+	digsig["result"] = message.OriginalMessage.Module.GetUtf8_DigSig_Result()
+	digsig["publisher"] = message.OriginalMessage.Module.GetUtf8_DigSig_Publisher()
+	digsig["program_name"] = message.OriginalMessage.Module.GetUtf8_DigSig_ProgramName()
+	digsig["issuer_name"] = message.OriginalMessage.Module.GetUtf8_DigSig_IssuerName()
+	digsig["subject_name"] = message.OriginalMessage.Module.GetUtf8_DigSig_SubjectName()
+	digsig["result_code"] = message.OriginalMessage.Module.GetUtf8_DigSig_ResultCode()
+	digsig["sign_time"] = message.OriginalMessage.Module.GetUtf8_DigSig_SignTime()
+
+	kv["digsig"] = digsig
 }
 
 func emetMitigationType(a *sensor_events.CbEmetMitigationAction) string {
