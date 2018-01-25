@@ -372,7 +372,10 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	om := message.OriginalMessage
 
 	kv["parent_path"] = om.Process.GetParentPath()
+	kv["parent_pid"] = om.Process.GetParentPid()
+	kv["parent_guid"] = om.Process.GetParentGuid()
 	kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {
 		kv["parent_md5"] = GetMd5Hexdigest(om.Process.GetParentMd5())
@@ -453,15 +456,16 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Filemod.Sha256Hash != nil {
 		kv["file_sha256"] = GetSha256Hexdigest(message.OriginalMessage.Filemod.GetSha256Hash())
 	}
+	kv["tamper"] = message.OriginalMessage.Filemod.GetTamper()
+	kv["tamper_sent"] = message.OriginalMessage.Filemod.GetTamperSent()
 }
 
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "childproc"
 	kv["type"] = "ingress.event.childproc"
-
-	kv["created"] = message.OriginalMessage.Childproc.GetCreated()
-
 	om := message.OriginalMessage
+	kv["created"] = om.Childproc.GetCreated()
+
 	if om.Childproc.Pid != nil && om.Childproc.CreateTime != nil && om.Env != nil &&
 		om.Env.Endpoint != nil && om.Env.Endpoint.SensorId != nil {
 		pid := om.Childproc.GetPid()
@@ -478,6 +482,9 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	}
 
 	kv["child_pid"] = om.Childproc.GetPid()
+	kv["tamper"] = om.Childproc.GetTamper()
+	kv["tamper_sent"] = om.Childproc.GetTamperSent()
+	kv["parent_guid"] = om.Childproc.GetParentGuid()
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if config.CbServerURL != "" {
@@ -485,20 +492,19 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	}
 
 	kv["path"] = om.Childproc.GetPath()
-
-	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Childproc.GetMd5Hash())
-	kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Childproc.GetSha256Hash())
+	kv["md5"] = GetMd5Hexdigest(om.Childproc.GetMd5Hash())
+	kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
 
 	childProcType := message.OriginalMessage.Childproc.GetChildProcType()
 	kv["childproc_type"] = strings.TrimPrefix(sensor_events.CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
 		"childProc")
 
 	// handle suppressed children
-	if message.OriginalMessage.Childproc.Suppressed != nil &&
-		message.OriginalMessage.Childproc.Suppressed.GetBIsSuppressed() {
+	if om.Childproc.Suppressed != nil &&
+		om.Childproc.Suppressed.GetBIsSuppressed() {
 		kv["child_suppressed"] = true
-		kv["child_command_line"] = message.OriginalMessage.Childproc.GetCommandline()
-		kv["child_username"] = message.OriginalMessage.Childproc.GetUsername()
+		kv["child_command_line"] = GetUnicodeFromUTF8(om.Childproc.GetCommandline())
+		kv["child_username"] = om.Childproc.GetUsername()
 	} else {
 		kv["child_suppressed"] = false
 	}
@@ -527,6 +533,8 @@ func WriteRegmodMessage(message *ConvertedCbMessage, kv map[string]interface{}) 
 	action := message.OriginalMessage.Regmod.GetAction()
 	kv["action"] = regmodAction(action)
 	kv["actiontype"] = int32(action)
+	kv["tamper"] = message.OriginalMessage.Regmod.GetTamper()
+	kv["tamper_sent"] = message.OriginalMessage.Regmod.GetTamperSent()
 }
 
 func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
