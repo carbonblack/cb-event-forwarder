@@ -47,7 +47,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/mohae/customjson"
+  name = "github.com/mohae/deepcopy"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"
