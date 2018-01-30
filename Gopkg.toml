@@ -46,10 +46,6 @@
   version = "1.0.0"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/mohae/deepcopy"
-
-[[constraint]]
   name = "github.com/sirupsen/logrus"
   version = "1.0.4"
 
