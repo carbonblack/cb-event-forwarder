@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mohae/deepcopy"
+	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"reflect"
