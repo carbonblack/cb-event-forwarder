@@ -105,7 +105,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 	config.EventMap = make(map[string]bool)
 
 	for _, format := range formats {
-		pathname := path.Join("./tests/raw_data", format.formatType)
+		pathname := path.Join("../../test/raw_data", format.formatType)
 		fp, err := os.Open(pathname)
 		if err != nil {
 			t.Logf("Could not open %s", pathname)
@@ -126,7 +126,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 			}
 
 			routingKey := info.Name()
-			os.MkdirAll(path.Join("./tests", outputDir, format.formatType, routingKey), 0755)
+			os.MkdirAll(path.Join("../../tests", outputDir, format.formatType, routingKey), 0755)
 
 			// add this routing key into the filtering map
 			config.EventMap[routingKey] = true
@@ -181,7 +181,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 					continue
 				}
 
-				outfp, err := os.Create(path.Join("./tests", outputDir, format.formatType, routingKey, fn.Name()))
+				outfp, err := os.Create(path.Join("../../tests", outputDir, format.formatType, routingKey, fn.Name()))
 				if err != nil {
 					t.Errorf("Error creating file: %s", err)
 					continue

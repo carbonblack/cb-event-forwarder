@@ -32,7 +32,7 @@ test:
 	rm -rf tests/leef_output
 	mkdir tests/gold_output
 	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
-	go test
+	go test ./cmd/cb-event-forwarder
 	python tests/scripts/compare_outputs.py tests/gold_output tests/go_output > tests/output.txt
 
 clean:
