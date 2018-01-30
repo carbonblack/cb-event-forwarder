@@ -57,7 +57,7 @@ func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}
 }
 
 func BenchmarkProtobufEventProcessing(b *testing.B) {
-	fn := path.Join("./tests/raw_data/protobuf/ingress.event.process/0.protobuf")
+	fn := path.Join("../../test/raw_data/protobuf/ingress.event.process/0.protobuf")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 
@@ -67,7 +67,7 @@ func BenchmarkProtobufEventProcessing(b *testing.B) {
 }
 
 func BenchmarkJsonEventProcessing(b *testing.B) {
-	fn := path.Join("./tests/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 
@@ -77,7 +77,7 @@ func BenchmarkJsonEventProcessing(b *testing.B) {
 }
 
 func BenchmarkZipBundleProcessing(b *testing.B) {
-	fn := path.Join("./tests/stress_rabbit/zipbundles/1")
+	fn := path.Join("../../test/stress_rabbit/zipbundles/1")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 
@@ -126,7 +126,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 			}
 
 			routingKey := info.Name()
-			os.MkdirAll(path.Join("../../tests", outputDir, format.formatType, routingKey), 0755)
+			os.MkdirAll(path.Join("../../test_output", outputDir, format.formatType, routingKey), 0755)
 
 			// add this routing key into the filtering map
 			config.EventMap[routingKey] = true
@@ -181,7 +181,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 					continue
 				}
 
-				outfp, err := os.Create(path.Join("../../tests", outputDir, format.formatType, routingKey, fn.Name()))
+				outfp, err := os.Create(path.Join("../../test_output", outputDir, format.formatType, routingKey, fn.Name()))
 				if err != nil {
 					t.Errorf("Error creating file: %s", err)
 					continue

@@ -5,6 +5,7 @@ GIT_VERSION := 3.4
 VERSION := 3.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
+.PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
 
@@ -27,21 +28,24 @@ rpminstall:
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
-	rm -rf tests/gold_output
-	rm -rf tests/go_output
-	rm -rf tests/leef_output
-	mkdir tests/gold_output
-	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
+	rm -rf test_output/gold_output
+	rm -rf test_output/go_output
+	rm -rf test_output/leef_output
+	mkdir test_output/gold_output
+	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
 	go test ./cmd/cb-event-forwarder
-	python tests/scripts/compare_outputs.py tests/gold_output tests/go_output > tests/output.txt
+	python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
 	rm -f cb-event-forwarder
-	rm -rf tests/gold_output
-	rm -rf tests/go_output
+	rm -rf test_output/gold_output
+	rm -rf test_output/go_output
 	rm -rf dist
 	rm -rf build
 	rm -f VERSION
+
+bench:
+	go test -bench=. ./cmd/cb-event-forwarder/
 
 sdist:
 	dep ensure
