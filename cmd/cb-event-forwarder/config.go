@@ -347,10 +347,11 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.AMQPAutomaticAcking = true
 	rabbitAutomaticAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
+
 	if ok {
 		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
-		if err == nil && boolval == false {
-			config.AMQPAutomaticAcking = false
+		if err == nil {
+			config.AMQPAutomaticAcking = boolval
 		} else {
 			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
 		}
