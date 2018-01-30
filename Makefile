@@ -5,18 +5,16 @@ GIT_VERSION := 3.4
 VERSION := 3.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
+
 cb-event-forwarder: build
 
 build:
-	cd cmd/cb-event-forwarder; \
-	go build
+	go build ./cmd/cb-event-forwarder 
 
 rpmbuild:
-	cd internal/sensor_events; \
-	go generate ./...; \
-	cd ../../cmd/cb-event-forwarder ; \
+	go generate ./internal/sensor_events; \
 	dep ensure; \
-	go build -ldflags "-X main.version=${VERSION}"
+	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -46,11 +44,13 @@ clean:
 	rm -f VERSION
 
 sdist:
+	dep ensure
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
 	cp -rp Makefile cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cvz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
+	sleep 1
 	mkdir -p dist
 	cp -p build/cb-event-forwarder-${GIT_VERSION}.tar.gz dist/
 
