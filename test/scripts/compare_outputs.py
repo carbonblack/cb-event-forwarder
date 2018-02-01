@@ -80,6 +80,8 @@ def process_dirs(gold_output, go_output):
                 python_data = open(python_fn_path, 'rb').readlines()
                 go_data = open(go_fn_path, 'rb').readlines()
 
+                print("comparing {0} and {1}".format(python_fn_path, go_fn_path))
+
                 try:
                     errors = compare_files(go_fn_path, python_data, go_data)
                 except Exception as e:

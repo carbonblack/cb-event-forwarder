@@ -12,6 +12,8 @@ import (
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -117,7 +119,32 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 
 		newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
 		if err != nil {
-			log.Errorf("Errors above from processing zip filename %s", zf.Name)
+
+			log.Errorf("Error processing zip filename %s: %s", zf.Name, err.Error())
+
+			if config.DebugFlag {
+				debugZip, err := zf.Open()
+				if err != nil {
+					log.Errorf("Error opening zip file %s for debugstore", zf.Name)
+				}
+
+				debugUnzipped, err := ioutil.ReadAll(debugZip)
+				if err != nil {
+					log.Errorf("Error in ioutil.ReadAll for zip file %s", zf.Name)
+				}
+
+				defer debugZip.Close()
+
+				log.Debugf("Attempting to create file: %s", filepath.Join(config.DebugStore, zf.Name))
+				debugStoreFile, err := os.Create(filepath.Join(config.DebugStore, zf.Name))
+				if err != nil {
+					log.Errorf("Error in create file %s", filepath.Join(config.DebugStore, zf.Name))
+				}
+
+				defer debugStoreFile.Close()
+
+				debugStoreFile.Write(debugUnzipped)
+			}
 		}
 		msgs = append(msgs, newMsgs...)
 	}
