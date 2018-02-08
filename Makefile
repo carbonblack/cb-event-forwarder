@@ -5,15 +5,17 @@ GIT_VERSION := 3.4
 VERSION := 3.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
+.PHONY: clean test rpmbuild rpminstall build rpm
+
 cb-event-forwarder: build
 
 build:
-	go build
+	go build ./cmd/cb-event-forwarder 
 
 rpmbuild:
-	go generate ./...
-	go get ./...
-	go build -ldflags "-X main.version=${VERSION}"
+	go generate ./internal/sensor_events; \
+	dep ensure; \
+	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -26,28 +28,33 @@ rpminstall:
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
-	rm -rf tests/gold_output
-	rm -rf tests/go_output
-	rm -rf tests/leef_output
-	mkdir tests/gold_output
-	python tests/scripts/process_events_python.py tests/raw_data tests/gold_output
-	go test
-	python tests/scripts/compare_outputs.py tests/gold_output tests/go_output > tests/output.txt
+	rm -rf test_output/gold_output
+	rm -rf test_output/go_output
+	rm -rf test_output/leef_output
+	mkdir test_output/gold_output
+	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
+	go test ./cmd/cb-event-forwarder
+	python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
 	rm -f cb-event-forwarder
-	rm -rf tests/gold_output
-	rm -rf tests/go_output
+	rm -rf test_output/gold_output
+	rm -rf test_output/go_output
 	rm -rf dist
 	rm -rf build
 	rm -f VERSION
 
+bench:
+	go test -bench=. ./cmd/cb-event-forwarder/
+
 sdist:
+	dep ensure
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp Makefile *.go static leef conf deepcopy sensor_events init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp Makefile Gopkg.toml cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cvz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
+	sleep 1
 	mkdir -p dist
 	cp -p build/cb-event-forwarder-${GIT_VERSION}.tar.gz dist/
 

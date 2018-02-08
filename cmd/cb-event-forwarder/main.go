@@ -9,8 +9,8 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/leef"
-	"github.com/carbonblack/cb-event-forwarder/sensor_events"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -54,7 +54,7 @@ type Status struct {
 var status Status
 
 var (
-	results       chan string
+	results      chan string
 	outputErrors chan error
 )
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	leef "github.com/carbonblack/cb-event-forwarder/leef"
+	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"testing"
 )
 
