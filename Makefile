@@ -10,7 +10,11 @@ GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 cb-event-forwarder: build
 
 build:
-	go build ./cmd/cb-event-forwarder 
+	go get -u github.com/golang/protobuf/proto
+	go get -u github.com/golang/protobuf/protoc-gen-go
+	go generate ./internal/sensor_events
+	dep ensure
+	go build ./cmd/cb-event-forwarder
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
