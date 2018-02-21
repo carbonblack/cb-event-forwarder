@@ -31,15 +31,15 @@
 
 [[constraint]]
   name = "github.com/Shopify/sarama"
-  version = "1.15.0"
+  version = "1.16.0"
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
-  version = "1.12.69"
+  version = "1.13.2"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/golang/protobuf"
+  version = "1.0.0"
 
 [[constraint]]
   name = "github.com/hpcloud/tail"
@@ -63,7 +63,7 @@
 
 [[constraint]]
   name = "zvelo.io/ttlru"
-  version = "1.0.1"
+  version = "1.0.2"
 
 [prune]
   go-tests = true
