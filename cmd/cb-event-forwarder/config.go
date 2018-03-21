@@ -97,6 +97,7 @@ type Configuration struct {
 	//Splunkd
 	SplunkToken *string
 
+	AddToOutput map[string]string
 	RemoveFromOutput []string
 	AuditLog         bool
 }
@@ -251,6 +252,22 @@ func ParseConfig(fn string) (Configuration, error) {
 			customFormatter.FullTimestamp = true
 
 			log.Debug("Debugging output is set to True")
+		}
+	}
+
+	config.AddToOutput = make(map[string]string)
+
+	addToOutput, ok := input.Get("bridge", "add_to_output")
+	if ok {
+		thingsToAdd := strings.Split(addToOutput, ",")
+
+		for _, element := range thingsToAdd {
+			keyValToAdd := strings.Split(element, "=")
+			if len(keyValToAdd) >= 2 {
+				key := strings.TrimSpace(keyValToAdd[0])
+				val := strings.TrimSpace(keyValToAdd[1])
+				config.AddToOutput[key] = val
+			}
 		}
 	}
 
