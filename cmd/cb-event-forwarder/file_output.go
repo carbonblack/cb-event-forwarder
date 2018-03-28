@@ -82,10 +82,8 @@ func (o *FileOutput) Initialize(fileName string) error {
 	if config.FileHandlerCompressData != false {
 		log.Info("File handler configured to compress data")
 		o.outputGzWriter = gzip.NewWriter(fp)
-		o.outputFile = o.outputGzWriter
-	} else {
-		o.outputFile = fp
 	}
+	o.outputFile = fp
 
 	o.fileOpenedAt = time.Now()
 	o.lastRolledOver = time.Now()
@@ -181,17 +179,15 @@ func (o *FileOutput) flushOutput(force bool) error {
 			o.bufferOutput.lastFlush = time.Now()
 			return nil
 
+		} else if o.outputFile != nil {
+			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+			if err != nil {
+				return err
+			}
+			o.bufferOutput.buffer.Reset()
+			o.bufferOutput.lastFlush = time.Now()
+			return nil
 		}
-		_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
-
-		if err != nil {
-			return err
-		}
-
-		o.bufferOutput.buffer.Reset()
-		o.bufferOutput.lastFlush = time.Now()
-		return nil
-
 	}
 	return nil
 }
@@ -235,7 +231,13 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 }
 
 func (o *FileOutput) closeFile() {
+	if o.outputGzWriter != nil {
+		o.flushOutput(true)
+		o.outputGzWriter.Close()
+		o.outputGzWriter = nil
+	}
 	if o.outputFile != nil {
+		o.flushOutput(true)
 		log.Debugf("Closing file %s", o.outputFileName)
 		o.outputFile.Close()
 		o.outputFile = nil
