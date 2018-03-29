@@ -92,7 +92,8 @@ type Configuration struct {
 
 	// Kafka-specific configuration
 	KafkaBrokers     *string
-	KafkaTopicSuffix *string
+    KafkaTopicSuffix *string
+	KafkaMaxRequestSize int32 
 
 	//Splunkd
 	SplunkToken *string
@@ -482,6 +483,12 @@ func ParseConfig(fn string) (Configuration, error) {
 			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
 			if ok {
 				config.KafkaTopicSuffix = &kafkaTopicSuffix
+			}
+			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
+			if ok {
+                if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize,10,32); err == nil {
+				    config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+                }
 			}
 		case "splunk":
 			parameterKey = "splunkout"
