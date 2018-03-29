@@ -1,12 +1,14 @@
 #pip install confluent-kafka
 import sys
 import glob
+import json
 from confluent_kafka import Producer
 
 def main(args):
     arg_len = len(args)
     if arg_len < 2:
         print ("usage: kafka_util.py broker1:port1,broker2,port2 /path/to/json/files/like_*.json optional_topic_suffix")
+        exit()
     brokers = args[0].split(",")
     path = args[1]
     files = glob.glob(path)
