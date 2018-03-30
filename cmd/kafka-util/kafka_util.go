@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"bufio"
@@ -24,21 +24,21 @@ func main() {
 	}
 	files, err := filepath.Glob(args[2])
 	if err != nil {
-		log.Panicf("Filepath error %v",err)
+		log.Panicf("Filepath error %v", err)
 	}
-	log.Infof("Files: %s",files)
+	log.Infof("Files: %s", files)
 	brokers := strings.Split(args[1], ",")
-	log.Infof("Brokers: %s",brokers)
+	log.Infof("Brokers: %s", brokers)
 	topic_suffix := ""
 	if len(args) == 4 {
 		topic_suffix = args[3]
 	}
-	log.Infof("Topic_Suffix: %s",topic_suffix)
+	log.Infof("Topic_Suffix: %s", topic_suffix)
 	kafkaProducer, err := NewProducer(brokers)
 	defer kafkaProducer.Close()
 
 	if err != nil {
-		log.Panicf("Error setting up kafka producer: %v",err)
+		log.Panicf("Error setting up kafka producer: %v", err)
 	} else {
 		log.Infof("Setup kafkaproducer Ok")
 	}
@@ -59,11 +59,12 @@ func main() {
 				var f interface{}
 				err := json.Unmarshal(b, &f)
 				if err == nil {
-					log.Infof("JSON: %s", f)
 					m := f.(map[string]interface{})
 					t, _ := m["type"].(string)
 					topic := strings.Replace(t, "ingress.event.", "", -1)
 					topic = topic + topic_suffix
+					log.Infof("JSON: %s", f)
+
 					kafkaProducer.Input() <- &sarama.ProducerMessage{
 						Topic: topic,
 						Key:   nil,
