@@ -15,28 +15,30 @@ import (
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
-func parseFullGUID(v string) (string, int, error) {
+func parseFullGUID(v string) (string, uint64, error) {
 
-	var segmentNumber int64
+	var segmentNumber uint64
 	var err error
 
 	segmentNumber = 1
 
 	switch {
 	case len(v) < 36:
-		return v, int(segmentNumber), errors.New("Truncated GUID")
+		return v, segmentNumber, errors.New("Truncated GUID")
 	case len(v) == 36:
-		return v, int(segmentNumber), nil
+		return v, segmentNumber, nil
 	case len(v) == 45:
-		segmentNumber, err = strconv.ParseInt(v[37:], 16, 32)
+		segmentNumber, err = strconv.ParseUint(v[37:], 16, 64)
 		if err != nil {
 			segmentNumber = 1
 		}
+	case len(v) == 49: // Cb Response versions 6.x and above
+		segmentNumber, err = strconv.ParseUint(v[37:], 16, 64)
 	default:
 		err = errors.New("Truncated GUID")
 	}
 
-	return v[:36], int(segmentNumber), err
+	return v[:36], segmentNumber, err
 }
 
 func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsedQuery string, err error) {
