@@ -15,15 +15,19 @@ build:
 	go generate ./internal/sensor_events
 	dep ensure
 	go build ./cmd/cb-event-forwarder
+	go build ./cmd/kafka-util
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
 	dep ensure; \
 	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+	go build -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
+
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
+	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
@@ -65,4 +69,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 3' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 4' -bb cb-event-forwarder.rpm.spec
