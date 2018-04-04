@@ -25,10 +25,11 @@ func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 }
 
 func main() {
-    flag.Parse()
+	flag.Parse()
 	if *brokerList == "" {
 		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 [-topicSuffix suffix -requestMaxSize 9000] files")
 	}
+	log.Infof("Kafka Utility:")
 	files := flag.Args()
 	log.Infof("Files: %s", files)
 	brokers := strings.Split(*brokerList, ",")
@@ -40,11 +41,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up kafka producer: %v", err)
 	} else {
-		log.Infof("Setup kafkaproducer Ok")
+		log.Infof("Setup Ok")
 		defer kafkaProducer.Close()
 	}
 	for _, file_name := range files {
-		log.Infof("trying file %s", file_name)
+		log.Debugf("trying file %s", file_name)
 		file, err := os.Open(file_name)
 		if err != nil {
 			log.Fatal(err)
@@ -69,13 +70,13 @@ func main() {
 				case err := <-kafkaProducer.Errors():
 					log.Infof("Failed to produce message", err)
 				case <-kafkaProducer.Successes():
-					log.Infof("Produced message!")
+					log.Debugf("Produced message!")
 				}
 			} else {
 				log.Infof("Error unmarshalling json: %v", err)
 			}
 
 		}
-		log.Infof("Done scanning file ", file_name)
+		log.Infof("Done processing file ", file_name)
 	}
 }
