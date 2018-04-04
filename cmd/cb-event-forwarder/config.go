@@ -91,9 +91,9 @@ type Configuration struct {
 	CbAPIProxyURL             string
 
 	// Kafka-specific configuration
-	KafkaBrokers     *string
-    KafkaTopicSuffix *string
-	KafkaMaxRequestSize int32 
+	KafkaBrokers        *string
+	KafkaTopicSuffix    *string
+	KafkaMaxRequestSize int32
 
 	//Splunkd
 	SplunkToken *string
@@ -108,7 +108,13 @@ type ConfigurationError struct {
 }
 
 func (c *Configuration) AMQPURL() string {
-	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
+	scheme := "amqp"
+
+	if config.AMQPTLSEnabled {
+		scheme = "amqps"
+	}
+
+	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
 }
 
 func (e ConfigurationError) Error() string {
@@ -486,9 +492,9 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
 			if ok {
-                if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize,10,32); err == nil {
-				    config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
-                }
+				if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize, 10, 32); err == nil {
+					config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+				}
 			}
 		case "splunk":
 			parameterKey = "splunkout"
