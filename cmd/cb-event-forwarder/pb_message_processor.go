@@ -64,7 +64,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
 		if messageLength+bytesRead > totalLength {
 			err = fmt.Errorf("Error in ProcessProtobufBundle for event index %d: Length %d is insane. Giving up",
-				messageLength)
+				i, messageLength)
 			break
 		}
 
