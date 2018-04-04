@@ -91,9 +91,9 @@ type Configuration struct {
 	CbAPIProxyURL             string
 
 	// Kafka-specific configuration
-	KafkaBrokers     *string
-    KafkaTopicSuffix *string
-	KafkaMaxRequestSize int32 
+	KafkaBrokers        *string
+	KafkaTopicSuffix    *string
+	KafkaMaxRequestSize int32
 
 	//Splunkd
 	SplunkToken *string
@@ -486,9 +486,11 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
 			if ok {
-                if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize,10,32); err == nil {
-				    config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
-                }
+				if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize, 10, 32); err == nil {
+					config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+				}
+			} else {
+				config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
 			}
 		case "splunk":
 			parameterKey = "splunkout"

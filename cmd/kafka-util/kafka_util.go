@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -11,48 +12,49 @@ import (
 	"time"
 )
 
+var requestMaxSize = flag.Int("MaxRequestSize", 1000000, "sarama.MaxRequestSize")
+var filePath = flag.String("FilePath", "", "Path to files")
+var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs")
+var topicSuffix = flag.String("topicSuffix", "", "Optional topic suffix to use")
+
 func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 	kafkaConfig := sarama.NewConfig()
-	sarama.MaxRequestSize = 1000000
+	sarama.MaxRequestSize = int32(*requestMaxSize)
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
-	kafkaConfig.Producer.Compression = sarama.CompressionSnappy   // Compress messages
 	kafkaConfig.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
 	return sarama.NewAsyncProducer(brokers, kafkaConfig)
 }
 
 func main() {
-	args := os.Args
-	if len(args) < 3 {
-		log.Fatal("usage: kafka_util broker-list \"file-path\" optional-topic-suffix")
+    flag.Parse()
+	if *filePath == "" || *brokerList == "" {
+		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 -FilePath /path/to/event_bridge_output.json [-topicSuffix suffix -requestMaxSize 9000]")
 	}
-	files, err := filepath.Glob(args[2])
+	files, err := filepath.Glob(*filePath)
 	if err != nil {
 		log.Fatalf("Filepath error %v", err)
 	}
-	log.Debugf("Files: %s", files)
-	brokers := strings.Split(args[1], ",")
-	log.Debugf("Brokers: %s", brokers)
-	topic_suffix := ""
-	if len(args) == 4 {
-		topic_suffix = args[3]
-	}
-	log.Debugf("Topic_Suffix: %s", topic_suffix)
+	log.Infof("Files: %s", files)
+	brokers := strings.Split(*brokerList, ",")
+	log.Infof("Brokers: %s", brokers)
+	topic_suffix := *topicSuffix
+	log.Infof("Topic_Suffix: %s", topic_suffix)
 	kafkaProducer, err := NewProducer(brokers)
 
 	if err != nil {
 		log.Fatalf("Error setting up kafka producer: %v", err)
 	} else {
-		log.Debugf("Setup kafkaproducer Ok")
+		log.Infof("Setup kafkaproducer Ok")
 		defer kafkaProducer.Close()
 	}
 	for _, file_name := range files {
-		log.Debugf("trying file %s", file_name)
+		log.Infof("trying file %s", file_name)
 		file, err := os.Open(file_name)
 		if err != nil {
 			log.Fatal(err)
 		} else {
-			log.Debugf("Opened file %s", file_name)
+			log.Infof("Opened file %s", file_name)
 		}
 		defer file.Close()
 		scanner := bufio.NewScanner(file)
@@ -70,15 +72,15 @@ func main() {
 				select {
 				case kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: nil, Value: sarama.ByteEncoder(b)}:
 				case err := <-kafkaProducer.Errors():
-					log.Debugf("Failed to produce message", err)
+					log.Infof("Failed to produce message", err)
 				case <-kafkaProducer.Successes():
-					log.Debugf("Produced message!")
+					log.Infof("Produced message!")
 				}
 			} else {
-				log.Debugf("Error unmarshalling json: %v", err)
+				log.Infof("Error unmarshalling json: %v", err)
 			}
 
 		}
-		log.Debugf("Done scanning file ", file_name)
+		log.Infof("Done scanning file ", file_name)
 	}
 }
