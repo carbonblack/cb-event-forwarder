@@ -30,6 +30,22 @@ func WindowsTimeToUnixTime(windowsTime int64) int64 {
 	return windowsTime
 }
 
+func WindowsTimeToUnixTimeFloat(windowsTime int64) float64 {
+	// number of milliseconds between Jan 1st 1601 and Jan 1st 1970
+	var timeShift, newTime float64
+	timeShift = 11644473600000
+	newTime = float64(windowsTime)
+
+	if windowsTime == 0 {
+		return newTime
+	}
+
+	newTime /= 10000     // ns to ms
+	newTime -= timeShift // since 1601 to since 1970
+	newTime /= 1000
+	return newTime
+}
+
 func MakeGUID(sensorID, pid int32, createTime int64) string {
 	guidPart1 := uint32(sensorID)
 	guidPart2 := uint16(pid >> 16)

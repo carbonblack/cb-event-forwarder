@@ -42,7 +42,7 @@ test:
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
 	go test ./cmd/cb-event-forwarder
-	python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
+	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
 	rm -f cb-event-forwarder
