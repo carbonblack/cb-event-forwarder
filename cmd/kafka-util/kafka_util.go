@@ -29,7 +29,7 @@ func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 func main() {
     flag.Parse()
 	if *filePath == "" || *brokerList == "" {
-		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 -FilePath /path/to/event_bridge_output.json [-topicSuffix suffix -requestMaxSize 9000]")
+		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 -FilePath \"/path/to/event_bridge_output.json\" [-topicSuffix suffix -requestMaxSize 9000]")
 	}
 	files, err := filepath.Glob(*filePath)
 	if err != nil {
