@@ -7,13 +7,11 @@ import (
 	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
 
 var requestMaxSize = flag.Int("MaxRequestSize", 1000000, "sarama.MaxRequestSize")
-var filePath = flag.String("FilePath", "", "Path to files")
 var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs")
 var topicSuffix = flag.String("topicSuffix", "", "Optional topic suffix to use")
 
@@ -28,13 +26,10 @@ func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 
 func main() {
     flag.Parse()
-	if *filePath == "" || *brokerList == "" {
-		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 -FilePath \"/path/to/event_bridge_output.json\" [-topicSuffix suffix -requestMaxSize 9000]")
+	if *brokerList == "" {
+		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 [-topicSuffix suffix -requestMaxSize 9000] files")
 	}
-	files, err := filepath.Glob(*filePath)
-	if err != nil {
-		log.Fatalf("Filepath error %v", err)
-	}
+	files := flag.Args()
 	log.Infof("Files: %s", files)
 	brokers := strings.Split(*brokerList, ",")
 	log.Infof("Brokers: %s", brokers)
