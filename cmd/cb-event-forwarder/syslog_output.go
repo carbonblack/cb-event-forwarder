@@ -125,6 +125,7 @@ func (o *SyslogOutput) output(m string) error {
 	err := o.outputSocket.Info(m)
 	if err != nil {
 		o.closeAndScheduleReconnection()
+		atomic.AddInt64(&o.droppedEventCount, 1)
 	}
 
 	return err
