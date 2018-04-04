@@ -9,11 +9,12 @@ import (
 	"os"
 	"strings"
 	"time"
+	"fmt"
 )
 
 var requestMaxSize = flag.Int("MaxRequestSize", 1000000, "sarama.MaxRequestSize")
-var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs")
-var topicSuffix = flag.String("topicSuffix", "", "Optional topic suffix to use")
+var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs (required)")
+var topicSuffix = flag.String("TopicSuffix", "", "Optional topic suffix to use")
 
 func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 	kafkaConfig := sarama.NewConfig()
@@ -25,10 +26,19 @@ func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
 }
 
 func main() {
-	flag.Parse()
-	if *brokerList == "" {
-		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 [-topicSuffix suffix -requestMaxSize 9000] files")
+	flag.Usage = func() {
+        fmt.Fprintf(os.Stderr, "%s -BrokerList localhost:9092,localhost:9093 [-TopicSuffix suffix -requestMaxSize 9000] files\n", os.Args[0])
+        flag.PrintDefaults()
 	}
+
+	flag.Parse()
+
+	if *brokerList == "" {
+		fmt.Fprintln(os.Stderr, "Error: -BrokerList option is required\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	log.Infof("Kafka Utility:")
 	files := flag.Args()
 	log.Infof("Files: %s", files)
