@@ -345,6 +345,10 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		outmsg["process_guid"] = processGUID
 		outmsg["pid"] = inmsg.OriginalMessage.Header.GetProcessPid()
 
+		if inmsg.OriginalMessage.Header.ForkPid != nil {
+			outmsg["fork_pid"] = inmsg.OriginalMessage.Header.GetForkPid()
+		}
+
 		/*
 		 * Sometimes Process path is empty
 		 */
