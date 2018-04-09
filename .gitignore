@@ -32,6 +32,10 @@ tests/gold_output
 tests/leef_output
 tests/output.txt
 
+#cmd utilities don't need to be in git
+cmd/cb-event-forwarder/cb-event-forwarder
+cmd/kafka-util/kafka-util
+
 # Compiled python module files
 *.pyc
 
