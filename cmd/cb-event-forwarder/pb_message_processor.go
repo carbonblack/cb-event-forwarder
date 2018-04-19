@@ -235,6 +235,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 
 	outmsg := make(map[string]interface{})
 	outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	outmsg["process_create_time"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetProcessCreateTime())
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
