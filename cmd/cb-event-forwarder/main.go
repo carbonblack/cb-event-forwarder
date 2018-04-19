@@ -228,6 +228,11 @@ func outputMessage(msg map[string]interface{}) error {
 	//
 	msg["cb_server"] = config.ServerName
 
+	// Add key=value pairs that has been configured to be added
+	for key, val := range config.AddToOutput {
+		msg[key] = val
+	}
+
 	// Remove keys that have been configured to be removed
 	for _, v := range config.RemoveFromOutput {
 		delete(msg, v)
