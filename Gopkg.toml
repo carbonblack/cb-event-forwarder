@@ -65,6 +65,11 @@
   name = "zvelo.io/ttlru"
   version = "1.0.2"
 
+[[override]]
+  name = "gopkg.in/fsnotify.v1"
+  branch = "master"
+  source = "github.com/fsnotify/fsnotify"
+
 [prune]
   go-tests = true
   unused-packages = true

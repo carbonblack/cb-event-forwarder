@@ -64,7 +64,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
 		if messageLength+bytesRead > totalLength {
 			err = fmt.Errorf("Error in ProcessProtobufBundle for event index %d: Length %d is insane. Giving up",
-				messageLength)
+				i, messageLength)
 			break
 		}
 
@@ -345,9 +345,11 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		processGUID := GetProcessGUID(cbMessage)
 		outmsg["process_guid"] = processGUID
 		outmsg["pid"] = inmsg.OriginalMessage.Header.GetProcessPid()
-		if inmsg.OriginalMessage.Header.GetForkPid() != 0 {
+
+		if inmsg.OriginalMessage.Header.ForkPid != nil {
 			outmsg["fork_pid"] = inmsg.OriginalMessage.Header.GetForkPid()
 		}
+
 		/*
 		 * Sometimes Process path is empty
 		 */
@@ -404,7 +406,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["parent_path"] = om.Process.GetParentPath()
 	kv["parent_pid"] = om.Process.GetParentPid()
 	kv["parent_guid"] = om.Process.GetParentGuid()
-	kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+	kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {

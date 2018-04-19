@@ -91,12 +91,14 @@ type Configuration struct {
 	CbAPIProxyURL             string
 
 	// Kafka-specific configuration
-	KafkaBrokers     *string
-	KafkaTopicSuffix *string
+	KafkaBrokers        *string
+	KafkaTopicSuffix    *string
+	KafkaMaxRequestSize int32
 
 	//Splunkd
 	SplunkToken *string
 
+	AddToOutput map[string]string
 	RemoveFromOutput []string
 	AuditLog         bool
 }
@@ -107,7 +109,13 @@ type ConfigurationError struct {
 }
 
 func (c *Configuration) AMQPURL() string {
-	return fmt.Sprintf("amqp://%s:%s@%s:%d", c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
+	scheme := "amqp"
+
+	if config.AMQPTLSEnabled {
+		scheme = "amqps"
+	}
+
+	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
 }
 
 func (e ConfigurationError) Error() string {
@@ -251,6 +259,22 @@ func ParseConfig(fn string) (Configuration, error) {
 			customFormatter.FullTimestamp = true
 
 			log.Debug("Debugging output is set to True")
+		}
+	}
+
+	config.AddToOutput = make(map[string]string)
+
+	addToOutput, ok := input.Get("bridge", "add_to_output")
+	if ok {
+		thingsToAdd := strings.Split(addToOutput, ",")
+
+		for _, element := range thingsToAdd {
+			keyValToAdd := strings.Split(element, "=")
+			if len(keyValToAdd) >= 2 {
+				key := strings.TrimSpace(keyValToAdd[0])
+				val := strings.TrimSpace(keyValToAdd[1])
+				config.AddToOutput[key] = val
+			}
 		}
 	}
 
@@ -482,6 +506,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
 			if ok {
 				config.KafkaTopicSuffix = &kafkaTopicSuffix
+			}
+			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
+			if ok {
+				if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize, 10, 32); err == nil {
+					config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+				}
+			} else {
+				config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
 			}
 		case "splunk":
 			parameterKey = "splunkout"

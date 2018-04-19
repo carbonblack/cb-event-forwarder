@@ -2,17 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"sync"
-	"time"
-
 	"fmt"
 	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 type KafkaOutput struct {
@@ -38,6 +37,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topicSuffix = *config.KafkaTopicSuffix
 
 	kafkaConfig := sarama.NewConfig()
+	sarama.MaxRequestSize = config.KafkaMaxRequestSize
 	kafkaConfig.Producer.Return.Successes = true
 
 	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)

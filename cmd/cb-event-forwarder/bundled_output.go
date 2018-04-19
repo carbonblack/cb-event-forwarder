@@ -292,8 +292,6 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 			case <-term:
 				// handle exit gracefully
 				errorChan <- errors.New("SIGTERM received")
-				o.tempFileOutput.flushOutput(true)
-				o.tempFileOutput.closeFile()
 				refreshTicker.Stop()
 				log.Info("Received SIGTERM. Exiting")
 				return
