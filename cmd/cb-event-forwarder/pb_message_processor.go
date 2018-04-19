@@ -234,7 +234,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	}
 
 	outmsg := make(map[string]interface{})
-	outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	outmsg["timestamp"] = WindowsTimeToUnixTime(inmsg.OriginalMessage.Header.GetTimestamp())
+	outmsg["process_create_time"] = WindowsTimeToUnixTime(inmsg.OriginalMessage.Header.GetProcessCreateTime())
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
@@ -494,6 +495,9 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "childproc"
 	kv["type"] = "ingress.event.childproc"
+
+	kv["child_proc_type"] = message.OriginalMessage.Childproc.GetChildProcType()
+	
 	om := message.OriginalMessage
 	kv["created"] = om.Childproc.GetCreated()
 

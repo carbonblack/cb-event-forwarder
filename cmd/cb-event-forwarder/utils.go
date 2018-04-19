@@ -15,19 +15,23 @@ import (
  * conversion routines
  */
 
-func WindowsTimeToUnixTime(windowsTime int64) int64 {
+func WindowsTimeToUnixTime(windowsTime int64) float64 {
+
 	// number of milliseconds between Jan 1st 1601 and Jan 1st 1970
 	var timeShift int64
 	timeShift = 11644473600000
-
+	
 	if windowsTime == 0 {
-		return windowsTime
+		return float64(windowsTime)
 	}
 
 	windowsTime /= 10000     // ns to ms
 	windowsTime -= timeShift // since 1601 to since 1970
-	windowsTime /= 1000
-	return windowsTime
+	var windowsTimeFloat float64
+	windowsTimeFloat = float64(windowsTime)
+	windowsTimeFloat /= 1000
+	return windowsTimeFloat
+
 }
 
 func WindowsTimeToUnixTimeFloat(windowsTime int64) float64 {
