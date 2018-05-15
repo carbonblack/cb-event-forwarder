@@ -4,7 +4,7 @@ This utility is intended to be used to move backup CbR Event Forwarder output fi
 Assuming you have been writing event forwarder log files to `$SOMEDIR/cb/*.json`: 
 `./kafka-util -BrokerList localhost:9092 -topicSuffix frombackup $SOMEDIR/cb/*.json`
 The created topics are based on the 'type' in the incoming JSON event. "ingress.event" is removed and the optional topic suffix will be appended if specified.  
-The requestMaxSize paramter controls the sarama.MaxRequestSize parameter.
+The requestMaxSize parameter controls the sarama.MaxRequestSize parameter.
 
 # Example run
 ```
