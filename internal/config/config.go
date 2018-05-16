@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"crypto/tls"
@@ -101,6 +101,11 @@ type Configuration struct {
 	AddToOutput map[string]string
 	RemoveFromOutput []string
 	AuditLog         bool
+
+	//Hack: Plugins
+	LoadPlugins bool
+	PluginsPath string
+	Plugins []string
 }
 
 type ConfigurationError struct {
@@ -111,7 +116,7 @@ type ConfigurationError struct {
 func (c *Configuration) AMQPURL() string {
 	scheme := "amqp"
 
-	if config.AMQPTLSEnabled {
+	if c.AMQPTLSEnabled {
 		scheme = "amqps"
 	}
 
@@ -699,6 +704,27 @@ func ParseConfig(fn string) (Configuration, error) {
 	if !errs.Empty {
 		return config, errs
 	}
+
+	loadPlugins, ok := input.Get("plugins","load_plugins")
+	if ok {
+		config.LoadPlugins, err = strconv.ParseBool(loadPlugins)
+		if err != nil {
+			errs.addErrorString("Unable to parse load_plugins from config [plugins] section")
+		}
+	}
+	if config.LoadPlugins {
+		strplugins, ok := input.Get("plugins","plugins")
+		config.Plugins = strings.Split(strplugins, ",")
+		strPluginPath, ok := input.Get("plugins","plugin_path")
+		if ok {
+			config.PluginsPath = strPluginPath
+		} else {
+			config.PluginsPath = "."
+		}
+	}
+
+
+
 	return config, nil
 }
 

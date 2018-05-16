@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -29,7 +30,7 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string) error {
+func (o *KafkaOutput) Initialize(unused string, config * config.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 
@@ -123,3 +124,5 @@ func (o *KafkaOutput) output(topic string, m string) {
 	}, o.deliveryChannel)
 
 }
+
+var PluginOutputHandler KafkaOutput
