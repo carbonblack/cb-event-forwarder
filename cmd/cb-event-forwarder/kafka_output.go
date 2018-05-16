@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-    	kafka "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -43,7 +43,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 		return err
 	}
 
-
 	fmt.Printf("Created Producer %v\n", producer)
 
 	o.producer = producer
@@ -65,35 +64,34 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 		for {
 			select {
-				case message := <-messages:
-					var parsedMsg map[string]interface{}
+			case message := <-messages:
+				var parsedMsg map[string]interface{}
 
-					json.Unmarshal([]byte(message), &parsedMsg)
-					topic := parsedMsg["type"]
-					if topicString, ok := topic.(string); ok {
-						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-						topicString += o.topicSuffix
+				json.Unmarshal([]byte(message), &parsedMsg)
+				topic := parsedMsg["type"]
+				if topicString, ok := topic.(string); ok {
+					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+					topicString += o.topicSuffix
 
-						o.output(topicString, message)
-					} else {
-						log.Info("ERROR: Topic was not a string")
-					}
-				case e := <-o.deliveryChannel:
-					m := e.(*kafka.Message)
-					if m.TopicPartition.Error != nil {
-						log.Info("Delivery failed: %v\n", m.TopicPartition.Error)
-						atomic.AddInt64(&o.droppedEventCount, 1)
-						errorChan <- m.TopicPartition.Error
-					} else {
-						log.Info("Delivered message to topic %s [%d] at offset %v\n",
-							*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
-						atomic.AddInt64(&o.eventSentCount, 1)
-					}
+					o.output(topicString, message)
+				} else {
+					log.Info("ERROR: Topic was not a string")
+				}
+			case e := <-o.deliveryChannel:
+				m := e.(*kafka.Message)
+				if m.TopicPartition.Error != nil {
+					log.Info("Delivery failed: %v\n", m.TopicPartition.Error)
+					atomic.AddInt64(&o.droppedEventCount, 1)
+					errorChan <- m.TopicPartition.Error
+				} else {
+					log.Info("Delivered message to topic %s [%d] at offset %v\n",
+						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+					atomic.AddInt64(&o.eventSentCount, 1)
+				}
 			}
 		}
 
 	}()
-
 
 	return nil
 }
