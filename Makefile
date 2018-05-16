@@ -14,8 +14,8 @@ build:
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
 	dep ensure
-	go build ./cmd/cb-event-forwarder
-	go build ./cmd/kafka-util
+	go build ./cmd/cb-event-forwarder 
+	go build ./cmd/kafka-util 
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
