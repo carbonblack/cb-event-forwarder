@@ -1,10 +1,11 @@
-package main
+package util 
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"gopkg.in/h2non/filetype.v1"
 	"net"
 	"os"
@@ -81,7 +82,7 @@ func GetIPv4AddressSigned(addr int32) string {
 	return net.IPv4(b[0], b[1], b[2], b[3]).String()
 }
 
-func ntohs(p uint16) uint16 {
+func Ntohs(p uint16) uint16 {
 	return ((p >> 8) & 0xff) | ((p << 8) & 0xff00)
 }
 
@@ -136,7 +137,7 @@ func IsGzip(fp *os.File) bool {
 	return false
 }
 
-func MoveFileToDebug(name string) {
+func MoveFileToDebug(config conf.Configuration,name string) {
 	if config.DebugFlag {
 		baseName := filepath.Base(name)
 		dest := filepath.Join(config.DebugStore, baseName)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,6 +21,8 @@ type HTTPBehavior struct {
 	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
+
+	config conf.Configuration
 }
 
 type HTTPStatistics struct {
@@ -26,7 +30,7 @@ type HTTPStatistics struct {
 }
 
 /* Construct the HTTPBehavior object */
-func (this *HTTPBehavior) Initialize(dest string) error {
+func (this *HTTPBehavior) Initialize(dest string, config conf.Configuration) error {
 	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
@@ -66,7 +70,7 @@ func (this *HTTPBehavior) Key() string {
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
+func (this *HTTPBehavior) Upload(fileName string, fp *os.File) output.UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -86,7 +90,7 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
@@ -99,7 +103,7 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
 	if err != nil {
-		return UploadStatus{fileName: fileName, result: err}
+		return output.UploadStatus{FileName: fileName, Result: err}
 	}
 	defer resp.Body.Close()
 
@@ -108,8 +112,8 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
-		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("HTTP request failed: Error code %s", errorData), status: resp.StatusCode}
+		return output.UploadStatus{FileName: fileName,
+			Result: fmt.Errorf("HTTP request failed: Error code %s", errorData), Status: resp.StatusCode}
 	}
-	return UploadStatus{fileName: fileName, result: err, status: 200}
+	return output.UploadStatus{FileName: fileName, Result: err, Status: 200}
 }

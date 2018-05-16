@@ -9,9 +9,10 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -19,11 +20,11 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"plugin"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-	"plugin"
 )
 
 import _ "net/http/pprof"
@@ -42,9 +43,9 @@ type Status struct {
 	InputEventCount  *expvar.Int
 	OutputEventCount *expvar.Int
 	ErrorCount       *expvar.Int
-	IsConnected     bool
-	LastConnectTime time.Time
-	StartTime       time.Time
+	IsConnected      bool
+	LastConnectTime  time.Time
+	StartTime        time.Time
 
 	LastConnectError string
 	ErrorTime        time.Time
@@ -106,13 +107,6 @@ type Consumer struct {
 	tag     string
 }
 
-type OutputHandler interface {
-	Initialize(string) error
-	Go(messages <-chan string, errorChan chan<- error) error
-	String() string
-	Statistics() interface{}
-	Key() string
-}
 
 /*
  * worker
@@ -372,33 +366,29 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	return nil
 }
 
-func loadOutputFromPlugin(pluginName string) OutputHandler {
-	plugin, err := plugin.Open(pluginName+".so")
+func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHandler {
+	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginPath, pluginName)
+	plugin, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
 	if err != nil {
 		log.Panic(err)
 	}
-	output, err := plugin.Lookup("PluginOutputHandler")
+	pluginHandlerFuncRaw, err := plugin.Lookup("GetOutputHandler")
 	if err != nil {
-		log.Panicf("Failed to load plugin %v",err)
+		log.Panicf("Failed to load plugin %v", err)
 	}
-
-	oh, ok := output.(OutputHandler)
-	if !ok {
-		log.Panicf("Failed to type-coerce plugin var")
-	}
-	return oh
+	return pluginHandlerFuncRaw.(func() output.OutputHandler)()
 }
 
 func startOutputs() error {
 	// Configure the specific output.
 	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog' ,"http",'splunk'
-	var outputHandler OutputHandler
+	var outputHandler output.OutputHandler
 
 	parameters := config.OutputParameters
 
 	switch config.OutputType {
 	case conf.FileOutputType:
-		outputHandler = &FileOutput{}
+		outputHandler = &output.FileOutput{}
 	case conf.TCPOutputType:
 		outputHandler = &NetOutput{}
 		parameters = "tcp:" + parameters
@@ -406,20 +396,20 @@ func startOutputs() error {
 		outputHandler = &NetOutput{}
 		parameters = "udp:" + parameters
 	case conf.S3OutputType:
-		outputHandler = &BundledOutput{behavior: &S3Behavior{}}
+		outputHandler = &output.BundledOutput{Behavior: &S3Behavior{}}
 	case conf.SyslogOutputType:
 		outputHandler = &SyslogOutput{}
 	case conf.HTTPOutputType:
-		outputHandler = &BundledOutput{behavior: &HTTPBehavior{}}
+		outputHandler = &output.BundledOutput{Behavior: &HTTPBehavior{}}
 	case conf.SplunkOutputType:
-		outputHandler = &BundledOutput{behavior: &SplunkBehavior{}}
-	case conf.KafkaOutputType:
-		outputHandler = loadOutputFromPlugin("kafka_output")
+		outputHandler = &output.BundledOutput{Behavior: &SplunkBehavior{}}
+	case conf.PluginOutputType:
+		outputHandler = loadOutputFromPlugin(config.PluginPath, config.Plugin)
 	default:
 		return fmt.Errorf("No valid output handler found (%d)", config.OutputType)
 	}
 
-	err := outputHandler.Initialize(parameters)
+	err := outputHandler.Initialize(parameters, config)
 	if err != nil {
 		return err
 	}
@@ -576,9 +566,10 @@ func main() {
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	numConsumers := 1
-	if runtime.NumCPU() > 1 && config.OutputType == conf.KafkaOutputType {
-		numConsumers = runtime.NumCPU() / 2
-	}
+	/*
+		if runtime.NumCPU() > 1 && config.OutputType == conf.KafkaOutputType {
+			numConsumers = runtime.NumCPU() / 2
+		}*/
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
@@ -612,7 +603,6 @@ func main() {
 	} else {
 		log.Info("Not starting file processing loop")
 	}
-
 	for {
 		time.Sleep(30 * time.Second)
 	}

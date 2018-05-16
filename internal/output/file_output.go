@@ -1,10 +1,11 @@
-package main
+package output
 
 import (
 	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -21,6 +22,7 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
+	config              conf.Configuration
 	outputFileName      string
 	outputFileExtension string
 	outputFile          io.WriteCloser
@@ -50,9 +52,11 @@ func (o *FileOutput) Key() string {
 	return fmt.Sprintf("file:%s", o.outputFileName)
 }
 
-func (o *FileOutput) Initialize(fileName string) error {
+func (o *FileOutput) Initialize(fileName string, config conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
+
+	o.config = config
 
 	o.outputFileName = fileName
 
@@ -79,7 +83,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 		}
 	}
 
-	if config.FileHandlerCompressData != false {
+	if o.config.FileHandlerCompressData != false {
 		log.Info("File handler configured to compress data")
 		o.outputGzWriter = gzip.NewWriter(fp)
 	}
@@ -166,7 +170,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-		if config.FileHandlerCompressData && o.outputGzWriter != nil {
+		if o.config.FileHandlerCompressData && o.outputGzWriter != nil {
 
 			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
@@ -209,12 +213,12 @@ func (o *FileOutput) rollOverFile(tf string) (string, error) {
 		return "", err
 	}
 
-	return newName, o.Initialize(o.outputFileName)
+	return newName, o.Initialize(o.outputFileName, o.config)
 }
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	var newName string
-	if config.FileHandlerCompressData == true {
+	if o.config.FileHandlerCompressData == true {
 		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
 		newName = fileNameWithoutExtension + "." + o.lastRolledOver.Format(tf) + ".gz"
 	} else {

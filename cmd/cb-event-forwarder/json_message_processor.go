@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"reflect"
@@ -122,7 +123,7 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 			if value, ok := value.(json.Number); ok {
 				ipaddr, err := strconv.ParseInt(value.String(), 10, 32)
 				if err == nil {
-					msg[key] = GetIPv4AddressSigned(int32(ipaddr))
+					msg[key] = util.GetIPv4AddressSigned(int32(ipaddr))
 				}
 			}
 		}

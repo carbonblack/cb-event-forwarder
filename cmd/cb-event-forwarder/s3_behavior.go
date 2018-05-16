@@ -6,6 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
@@ -16,6 +18,7 @@ type S3Behavior struct {
 	bucketName string
 	out        *s3.S3
 	region     string
+	config     conf.Configuration
 }
 
 type S3Statistics struct {
@@ -24,7 +27,7 @@ type S3Statistics struct {
 	EncryptionEnabled bool   `json:"encryption_enabled"`
 }
 
-func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
+func (o *S3Behavior) Upload(fileName string, fp *os.File) output.UploadStatus {
 	var baseName string
 
 	//
@@ -48,10 +51,10 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 	log.WithFields(log.Fields{"Filename": fileName, "Bucket": &o.bucketName}).Debug("Uploading File to Bucket")
 
-	return UploadStatus{fileName: fileName, result: err}
+	return output.UploadStatus{FileName: fileName, Result: err}
 }
 
-func (o *S3Behavior) Initialize(connString string) error {
+func (o *S3Behavior) Initialize(connString string, config conf.Configuration) error {
 	// bucketName can either be a single value (just the bucket name itself, defaulting to "/var/cb/data/event-forwarder" as the
 	// temporary file directory and "us-east-1" for the AWS region), or:
 	//
@@ -94,6 +97,8 @@ func (o *S3Behavior) Initialize(connString string) error {
 		log.Infof("Could not open bucket %s: %s", o.bucketName, err)
 	}
 
+	o.config = config
+
 	return nil
 }
 
@@ -109,6 +114,6 @@ func (o *S3Behavior) Statistics() interface{} {
 	return S3Statistics{
 		BucketName:        o.bucketName,
 		Region:            o.region,
-		EncryptionEnabled: config.S3ServerSideEncryption != nil,
+		EncryptionEnabled: o.config.S3ServerSideEncryption != nil,
 	}
 }

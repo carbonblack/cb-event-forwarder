@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -16,7 +17,8 @@ import (
 )
 
 type KafkaOutput struct {
-	brokers           []string
+	config            conf.Configuration
+	brokers           string
 	topicSuffix       string
 	producer          *kafka.Producer
 	deliveryChannel   chan kafka.Event
@@ -30,23 +32,37 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string, config * config.Configuration) error {
+func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 
-	o.brokers = strings.Split(*config.KafkaBrokers, ",")
-	o.topicSuffix = *config.KafkaTopicSuffix
+	o.config = config
 
-	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": o.brokers[0]})
+	brokers, ok := config.GetInStanza("plugin", "bootstrapservers")
+	if ok {
+		o.brokers = brokers
+	} else {
+		o.brokers = "localhost:9092"
+	}
+
+	topicSuffix, ok := config.GetInStanza("plugin", "topicsuffix")
+	if ok {
+		o.topicSuffix = topicSuffix
+	} else {
+		o.topicSuffix = ""
+	}
+
+	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers})
 
 	if err != nil {
-		fmt.Printf("Failed to create producer: %s\n", err)
+		log.Infof("Failed to create producer: %s\n", err)
 		return err
 	}
 
-	fmt.Printf("Created Producer %v\n", producer)
+	log.Infof("Created Producer %v\n", producer)
 
 	o.producer = producer
+
 	o.deliveryChannel = make(chan kafka.Event)
 
 	return nil
@@ -81,11 +97,11 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case e := <-o.deliveryChannel:
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
-					log.Info("Delivery failed: %v\n", m.TopicPartition.Error)
+					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
 					atomic.AddInt64(&o.droppedEventCount, 1)
 					errorChan <- m.TopicPartition.Error
 				} else {
-					log.Info("Delivered message to topic %s [%d] at offset %v\n",
+					log.Infof("Delivered message to topic %s [%d] at offset %v\n",
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
@@ -100,7 +116,6 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 func (o *KafkaOutput) Statistics() interface{} {
 	o.RLock()
 	defer o.RUnlock()
-
 	return KafkaStatistics{DroppedEventCount: o.droppedEventCount, EventSentCount: o.eventSentCount}
 }
 
@@ -122,7 +137,22 @@ func (o *KafkaOutput) output(topic string, m string) {
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
 	}, o.deliveryChannel)
-
 }
 
-var PluginOutputHandler KafkaOutput
+func GetOutputHandler() output.OutputHandler {
+	return &KafkaOutput{}
+}
+
+func main() {
+	messages := make(chan string)
+	errors := make(chan error)
+	var kafkaOutput output.OutputHandler = &KafkaOutput{}
+	c, _ := conf.ParseConfig(os.Args[1])
+	kafkaOutput.Initialize("", c)
+	go func() {
+		kafkaOutput.Go(messages, errors)
+	}()
+	messages <- "{\"type\":\"Lol\"}"
+	log.Infof("%v", <-errors)
+
+}

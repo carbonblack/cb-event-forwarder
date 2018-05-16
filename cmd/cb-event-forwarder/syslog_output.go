@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	syslog "github.com/RackSec/srslog"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -27,6 +28,8 @@ type SyslogOutput struct {
 	droppedEventSinceConnection int64
 
 	sync.RWMutex
+
+	config conf.Configuration
 }
 
 type SyslogStatistics struct {
@@ -40,9 +43,11 @@ type SyslogStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp+tls:destination.server.example.com:512
-func (o *SyslogOutput) Initialize(netConn string) error {
+func (o *SyslogOutput) Initialize(netConn string, config conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
+
+	o.config = config
 
 	if o.connected {
 		o.outputSocket.Close()
@@ -154,7 +159,7 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error 
 
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
-					err := o.Initialize(o.String())
+					err := o.Initialize(o.String(), o.config)
 					if err != nil {
 						o.closeAndScheduleReconnection()
 					}

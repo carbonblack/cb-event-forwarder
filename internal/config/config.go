@@ -23,7 +23,7 @@ const (
 	SyslogOutputType
 	HTTPOutputType
 	SplunkOutputType
-	KafkaOutputType
+	PluginOutputType
 )
 
 const (
@@ -90,22 +90,17 @@ type Configuration struct {
 	CbAPIVerifySSL            bool
 	CbAPIProxyURL             string
 
-	// Kafka-specific configuration
-	KafkaBrokers        *string
-	KafkaTopicSuffix    *string
-	KafkaMaxRequestSize int32
-
 	//Splunkd
 	SplunkToken *string
 
-	AddToOutput map[string]string
+	AddToOutput      map[string]string
 	RemoveFromOutput []string
 	AuditLog         bool
 
 	//Hack: Plugins
-	LoadPlugins bool
-	PluginsPath string
-	Plugins []string
+	PluginPath string
+	Plugin     string
+	IniFile    ini.File
 }
 
 type ConfigurationError struct {
@@ -121,6 +116,10 @@ func (c *Configuration) AMQPURL() string {
 	}
 
 	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
+}
+
+func (c *Configuration) GetInStanza(stanza string, key string) (string, bool) {
+	return c.IniFile.Get(stanza, key)
 }
 
 func (e ConfigurationError) Error() string {
@@ -229,6 +228,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	if err != nil {
 		return config, err
 	}
+	config.IniFile = input
 
 	// defaults
 	config.DebugFlag = false
@@ -500,26 +500,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
-		case "kafka":
-			config.OutputType = KafkaOutputType
-
-			kafkaBrokers, ok := input.Get("kafka", "brokers")
-			if ok {
-				config.KafkaBrokers = &kafkaBrokers
-			}
-
-			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
-			if ok {
-				config.KafkaTopicSuffix = &kafkaTopicSuffix
-			}
-			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
-			if ok {
-				if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize, 10, 32); err == nil {
-					config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
-				}
-			} else {
-				config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
-			}
 		case "splunk":
 			parameterKey = "splunkout"
 			config.OutputType = SplunkOutputType
@@ -549,6 +529,8 @@ func ParseConfig(fn string) (Configuration, error) {
 				jsonString := "application/json"
 				config.HTTPContentType = &jsonString
 			}
+		case "plugin":
+			config.OutputType = PluginOutputType
 
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
@@ -701,29 +683,28 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.parseEventTypes(input)
 
+	if config.OutputType == PluginOutputType {
+		plugin, ok := input.Get("plugin", "plugin")
+		if ok {
+			config.Plugin = plugin
+			strPluginPath, ok := input.Get("plugin", "plugin_path")
+			if ok {
+				config.PluginPath = strPluginPath
+				log.Infof("Got plugin path correctly")
+			} else {
+				config.PluginPath = "."
+				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")
+			}
+		} else {
+			log.Info("No plugin specified in [plugin]!")
+			errs.addErrorString("Unable to parse plugin from config [plugin] section")
+		}
+
+	}
+
 	if !errs.Empty {
 		return config, errs
 	}
-
-	loadPlugins, ok := input.Get("plugins","load_plugins")
-	if ok {
-		config.LoadPlugins, err = strconv.ParseBool(loadPlugins)
-		if err != nil {
-			errs.addErrorString("Unable to parse load_plugins from config [plugins] section")
-		}
-	}
-	if config.LoadPlugins {
-		strplugins, ok := input.Get("plugins","plugins")
-		config.Plugins = strings.Split(strplugins, ",")
-		strPluginPath, ok := input.Get("plugins","plugin_path")
-		if ok {
-			config.PluginsPath = strPluginPath
-		} else {
-			config.PluginsPath = "."
-		}
-	}
-
-
 
 	return config, nil
 }
