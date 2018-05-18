@@ -1,7 +1,9 @@
-package main
+package output
 
 import (
 	"errors"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -13,13 +15,13 @@ import (
 )
 
 type UploadStatus struct {
-	fileName string
-	result   error
-	status   int
+	FileName string
+	Result   error
+	Status   int
 }
 
 type BundledOutput struct {
-	behavior BundleBehavior
+	Behavior BundleBehavior
 
 	tempFileDirectory string
 	tempFileOutput    *FileOutput
@@ -39,6 +41,7 @@ type BundledOutput struct {
 
 	// TODO: make this thread-safe from the status page
 	sync.RWMutex
+	config conf.Configuration
 }
 
 type BundleStatistics struct {
@@ -58,7 +61,7 @@ type BundleStatistics struct {
 // initialize itself, and report back statistics.
 type BundleBehavior interface {
 	Upload(fileName string, fp *os.File) UploadStatus
-	Initialize(connString string) error
+	Initialize(connString string, config conf.Configuration) error
 	Statistics() interface{}
 	Key() string
 	String() string
@@ -67,20 +70,20 @@ type BundleBehavior interface {
 func (o *BundledOutput) uploadOne(fileName string) {
 	fp, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
-		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
+		o.fileResultChan <- UploadStatus{FileName: fileName, Result: err}
 		return
 	}
 
 	fileInfo, err := fp.Stat()
 	if err != nil {
-		o.fileResultChan <- UploadStatus{fileName: fileName, result: err}
+		o.fileResultChan <- UploadStatus{FileName: fileName, Result: err}
 		fp.Close()
 		return
 	}
-	if fileInfo.Size() > 0 || config.UploadEmptyFiles {
+	if fileInfo.Size() > 0 || o.config.UploadEmptyFiles {
 		// only upload if the file size is greater than zero
-		uploadStatus := o.behavior.Upload(fileName, fp)
-		err = uploadStatus.result
+		uploadStatus := o.Behavior.Upload(fileName, fp)
+		err = uploadStatus.Result
 		o.fileResultChan <- uploadStatus
 	}
 
@@ -122,15 +125,17 @@ func (o *BundledOutput) queueStragglers() {
 	}
 }
 
-func (o *BundledOutput) Initialize(connString string) error {
+func (o *BundledOutput) Initialize(connString string, config conf.Configuration) error {
 	o.fileResultChan = make(chan UploadStatus)
 	o.filesToUpload = make([]string, 0)
 
+	o.config = config
+
 	// maximum file size before we trigger an upload is ~10MB.
-	o.maxFileSize = config.BundleSizeMax
+	o.maxFileSize = o.config.BundleSizeMax
 
 	// roll over duration defaults to five minutes
-	o.rollOverDuration = config.BundleSendTimeout
+	o.rollOverDuration = o.config.BundleSendTimeout
 
 	parts := strings.SplitN(connString, ":", 2)
 	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
@@ -141,11 +146,11 @@ func (o *BundledOutput) Initialize(connString string) error {
 		o.tempFileDirectory = "/var/cb/data/event-forwarder"
 	}
 
-	if o.behavior == nil {
+	if o.Behavior == nil {
 		return errors.New("BundledOutput Initialize called without a behavior")
 	}
 
-	if err := o.behavior.Initialize(connString); err != nil {
+	if err := o.Behavior.Initialize(connString, o.config); err != nil {
 		return err
 	}
 
@@ -156,7 +161,7 @@ func (o *BundledOutput) Initialize(connString string) error {
 	currentPath := filepath.Join(o.tempFileDirectory, "event-forwarder")
 
 	o.tempFileOutput = &FileOutput{}
-	err := o.tempFileOutput.Initialize(currentPath)
+	err := o.tempFileOutput.Initialize(currentPath, o.config)
 
 	// find files in the output directory that haven't been uploaded yet and add them to the list
 	// we ignore any errors that may occur during this process
@@ -179,7 +184,7 @@ func (o *BundledOutput) output(message string) error {
 }
 
 func (o *BundledOutput) rollOver() error {
-	if o.currentFileSize == 0 && !config.UploadEmptyFiles {
+	if o.currentFileSize == 0 && !o.config.UploadEmptyFiles {
 		// don't upload zero length files if UploadEmptyFiles is false
 		return nil
 	}
@@ -197,11 +202,11 @@ func (o *BundledOutput) rollOver() error {
 }
 
 func (o *BundledOutput) Key() string {
-	return o.behavior.Key()
+	return o.Behavior.Key()
 }
 
 func (o *BundledOutput) String() string {
-	return o.behavior.String()
+	return o.Behavior.String()
 }
 
 func (o *BundledOutput) Statistics() interface{} {
@@ -212,10 +217,10 @@ func (o *BundledOutput) Statistics() interface{} {
 		LastSuccessfulUpload: o.lastSuccessfulUpload,
 		UploadErrors:         o.uploadErrors,
 		HoldingArea:          o.tempFileOutput.Statistics(),
-		StorageStatistics:    o.behavior.Statistics(),
-		BundleSendTimeout:    int64(config.BundleSendTimeout / time.Second),
-		BundleSizeMax:        config.BundleSizeMax,
-		UploadEmptyFiles:     config.UploadEmptyFiles,
+		StorageStatistics:    o.Behavior.Statistics(),
+		BundleSendTimeout:    int64(o.config.BundleSendTimeout / time.Second),
+		BundleSizeMax:        o.config.BundleSizeMax,
+		UploadEmptyFiles:     o.config.UploadEmptyFiles,
 	}
 }
 
@@ -259,32 +264,32 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 				}
 
 			case fileResult := <-o.fileResultChan:
-				if fileResult.result != nil {
+				if fileResult.Result != nil {
 					o.uploadErrors++
-					o.lastUploadError = fileResult.result.Error()
+					o.lastUploadError = fileResult.Result.Error()
 					o.lastUploadErrorTime = time.Now()
 					//Handle 400s - lets stop processing the file and move it to debug zone
-					if fileResult.status != 400 {
+					if fileResult.Status != 400 {
 						// our default behavior is to try and upload the file next time around...
-						o.filesToUpload = append(o.filesToUpload, fileResult.fileName)
+						o.filesToUpload = append(o.filesToUpload, fileResult.FileName)
 					} else {
 						// if we receive HTTP 400 error code (Bad Request), we assume the error is "permanent" and
 						//  due not to some transient issue on the server side (overloading, service not available, etc)
 						//  and instead an issue with the data we've sent. So move the file to the debug area and
 						//  don't try to upload it again.
-						MoveFileToDebug(fileResult.fileName)
+						util.MoveFileToDebug(o.config, fileResult.FileName)
 					}
 
-					log.Infof("Error uploading file %s: %s", fileResult.fileName, fileResult.result)
+					log.Infof("Error uploading file %s: %s", fileResult.FileName, fileResult.Result)
 				} else {
 					o.successfulUploads++
 					o.lastSuccessfulUpload = time.Now()
-					log.Infof("Successfully uploaded file %s to %s.", fileResult.fileName, o.behavior.String())
+					log.Infof("Successfully uploaded file %s to %s.", fileResult.FileName, o.Behavior.String())
 				}
 
 			case <-hup:
 				// flush to S3 immediately
-				log.Infof("Received SIGHUP, sending data to %s immediately.", o.behavior.String())
+				log.Infof("Received SIGHUP, sending data to %s immediately.", o.Behavior.String())
 				if err := o.rollOver(); err != nil {
 					errorChan <- err
 					return

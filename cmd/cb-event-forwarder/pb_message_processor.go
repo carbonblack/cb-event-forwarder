@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -26,7 +27,7 @@ func GetProcessGUID(m *sensor_events.CbEventMsg) string {
 		createTime := m.Header.GetProcessCreateTime()
 		SensorId := m.Env.Endpoint.GetSensorId()
 
-		return MakeGUID(SensorId, pid, createTime)
+		return util.MakeGUID(SensorId, pid, createTime)
 	}
 	return fmt.Sprintf("%d", m.Header.GetProcessGuid())
 }
@@ -38,7 +39,7 @@ type ConvertedCbMessage struct {
 func (inmsg *ConvertedCbMessage) getStringByGUID(guid int64) (string, error) {
 	for _, rawString := range inmsg.OriginalMessage.GetStrings() {
 		if rawString.GetGuid() == guid {
-			return GetUnicodeFromUTF8(rawString.GetUtf8String()), nil
+			return util.GetUnicodeFromUTF8(rawString.GetUtf8String()), nil
 		}
 	}
 	return "", fmt.Errorf("Could not find string for id %d", guid)
@@ -234,8 +235,8 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	}
 
 	outmsg := make(map[string]interface{})
-	outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
-	outmsg["process_create_time"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetProcessCreateTime())
+	outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	outmsg["process_create_time"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetProcessCreateTime())
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
@@ -357,20 +358,20 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 			outmsg["process_path"] = inmsg.OriginalMessage.Header.GetProcessPath()
 		}
 		if _, ok := outmsg["md5"]; !ok {
-			outmsg["md5"] = GetMd5Hexdigest(inmsg.OriginalMessage.Header.GetProcessMd5())
+			outmsg["md5"] = util.GetMd5Hexdigest(inmsg.OriginalMessage.Header.GetProcessMd5())
 		}
 		if _, ok := outmsg["sha256"]; !ok {
-			outmsg["sha256"] = GetSha256Hexdigest(inmsg.OriginalMessage.Header.GetProcessSha256())
+			outmsg["sha256"] = util.GetSha256Hexdigest(inmsg.OriginalMessage.Header.GetProcessSha256())
 		}
 
 		// add link to process in the Cb UI if the Cb hostname is set
 		// TODO: not happy about reaching in to the "config" object for this
 		if config.CbServerURL != "" {
 
-			outmsg["link_process"] = FastStringConcat(
+			outmsg["link_process"] = util.FastStringConcat(
 				config.CbServerURL, "#analyze/", processGUID, "/1")
 
-			outmsg["link_sensor"] = FastStringConcat(
+			outmsg["link_sensor"] = util.FastStringConcat(
 				config.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
 		}
 	}
@@ -390,38 +391,38 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Process.GetCreated() {
 		kv["type"] = "ingress.event.procstart"
 		if message.OriginalMessage.Process.Md5Hash != nil {
-			kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Process.GetMd5Hash())
+			kv["md5"] = util.GetMd5Hexdigest(message.OriginalMessage.Process.GetMd5Hash())
 		}
 		if message.OriginalMessage.Process.Sha256Hash != nil {
-			kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Process.GetSha256Hash())
+			kv["sha256"] = util.GetSha256Hexdigest(message.OriginalMessage.Process.GetSha256Hash())
 		}
 	} else {
 		kv["type"] = "ingress.event.procend"
 	}
 
-	kv["command_line"] = GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
+	kv["command_line"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
 
 	om := message.OriginalMessage
 
 	kv["parent_path"] = om.Process.GetParentPath()
 	kv["parent_pid"] = om.Process.GetParentPid()
 	kv["parent_guid"] = om.Process.GetParentGuid()
-	kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
+	kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {
-		kv["parent_md5"] = GetMd5Hexdigest(om.Process.GetParentMd5())
+		kv["parent_md5"] = util.GetMd5Hexdigest(om.Process.GetParentMd5())
 	}
 
 	if message.OriginalMessage.Process.ParentSha256 != nil {
-		kv["parent_sha256"] = GetSha256Hexdigest(om.Process.GetSha256Hash())
+		kv["parent_sha256"] = util.GetSha256Hexdigest(om.Process.GetSha256Hash())
 	}
 
 	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
 
 	if om.Env != nil && om.Env.Endpoint != nil && om.Env.Endpoint.SensorId != nil && om.Process.ParentPid != nil &&
 		om.Process.ParentCreateTime != nil {
-		kv["parent_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), om.Process.GetParentPid(),
+		kv["parent_process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), om.Process.GetParentPid(),
 			om.Process.GetParentCreateTime())
 	} else {
 		kv["parent_process_guid"] = fmt.Sprintf("%d", om.Process.GetParentGuid())
@@ -448,8 +449,8 @@ func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{})
 
 	filePath, _ := message.getStringByGUID(message.OriginalMessage.Header.GetFilepathStringGuid())
 	kv["path"] = filePath
-	kv["md5"] = GetMd5Hexdigest(message.OriginalMessage.Modload.GetMd5Hash())
-	kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Modload.GetSha256Hash())
+	kv["md5"] = util.GetMd5Hexdigest(message.OriginalMessage.Modload.GetMd5Hash())
+	kv["sha256"] = util.GetSha256Hexdigest(message.OriginalMessage.Modload.GetSha256Hash())
 
 }
 
@@ -483,10 +484,10 @@ func WriteFilemodMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["filetype_name"] = strings.TrimPrefix(sensor_events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
 
 	if message.OriginalMessage.Filemod.Md5Hash != nil {
-		kv["file_md5"] = GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
+		kv["file_md5"] = util.GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
 	}
 	if message.OriginalMessage.Filemod.Sha256Hash != nil {
-		kv["file_sha256"] = GetSha256Hexdigest(message.OriginalMessage.Filemod.GetSha256Hash())
+		kv["file_sha256"] = util.GetSha256Hexdigest(message.OriginalMessage.Filemod.GetSha256Hash())
 	}
 	kv["tamper"] = message.OriginalMessage.Filemod.GetTamper()
 	kv["tamper_sent"] = message.OriginalMessage.Filemod.GetTamperSent()
@@ -508,7 +509,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 		// convert the pid to int32
 		pid32 := int32(pid & 0xffffffff)
 
-		kv["child_process_guid"] = MakeGUID(SensorId, pid32, createTime)
+		kv["child_process_guid"] = util.MakeGUID(SensorId, pid32, createTime)
 	} else {
 		kv["child_process_guid"] = om.Childproc.GetChildGuid()
 	}
@@ -524,8 +525,8 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	}
 
 	kv["path"] = om.Childproc.GetPath()
-	kv["md5"] = GetMd5Hexdigest(om.Childproc.GetMd5Hash())
-	kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
+	kv["md5"] = util.GetMd5Hexdigest(om.Childproc.GetMd5Hash())
+	kv["sha256"] = util.GetSha256Hexdigest(om.Childproc.GetSha256Hash())
 
 	childProcType := message.OriginalMessage.Childproc.GetChildProcType()
 	kv["childproc_type"] = strings.TrimPrefix(sensor_events.CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
@@ -535,7 +536,7 @@ func WriteChildprocMessage(message *ConvertedCbMessage, kv map[string]interface{
 	if om.Childproc.Suppressed != nil &&
 		om.Childproc.Suppressed.GetBIsSuppressed() {
 		kv["child_suppressed"] = true
-		kv["child_command_line"] = GetUnicodeFromUTF8(om.Childproc.GetCommandline())
+		kv["child_command_line"] = util.GetUnicodeFromUTF8(om.Childproc.GetCommandline())
 		kv["child_username"] = om.Childproc.GetUsername()
 	} else {
 		kv["child_suppressed"] = false
@@ -560,7 +561,7 @@ func WriteRegmodMessage(message *ConvertedCbMessage, kv map[string]interface{}) 
 	kv["event_type"] = "regmod"
 	kv["type"] = "ingress.event.regmod"
 
-	kv["path"] = GetUnicodeFromUTF8(message.OriginalMessage.Regmod.GetUtf8Regpath())
+	kv["path"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Regmod.GetUtf8Regpath())
 
 	action := message.OriginalMessage.Regmod.GetAction()
 	kv["action"] = regmodAction(action)
@@ -573,9 +574,9 @@ func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["event_type"] = "netconn"
 	kv["type"] = "ingress.event.netconn"
 
-	kv["domain"] = GetUnicodeFromUTF8(message.OriginalMessage.Network.GetUtf8Netpath())
-	kv["ipv4"] = GetIPv4Address(message.OriginalMessage.Network.GetIpv4Address())
-	kv["port"] = ntohs(uint16(message.OriginalMessage.Network.GetPort()))
+	kv["domain"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Network.GetUtf8Netpath())
+	kv["ipv4"] = util.GetIPv4Address(message.OriginalMessage.Network.GetIpv4Address())
+	kv["port"] = util.Ntohs(uint16(message.OriginalMessage.Network.GetPort()))
 	kv["protocol"] = int32(message.OriginalMessage.Network.GetProtocol())
 
 	if message.OriginalMessage.Network.GetOutbound() {
@@ -590,13 +591,13 @@ func WriteNetconnMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	// determine them
 
 	if message.OriginalMessage.Network.RemoteIpAddress != nil {
-		kv["remote_ip"] = GetIPv4Address(message.OriginalMessage.Network.GetRemoteIpAddress())
-		kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Network.GetRemotePort()))
+		kv["remote_ip"] = util.GetIPv4Address(message.OriginalMessage.Network.GetRemoteIpAddress())
+		kv["remote_port"] = util.Ntohs(uint16(message.OriginalMessage.Network.GetRemotePort()))
 	}
 
 	if message.OriginalMessage.Network.LocalIpAddress != nil {
-		kv["local_ip"] = GetIPv4Address(message.OriginalMessage.Network.GetLocalIpAddress())
-		kv["local_port"] = ntohs(uint16(message.OriginalMessage.Network.GetLocalPort()))
+		kv["local_ip"] = util.GetIPv4Address(message.OriginalMessage.Network.GetLocalIpAddress())
+		kv["local_port"] = util.Ntohs(uint16(message.OriginalMessage.Network.GetLocalPort()))
 	}
 }
 
@@ -612,14 +613,14 @@ func GetIPAddress(ipAddress *sensor_events.CbIpAddr) string {
 		}
 		return ipString
 	}
-	return GetIPv4Address(ipAddress.GetIpv4Address())
+	return util.GetIPv4Address(ipAddress.GetIpv4Address())
 }
 
 func WriteNetconn2Message(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "netconn"
 	kv["type"] = "ingress.event.netconn"
 
-	kv["domain"] = GetUnicodeFromUTF8(message.OriginalMessage.Networkv2.GetUtf8Netpath())
+	kv["domain"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Networkv2.GetUtf8Netpath())
 	kv["protocol"] = int32(message.OriginalMessage.Networkv2.GetProtocol())
 
 	if message.OriginalMessage.Networkv2.GetOutbound() {
@@ -634,17 +635,17 @@ func WriteNetconn2Message(message *ConvertedCbMessage, kv map[string]interface{}
 	if message.OriginalMessage.Networkv2.GetProxyConnection() {
 		kv["proxy"] = true
 		kv["proxy_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetProxyIpAddress())
-		kv["proxy_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetProxyPort()))
+		kv["proxy_port"] = util.Ntohs(uint16(message.OriginalMessage.Networkv2.GetProxyPort()))
 		kv["proxy_domain"] = message.OriginalMessage.Networkv2.GetProxyNetPath()
 	} else {
 		kv["proxy"] = false
 	}
 
 	kv["remote_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetRemoteIpAddress())
-	kv["remote_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetRemotePort()))
+	kv["remote_port"] = util.Ntohs(uint16(message.OriginalMessage.Networkv2.GetRemotePort()))
 
 	kv["local_ip"] = GetIPAddress(message.OriginalMessage.Networkv2.GetLocalIpAddress())
-	kv["local_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
+	kv["local_port"] = util.Ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
 }
 
 func WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -767,12 +768,12 @@ func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["requested_access"] = open.GetRequestedAccess()
 		kv["target_pid"] = open.GetTargetPid()
 		kv["target_create_time"] = open.GetTargetProcCreateTime()
-		kv["target_md5"] = GetMd5Hexdigest(open.GetTargetProcMd5())
-		kv["target_sha256"] = GetSha256Hexdigest(open.GetTargetProcSha256())
+		kv["target_md5"] = util.GetMd5Hexdigest(open.GetTargetProcMd5())
+		kv["target_sha256"] = util.GetSha256Hexdigest(open.GetTargetProcSha256())
 		kv["target_path"] = open.GetTargetProcPath()
 
 		pid32 := int32(open.GetTargetPid() & 0xffffffff)
-		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), pid32, int64(open.GetTargetProcCreateTime()))
+		kv["target_process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), pid32, int64(open.GetTargetProcCreateTime()))
 	} else {
 		rt := message.OriginalMessage.Crossproc.Remotethread
 		kv["type"] = "ingress.event.remotethread"
@@ -780,11 +781,11 @@ func WriteCrossProcMessage(message *ConvertedCbMessage, kv map[string]interface{
 		kv["cross_process_type"] = "remote_thread"
 		kv["target_pid"] = rt.GetRemoteProcPid()
 		kv["target_create_time"] = rt.GetRemoteProcCreateTime()
-		kv["target_md5"] = GetMd5Hexdigest(rt.GetRemoteProcMd5())
-		kv["target_sha256"] = GetSha256Hexdigest(rt.GetRemoteProcSha256())
+		kv["target_md5"] = util.GetMd5Hexdigest(rt.GetRemoteProcMd5())
+		kv["target_sha256"] = util.GetSha256Hexdigest(rt.GetRemoteProcSha256())
 		kv["target_path"] = rt.GetRemoteProcPath()
 
-		kv["target_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(rt.GetRemoteProcPid()), int64(rt.GetRemoteProcCreateTime()))
+		kv["target_process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), int32(rt.GetRemoteProcPid()), int64(rt.GetRemoteProcCreateTime()))
 	}
 
 	// add link to process in the Cb UI if the Cb hostname is set
@@ -858,7 +859,7 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 	}
 
 	kv["blocked_event"] = blockedProcessEventType(block.GetBlockedEvent())
-	kv["md5"] = GetMd5Hexdigest(block.GetBlockedmd5Hash())
+	kv["md5"] = util.GetMd5Hexdigest(block.GetBlockedmd5Hash())
 	kv["path"] = block.GetBlockedPath()
 	kv["blocked_result"] = blockedProcessResult(block.GetBlockResult())
 
@@ -872,7 +873,7 @@ func WriteProcessBlockedMsg(message *ConvertedCbMessage, kv map[string]interface
 		kv["process_create_time"] = block.GetBlockedProcCreateTime()
 
 		om := message.OriginalMessage
-		kv["process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
+		kv["process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
 		// add link to process in the Cb UI if the Cb hostname is set
 		if config.CbServerURL != "" {
 			kv["link_target"] = fmt.Sprintf("%s#analyze/%s/1", config.CbServerURL, kv["target_process_guid"])
@@ -894,9 +895,9 @@ func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]inter
 
 	blocked := message.OriginalMessage.NetconnBlocked
 
-	kv["domain"] = GetUnicodeFromUTF8(blocked.GetUtf8Netpath())
-	kv["ipv4"] = GetIPv4Address(blocked.GetIpv4Address())
-	kv["port"] = ntohs(uint16(blocked.GetPort()))
+	kv["domain"] = util.GetUnicodeFromUTF8(blocked.GetUtf8Netpath())
+	kv["ipv4"] = util.GetIPv4Address(blocked.GetIpv4Address())
+	kv["port"] = util.Ntohs(uint16(blocked.GetPort()))
 	kv["protocol"] = int32(blocked.GetProtocol())
 
 	if blocked.GetOutbound() {
@@ -905,13 +906,13 @@ func WriteNetconnBlockedMessage(message *ConvertedCbMessage, kv map[string]inter
 		kv["direction"] = "inbound"
 	}
 	if blocked.RemoteIpAddress != nil {
-		kv["remote_ip"] = GetIPv4Address(blocked.GetRemoteIpAddress())
-		kv["remote_port"] = ntohs(uint16(blocked.GetRemotePort()))
+		kv["remote_ip"] = util.GetIPv4Address(blocked.GetRemoteIpAddress())
+		kv["remote_port"] = util.Ntohs(uint16(blocked.GetRemotePort()))
 	}
 
 	if blocked.LocalIpAddress != nil {
-		kv["local_ip"] = GetIPv4Address(blocked.GetLocalIpAddress())
-		kv["local_port"] = ntohs(uint16(blocked.GetLocalPort()))
+		kv["local_ip"] = util.GetIPv4Address(blocked.GetLocalIpAddress())
+		kv["local_port"] = util.Ntohs(uint16(blocked.GetLocalPort()))
 	}
 }
 
@@ -921,7 +922,7 @@ func WriteNetconn2BlockMessage(message *ConvertedCbMessage, kv map[string]interf
 
 	blocked := message.OriginalMessage.NetconnBlockedv2
 
-	kv["domain"] = GetUnicodeFromUTF8(blocked.GetUtf8Netpath())
+	kv["domain"] = util.GetUnicodeFromUTF8(blocked.GetUtf8Netpath())
 	// we are deprecating the "ipv4" and "port" keys here, since this message is guaranteed to have remote &
 	// local ip and port numbers.
 
@@ -933,15 +934,15 @@ func WriteNetconn2BlockMessage(message *ConvertedCbMessage, kv map[string]interf
 		kv["direction"] = "inbound"
 	}
 	kv["remote_ip"] = GetIPAddress(blocked.GetRemoteIpAddress())
-	kv["remote_port"] = ntohs(uint16(blocked.GetRemotePort()))
+	kv["remote_port"] = util.Ntohs(uint16(blocked.GetRemotePort()))
 
 	kv["local_ip"] = GetIPAddress(blocked.GetLocalIpAddress())
-	kv["local_port"] = ntohs(uint16(blocked.GetLocalPort()))
+	kv["local_port"] = util.Ntohs(uint16(blocked.GetLocalPort()))
 
 	if blocked.GetProxyConnection() {
 		kv["proxy"] = true
 		kv["proxy_ip"] = GetIPAddress(blocked.GetProxyIpAddress())
-		kv["proxy_port"] = ntohs(uint16(blocked.GetProxyPort()))
+		kv["proxy_port"] = util.Ntohs(uint16(blocked.GetProxyPort()))
 		kv["proxy_domain"] = blocked.GetProxyNetPath()
 	} else {
 		kv["proxy"] = false

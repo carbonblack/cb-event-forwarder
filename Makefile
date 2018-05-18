@@ -8,26 +8,30 @@ GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 .PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
+	
+dep-ensure:
+	dep ensure
 
-build:
+build-plugins: dep-ensure
+	go build -buildmode=plugin -o plugins/kafka/kafka_output.so plugins/kafka/kafka_output.go     
+	cp plugins/kafka/kafka_output.so .
+
+build: build-plugins 
 	go get -u github.com/golang/protobuf/proto
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
 	dep ensure
-	go build ./cmd/cb-event-forwarder
-	go build ./cmd/kafka-util
+	go build ./cmd/cb-event-forwarder 
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
 	dep ensure; \
 	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
-	go build -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
-	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init

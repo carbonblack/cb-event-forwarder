@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
 type SplunkBehavior struct {
+	config  conf.Configuration
 	dest    string
 	headers map[string]string
 
@@ -26,7 +29,8 @@ type SplunkStatistics struct {
 }
 
 /* Construct the syslog_output.go object */
-func (this *SplunkBehavior) Initialize(dest string) error {
+func (this *SplunkBehavior) Initialize(dest string, config conf.Configuration) error {
+	this.config = config
 	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
 	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
@@ -65,7 +69,7 @@ func (this *SplunkBehavior) Key() string {
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
+func (this *SplunkBehavior) Upload(fileName string, fp *os.File) output.UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -85,7 +89,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
@@ -97,7 +101,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
 	if err != nil {
-		return UploadStatus{fileName: fileName, result: err, status: 0}
+		return output.UploadStatus{FileName: fileName, Result: err, Status: 0}
 	}
 	defer resp.Body.Close()
 
@@ -106,8 +110,8 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
-		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("HTTP request failed: Error code %s", errorData), status: resp.StatusCode}
+		return output.UploadStatus{FileName: fileName,
+			Result: fmt.Errorf("HTTP request failed: Error code %s", errorData), Status: resp.StatusCode}
 	}
-	return UploadStatus{fileName: fileName, result: err, status: 200}
+	return output.UploadStatus{FileName: fileName, Result: err, Status: 200}
 }

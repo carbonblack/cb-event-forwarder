@@ -9,7 +9,9 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"plugin"
 	"runtime"
 	"strings"
 	"sync"
@@ -35,16 +38,15 @@ var (
 var version = "NOT FOR RELEASE"
 
 var wg sync.WaitGroup
-var config Configuration
+var config conf.Configuration
 
 type Status struct {
 	InputEventCount  *expvar.Int
 	OutputEventCount *expvar.Int
 	ErrorCount       *expvar.Int
-
-	IsConnected     bool
-	LastConnectTime time.Time
-	StartTime       time.Time
+	IsConnected      bool
+	LastConnectTime  time.Time
+	StartTime        time.Time
 
 	LastConnectError string
 	ErrorTime        time.Time
@@ -106,13 +108,6 @@ type Consumer struct {
 	tag     string
 }
 
-type OutputHandler interface {
-	Initialize(string) error
-	Go(messages <-chan string, errorChan chan<- error) error
-	String() string
-	Statistics() interface{}
-	Key() string
-}
 
 /*
  * worker
@@ -242,13 +237,13 @@ func outputMessage(msg map[string]interface{}) error {
 	var outmsg string
 
 	switch config.OutputFormat {
-	case JSONOutputFormat:
+	case conf.JSONOutputFormat:
 		var b []byte
 		b, err = json.Marshal(msg)
 		outmsg = string(b)
-	case LEEFOutputFormat:
+	case conf.LEEFOutputFormat:
 		outmsg, err = leef.Encode(msg)
-	case CEFOutputFormat:
+	case conf.CEFOutputFormat:
 		outmsg, err = cef.Encode(msg)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
@@ -348,7 +343,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			log.Errorf("ERROR during output: %s", outputError.Error())
 
 			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType {
+			if config.OutputType == conf.FileOutputType || config.OutputType == conf.SplunkOutputType || config.OutputType == conf.HTTPOutputType {
 				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
@@ -374,37 +369,50 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	return nil
 }
 
+func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHandler {
+	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginPath, pluginName)
+	plugin, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
+	if err != nil {
+		log.Panic(err)
+	}
+	pluginHandlerFuncRaw, err := plugin.Lookup("GetOutputHandler")
+	if err != nil {
+		log.Panicf("Failed to load plugin %v", err)
+	}
+	return pluginHandlerFuncRaw.(func() output.OutputHandler)()
+}
+
 func startOutputs() error {
 	// Configure the specific output.
 	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog' ,"http",'splunk'
-	var outputHandler OutputHandler
+	var outputHandler output.OutputHandler
 
 	parameters := config.OutputParameters
 
 	switch config.OutputType {
-	case FileOutputType:
-		outputHandler = &FileOutput{}
-	case TCPOutputType:
+	case conf.FileOutputType:
+		outputHandler = &output.FileOutput{}
+	case conf.TCPOutputType:
 		outputHandler = &NetOutput{}
 		parameters = "tcp:" + parameters
-	case UDPOutputType:
+	case conf.UDPOutputType:
 		outputHandler = &NetOutput{}
 		parameters = "udp:" + parameters
-	case S3OutputType:
-		outputHandler = &BundledOutput{behavior: &S3Behavior{}}
-	case SyslogOutputType:
+	case conf.S3OutputType:
+		outputHandler = &output.BundledOutput{Behavior: &S3Behavior{}}
+	case conf.SyslogOutputType:
 		outputHandler = &SyslogOutput{}
-	case HTTPOutputType:
-		outputHandler = &BundledOutput{behavior: &HTTPBehavior{}}
-	case SplunkOutputType:
-		outputHandler = &BundledOutput{behavior: &SplunkBehavior{}}
-	case KafkaOutputType:
-		outputHandler = &KafkaOutput{}
+	case conf.HTTPOutputType:
+		outputHandler = &output.BundledOutput{Behavior: &HTTPBehavior{}}
+	case conf.SplunkOutputType:
+		outputHandler = &output.BundledOutput{Behavior: &SplunkBehavior{}}
+	case conf.PluginOutputType:
+		outputHandler = loadOutputFromPlugin(config.PluginPath, config.Plugin)
 	default:
 		return fmt.Errorf("No valid output handler found (%d)", config.OutputType)
 	}
 
-	err := outputHandler.Initialize(parameters)
+	err := outputHandler.Initialize(parameters, config)
 	if err != nil {
 		return err
 	}
@@ -414,26 +422,26 @@ func startOutputs() error {
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
 		switch config.OutputFormat {
-		case CEFOutputFormat:
+		case conf.CEFOutputFormat:
 			ret["format"] = "cef"
-		case LEEFOutputFormat:
+		case conf.LEEFOutputFormat:
 			ret["format"] = "leef"
-		case JSONOutputFormat:
+		case conf.JSONOutputFormat:
 			ret["format"] = "json"
 		}
 
 		switch config.OutputType {
-		case FileOutputType:
+		case conf.FileOutputType:
 			ret["type"] = "file"
-		case UDPOutputType:
+		case conf.UDPOutputType:
 			ret["type"] = "net"
-		case TCPOutputType:
+		case conf.TCPOutputType:
 			ret["type"] = "net"
-		case S3OutputType:
+		case conf.S3OutputType:
 			ret["type"] = "s3"
-		case HTTPOutputType:
+		case conf.HTTPOutputType:
 			ret["type"] = "http"
-		case SplunkOutputType:
+		case conf.SplunkOutputType:
 			ret["type"] = "splunk"
 		}
 
@@ -454,7 +462,7 @@ func main() {
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
-	config, err = ParseConfig(configLocation)
+	config, err = conf.ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -563,9 +571,10 @@ func main() {
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	numConsumers := 1
-	if runtime.NumCPU() > 1 && config.OutputType == KafkaOutputType {
-		numConsumers = runtime.NumCPU() / 2
-	}
+	/*
+		if runtime.NumCPU() > 1 && config.OutputType == conf.KafkaOutputType {
+			numConsumers = runtime.NumCPU() / 2
+		}*/
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
@@ -599,7 +608,6 @@ func main() {
 	} else {
 		log.Info("Not starting file processing loop")
 	}
-
 	for {
 		time.Sleep(30 * time.Second)
 	}

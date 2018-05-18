@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
@@ -28,6 +29,8 @@ type NetOutput struct {
 	droppedEventSinceConnection int64
 
 	sync.RWMutex
+
+	config conf.Configuration
 }
 
 type NetStatistics struct {
@@ -41,10 +44,11 @@ type NetStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp:destination.server.example.com:512
-func (o *NetOutput) Initialize(netConn string) error {
+func (o *NetOutput) Initialize(netConn string, config conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 
+	o.config = config
 	if o.connected {
 		o.outputSocket.Close()
 	}
@@ -166,7 +170,7 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
-					err := o.Initialize(o.netConn)
+					err := o.Initialize(o.netConn, o.config)
 					if err != nil {
 						o.closeAndScheduleReconnection()
 					}
