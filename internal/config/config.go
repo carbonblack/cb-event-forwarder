@@ -29,6 +29,7 @@ const (
 const (
 	LEEFOutputFormat = iota
 	JSONOutputFormat
+	CEFOutputFormat
 )
 
 type Configuration struct {
@@ -407,6 +408,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		val = strings.ToLower(val)
 		if val == "leef" {
 			config.OutputFormat = LEEFOutputFormat
+		}
+		if val == "cef" {
+			config.OutputFormat = CEFOutputFormat
 		}
 	}
 
