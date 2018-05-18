@@ -243,7 +243,7 @@ func outputMessage(msg map[string]interface{}) error {
 		outmsg = string(b)
 	case conf.LEEFOutputFormat:
 		outmsg, err = leef.Encode(msg)
-	case CEFOutputFormat:
+	case conf.CEFOutputFormat:
 		outmsg, err = cef.Encode(msg)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
@@ -422,9 +422,9 @@ func startOutputs() error {
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
 		switch config.OutputFormat {
-		case CEFOutputFormat:
+		case conf.CEFOutputFormat:
 			ret["format"] = "cef"
-		case LEEFOutputFormat:
+		case conf.LEEFOutputFormat:
 			ret["format"] = "leef"
 		case conf.JSONOutputFormat:
 			ret["format"] = "json"
