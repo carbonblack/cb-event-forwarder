@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -247,6 +248,8 @@ func outputMessage(msg map[string]interface{}) error {
 		outmsg = string(b)
 	case LEEFOutputFormat:
 		outmsg, err = leef.Encode(msg)
+	case CEFOutputFormat:
+		outmsg, err = cef.Encode(msg)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
 	}
@@ -411,6 +414,8 @@ func startOutputs() error {
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
 		switch config.OutputFormat {
+		case CEFOutputFormat:
+			ret["format"] = "cef"
 		case LEEFOutputFormat:
 			ret["format"] = "leef"
 		case JSONOutputFormat:
