@@ -38,21 +38,34 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 
 	o.config = config
 
-	brokers, ok := config.GetInStanza("plugin", "bootstrapservers")
+	var configMap map[string] string;
+
+	configMap, ok := config.GetStanza("plugin")
+
+	log.Infof("Trying to create kafka output with plugin section: %s",configMap)
+
+	kafkaConfigMap := kafka.ConfigMap{}
+
+	for key, value := range configMap {
+		kafkaConfigMap[key] = value
+	}
+
+	brokers, ok  := configMap["bootstrap.servers"]
 	if ok {
 		o.brokers = brokers
 	} else {
-		o.brokers = "localhost:9092"
+		o.brokers = brokers
 	}
 
 	topicSuffix, ok := config.GetInStanza("plugin", "topicsuffix")
+
 	if ok {
 		o.topicSuffix = topicSuffix
 	} else {
 		o.topicSuffix = ""
 	}
 
-	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers})
+	producer, err := kafka.NewProducer(&kafkaConfigMap)
 
 	if err != nil {
 		log.Infof("Failed to create producer: %s\n", err)
@@ -154,5 +167,4 @@ func main() {
 	}()
 	messages <- "{\"type\":\"Lol\"}"
 	log.Infof("%v", <-errors)
-
 }

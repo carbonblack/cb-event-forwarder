@@ -123,6 +123,14 @@ func (c *Configuration) GetInStanza(stanza string, key string) (string, bool) {
 	return c.IniFile.Get(stanza, key)
 }
 
+func (c * Configuration) GetStanza(stanza string) (map[string] string, bool) {
+	section := c.IniFile.Section(stanza)
+	if (section == nil) {
+		return section,true
+	}
+	return make(map[string] string), false
+}
+
 func (e ConfigurationError) Error() string {
 	return fmt.Sprintf("Configuration errors:\n %s", strings.Join(e.Errors, "\n "))
 }
