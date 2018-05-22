@@ -40,14 +40,16 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 
 	var configMap map[string] string;
 
-	configMap, ok := config.GetStanza("plugin")
+	configMap, ok := config.GetStanza("pluginconfig")
 
 	log.Infof("Trying to create kafka output with plugin section: %s",configMap)
 
 	kafkaConfigMap := kafka.ConfigMap{}
 
 	for key, value := range configMap {
-		kafkaConfigMap[key] = value
+		if key != "topicsuffix" {
+			kafkaConfigMap[key] = value
+		}
 	}
 
 	brokers, ok  := configMap["bootstrap.servers"]
@@ -57,7 +59,7 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 		o.brokers = brokers
 	}
 
-	topicSuffix, ok := config.GetInStanza("plugin", "topicsuffix")
+	topicSuffix, ok := config.GetInStanza("pluginconf", "topicsuffix")
 
 	if ok {
 		o.topicSuffix = topicSuffix
