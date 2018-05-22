@@ -79,6 +79,9 @@ type Configuration struct {
 	CommaSeparateEvents bool
 	BundleSendTimeout   time.Duration
 	BundleSizeMax       int64
+		
+	//CEF output Options
+	CefEventSeverity    int
 
 	// Compress data on S3 or file output types
 	FileHandlerCompressData bool
@@ -125,10 +128,7 @@ func (c *Configuration) GetInStanza(stanza string, key string) (string, bool) {
 
 func (c * Configuration) GetStanza(stanza string) (map[string] string, bool) {
 	section := c.IniFile.Section(stanza)
-	if (section == nil) {
-		return section,true
-	}
-	return make(map[string] string), false
+	return section,true
 }
 
 func (e ConfigurationError) Error() string {
@@ -419,6 +419,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		if val == "cef" {
 			config.OutputFormat = CEFOutputFormat
+			val, ok := input.Get("bridge","cef_event_severity")
+			if ok { 
+				CefEventSeverity, err := strconv.ParseInt(val,10,32)
+				if (err == nil ) {
+					config.CefEventSeverity = 5
+				} else {
+					config.CefEventSeverity = int(CefEventSeverity)
+				}
+			}
 		}
 	}
 
@@ -702,7 +711,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			strPluginPath, ok := input.Get("plugin", "plugin_path")
 			if ok {
 				config.PluginPath = strPluginPath
-				log.Infof("Got plugin path correctly")
+				log.Debugf("Got plugin path %s correctly",strPluginPath)
 			} else {
 				config.PluginPath = "."
 				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")
