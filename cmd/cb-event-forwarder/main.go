@@ -14,6 +14,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -244,6 +245,8 @@ func outputMessage(msg map[string]interface{}) error {
 		outmsg, err = leef.Encode(msg)
 	case conf.CEFOutputFormat:
 		outmsg, err = cef.EncodeWithSeverity(msg, config.CefEventSeverity)
+	case conf.TemplateOutputFormat:
+		outmsg, err = te.EncodeWithTemplate(msg,config.EncoderTemplate)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
 	}
@@ -371,11 +374,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHandler {
 	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginName, pluginPath)
-	plugin, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
+	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
 	if err != nil {
 		log.Panic(err)
 	}
-	pluginHandlerFuncRaw, err := plugin.Lookup("GetOutputHandler")
+	pluginHandlerFuncRaw, err := plug.Lookup("GetOutputHandler")
 	if err != nil {
 		log.Panicf("Failed to load plugin %v", err)
 	}
@@ -428,6 +431,8 @@ func startOutputs() error {
 			ret["format"] = "leef"
 		case conf.JSONOutputFormat:
 			ret["format"] = "json"
+		case conf.TemplateOutputFormat:
+			ret["format"] = "template"
 		}
 
 		switch config.OutputType {

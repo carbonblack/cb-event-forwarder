@@ -14,6 +14,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"plugin"
+	"path"
 )
 
 const (
@@ -31,6 +33,7 @@ const (
 	LEEFOutputFormat = iota
 	JSONOutputFormat
 	CEFOutputFormat
+	TemplateOutputFormat
 )
 
 type Configuration struct {
@@ -106,11 +109,27 @@ type Configuration struct {
 	//Hack: Plugins
 	PluginPath string
 	Plugin     string
+
+	//TemplateEncoder support
+	EncoderTemplate * template.Template
+}
+
+func loadEncoderFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
+	log.Infof("loadEncoderPlugin: Trying to load encoder plugin %s at %s", pluginName, pluginPath)
+	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
+	if err != nil {
+		log.Panic(err)
+	}
+	pluginGetFuncMapRaw, err := plug.Lookup("GetFuncMap")
+	if err != nil {
+		log.Panicf("Failed to load plugin %v", err)
+	}
+	return pluginGetFuncMapRaw.(func() template.FuncMap)()
 }
 
 func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 	var temp, iface interface{}
-	log.Debugf("Lookup %s", lookup)
+	log.Infof("Lookup %s", lookup)
 	for index, key := range lookup {
 		if index == 0 {
 			iface, ok := c.ConfigMap[key]
@@ -135,7 +154,7 @@ func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 			return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
 		}
 	}
-	log.Debugf("Lookup returning %s for %s", temp, lookup)
+	log.Infof("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
 }
 
@@ -536,6 +555,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbServerURL = val
 	}
 
+	EncoderPlugin := ""
+
 	val, err = input.GetString("output_format")
 	if err == nil {
 		val = strings.TrimSpace(val)
@@ -555,7 +576,26 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 		}
+		if val == "template" {
+			config.OutputFormat = TemplateOutputFormat
+			val, err := input.GetString("encoder","template")
+			if err == nil {
+				tmpl, err := template.New("TemplateEncoder").Parse(val)
+				if err != nil {
+					log.Panicf("Error setting up template for encoder", err)
+				} else {
+					config.EncoderTemplate = tmpl
+				}
+			}
+			val, err = input.GetString("encoder","plugin")
+			if err == nil && len(val) > 0 {
+				EncoderPlugin = val
+			} else {
+				EncoderPlugin = ""
+			}
+		} //config.EncoderTemplate nil when not configured
 	}
+
 
 	config.FileHandlerCompressData = false
 	val, err = input.GetString("compress_data")
@@ -837,16 +877,23 @@ func ParseConfig(fn string) (Configuration, error) {
 			if err == nil {
 				config.PluginPath = strPluginPath
 				log.Debugf("Got plugin path %s correctly", strPluginPath)
+
 			} else {
 				config.PluginPath = "."
 				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")
 			}
+
+
 		} else {
 			log.Info("No plugin specified in [plugin]!")
 			errs.addErrorString("Unable to parse plugin from config [plugin] section")
 		}
 
 	}
+	if config.OutputFormat == TemplateOutputFormat {
+		config.EncoderTemplate = config.EncoderTemplate.Funcs(loadEncoderFuncMapFromPlugin(config.PluginPath,EncoderPlugin))
+	}
+
 
 	if !errs.Empty {
 		return config, errs
