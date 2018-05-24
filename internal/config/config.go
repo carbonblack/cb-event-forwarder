@@ -82,6 +82,9 @@ type Configuration struct {
 	BundleSendTimeout   time.Duration
 	BundleSizeMax       int64
 
+	//CEF output Options
+	CefEventSeverity int
+
 	// Compress data on S3 or file output types
 	FileHandlerCompressData bool
 
@@ -542,6 +545,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		if val == "cef" {
 			config.OutputFormat = CEFOutputFormat
+			val, err := input.GetString("cef_event_severity")
+			if err == nil {
+				CefEventSeverity, err := strconv.ParseInt(val, 10, 32)
+				if err == nil {
+					config.CefEventSeverity = 5
+				} else {
+					config.CefEventSeverity = int(CefEventSeverity)
+				}
+			}
 		}
 	}
 
@@ -824,7 +836,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			strPluginPath, err := input.GetString("plugin_path")
 			if err == nil {
 				config.PluginPath = strPluginPath
-				log.Infof("Got plugin path correctly")
+				log.Debugf("Got plugin path %s correctly", strPluginPath)
 			} else {
 				config.PluginPath = "."
 				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")

@@ -77,7 +77,15 @@ func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) 
 	}
 }
 
-func Encode(msg map[string]interface{}) (string, error) {
+func Encode(msg map[string] interface{}) (string, error) {
+	return encode(msg,5)
+}
+
+func EncodeWithSeverity(msg map[string] interface{},severity int) (string, error) { 
+	return encode(msg, severity)
+}
+
+func encode(msg map[string]interface{}, severity int ) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
 

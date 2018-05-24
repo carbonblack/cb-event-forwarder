@@ -40,7 +40,7 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 
 	var configMap map[string]interface{}
 
-	configMap, err := config.GetMap("plugin", "config")
+	configMap, err := config.GetMap("plugin", "kafkaconfig")
 	if err != nil {
 		log.Info("Error getting pluginconfig")
 	}
@@ -72,7 +72,7 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 		}
 	}
 
-	topicSuffix, err := config.GetString("plugin", "config", "topicsuffix")
+	topicSuffix, err := config.GetString("plugin", "topicsuffix")
 
 	if err == nil {
 		o.topicSuffix = topicSuffix
