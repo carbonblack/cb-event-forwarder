@@ -106,21 +106,34 @@ type Configuration struct {
 }
 
 func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
-	var iface interface{}
+	var temp, iface interface{}
+	log.Debugf("Lookup %s", lookup)
 	for index, key := range lookup {
 		if index == 0 {
 			iface, ok := c.ConfigMap[key]
 			if !ok {
-				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
+				log.Debugf("Couldn't find %s in %s", key, c.ConfigMap)
+				return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
+			} else {
+				log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
+				temp = iface
 			}
 		} else {
-			iface, ok := iface.(map[string]interface{})[key]
-			if !ok {
-				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+			if iface != nil {
+				iface, ok := iface.(map[string]interface{})[key]
+				if !ok {
+					log.Debugf("Couldn't find %s in %s", key, iface)
+					return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+				} else {
+					log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
+					temp = iface
+				}
 			}
+			return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
 		}
 	}
-	return iface, nil
+	log.Debugf("Lookup returning %s for %s", temp, lookup)
+	return temp, nil
 }
 
 func (c *Configuration) Get(lookup ...string) (interface{}, error) {
@@ -201,13 +214,19 @@ func (c *Configuration) GetMap(lookup ...string) (map[string]interface{}, error)
 
 func LoadFile(filename string) (Configuration, error) {
 	var temp_conf Configuration
-	content, err := ioutil.ReadFile("testdata/hello")
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return temp_conf, err
 	}
 	m := make(map[string]interface{})
 	err = yaml.Unmarshal(content, &m)
 	if err != nil {
+		var i interface{}
+		yaml.Unmarshal(content, &i)
+		switch t := i.(type) {
+		default:
+			log.Infof(fmt.Sprintf("Real type of yaml object is %T %s", t, i))
+		}
 		return temp_conf, err
 	} else {
 		temp_conf = Configuration{ConfigMap: m}
@@ -301,7 +320,7 @@ func (c *Configuration) parseEventTypes(input Configuration) {
 	var eventTypesArray []string = make([]string, 24)
 
 	for _, eventType := range eventTypes {
-		val, err := input.GetString("bridge", eventType.configKey)
+		val, err := input.GetString(eventType.configKey)
 		if err == nil {
 			val = strings.ToLower(val)
 			if val == "all" {
@@ -359,14 +378,14 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.S3CredentialProfileName = nil
 
 	// required values
-	val, error := input.GetString("bridge", "server_name")
+	val, error := input.GetString("server_name")
 	if error != nil {
 		config.ServerName = "CB"
 	} else {
 		config.ServerName = val
 	}
 
-	val, error = input.GetString("bridge", "debug")
+	val, error = input.GetString("debug")
 	if error == nil {
 		if val == "1" {
 			config.DebugFlag = true
@@ -383,7 +402,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	AddToOutput := make(map[string]string)
 
-	addToOutput, err := input.GetString("bridge", "add_to_output")
+	addToOutput, err := input.GetString("add_to_output")
 	if err == nil {
 		thingsToAdd := strings.Split(addToOutput, ",")
 
@@ -398,7 +417,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 	config.AddToOutput = AddToOutput
 
-	removeFromOutput, err := input.GetString("bridge", "remove_from_output")
+	removeFromOutput, err := input.GetString("remove_from_output")
 	if err == nil {
 		thingsToRemove := strings.Split(removeFromOutput, ",")
 		numberOfThingsToRemove := len(thingsToRemove)
@@ -415,7 +434,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.RemoveFromOutput = make([]string, 0)
 	}
 
-	debugStore, err := input.GetString("bridge", "debug_store")
+	debugStore, err := input.GetString("debug_store")
 	if err == nil {
 		config.DebugStore = debugStore
 	} else {
@@ -424,7 +443,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
 
-	val, err = input.GetString("bridge", "http_server_port")
+	val, err = input.GetString("http_server_port")
 	if err == nil {
 		port, err := strconv.Atoi(val)
 		if err == nil {
@@ -432,19 +451,19 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("bridge", "rabbit_mq_username")
+	val, err = input.GetString("rabbit_mq_username")
 	if err == nil {
 		config.AMQPUsername = val
 	}
 
-	val, err = input.GetString("bridge", "rabbit_mq_password")
+	val, err = input.GetString("rabbit_mq_password")
 	if err != nil {
 		errs.addErrorString("Missing required rabbit_mq_password section")
 	} else {
 		config.AMQPPassword = val
 	}
 
-	val, err = input.GetString("bridge", "rabbit_mq_port")
+	val, err = input.GetString("rabbit_mq_port")
 	if err == nil {
 		port, err := strconv.Atoi(val)
 		if err == nil {
@@ -459,7 +478,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("bridge", "rabbit_mq_use_tls")
+	val, err = input.GetString("rabbit_mq_use_tls")
 	if err == nil {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
@@ -467,28 +486,28 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	rabbitKeyFilename, err := input.GetString("bridge", "rabbit_mq_key")
+	rabbitKeyFilename, err := input.GetString("rabbit_mq_key")
 	if err == nil {
 		config.AMQPTLSClientKey = rabbitKeyFilename
 	}
 
-	rabbitCertFilename, err := input.GetString("bridge", "rabbit_mq_cert")
+	rabbitCertFilename, err := input.GetString("rabbit_mq_cert")
 	if err == nil {
 		config.AMQPTLSClientCert = rabbitCertFilename
 	}
 
-	rabbitCaCertFilename, err := input.GetString("bridge", "rabbit_mq_ca_cert")
+	rabbitCaCertFilename, err := input.GetString("rabbit_mq_ca_cert")
 	if err == nil {
 		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
-	rabbitQueueName, err := input.GetString("bridge", "rabbit_mq_queue_name")
+	rabbitQueueName, err := input.GetString("rabbit_mq_queue_name")
 	if err == nil {
 		config.AMQPQueueName = rabbitQueueName
 	}
 
 	config.AMQPAutomaticAcking = true
-	rabbitAutomaticAcking, err := input.GetString("bridge", "rabbit_mq_automatic_acking")
+	rabbitAutomaticAcking, err := input.GetString("rabbit_mq_automatic_acking")
 
 	if err == nil {
 		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
@@ -501,12 +520,12 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("bridge", "cb_server_hostname")
+	val, err = input.GetString("cb_server_hostname")
 	if err == nil {
 		config.AMQPHostname = val
 	}
 
-	val, err = input.GetString("bridge", "cb_server_url")
+	val, err = input.GetString("cb_server_url")
 	if err == nil {
 		if !strings.HasSuffix(val, "/") {
 			val = val + "/"
@@ -514,7 +533,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbServerURL = val
 	}
 
-	val, err = input.GetString("bridge", "output_format")
+	val, err = input.GetString("output_format")
 	if err == nil {
 		val = strings.TrimSpace(val)
 		val = strings.ToLower(val)
@@ -527,7 +546,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.FileHandlerCompressData = false
-	val, err = input.GetString("bridge", "compress_data")
+	val, err = input.GetString("compress_data")
 	if err == nil {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
@@ -536,7 +555,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.AuditLog = false
-	val, err = input.GetString("bridge", "audit_log")
+	val, err = input.GetString("audit_log")
 	if err == nil {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
@@ -544,7 +563,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	outType, err := input.GetString("bridge", "output_type")
+	outType, err := input.GetString("output_type")
 	var parameterKey string
 	if err == nil {
 		outType = strings.TrimSpace(outType)
@@ -656,7 +675,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(parameterKey) > 0 {
-		val, err = input.GetString("bridge", parameterKey)
+		val, err = input.GetString(parameterKey)
 		if err != nil {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
@@ -665,7 +684,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("bridge", "use_raw_sensor_exchange")
+	val, err = input.GetString("use_raw_sensor_exchange")
 	if err == nil {
 		boolval, err := strconv.ParseBool(val)
 		if err == nil {
@@ -777,21 +796,21 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("bridge", "api_verify_ssl")
+	val, err = input.GetString("api_verify_ssl")
 	if err == nil {
 		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
 		if err != nil {
 			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
-	val, err = input.GetString("bridge", "api_token")
+	val, err = input.GetString("api_token")
 	if err == nil {
 		config.CbAPIToken = val
 		config.PerformFeedPostprocessing = true
 	}
 
 	config.CbAPIProxyURL = ""
-	val, err = input.GetString("bridge", "api_proxy_url")
+	val, err = input.GetString("api_proxy_url")
 	if err == nil {
 		config.CbAPIProxyURL = val
 	}
@@ -799,10 +818,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.parseEventTypes(input)
 
 	if config.OutputType == PluginOutputType {
-		plugin, err := input.GetString("plugin", "plugin")
+		plugin, err := input.GetString("plugin")
 		if err == nil {
 			config.Plugin = plugin
-			strPluginPath, err := input.GetString("plugin", "plugin_path")
+			strPluginPath, err := input.GetString("plugin_path")
 			if err == nil {
 				config.PluginPath = strPluginPath
 				log.Infof("Got plugin path correctly")
