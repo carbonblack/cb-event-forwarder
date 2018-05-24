@@ -8,6 +8,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ const (
 )
 
 type Configuration struct {
+	ConfigMap            map[string]interface{}
 	ServerName           string
 	AMQPHostname         string
 	DebugFlag            bool
@@ -79,9 +81,9 @@ type Configuration struct {
 	CommaSeparateEvents bool
 	BundleSendTimeout   time.Duration
 	BundleSizeMax       int64
-		
+
 	//CEF output Options
-	CefEventSeverity    int
+	CefEventSeverity int
 
 	// Compress data on S3 or file output types
 	FileHandlerCompressData bool
@@ -104,7 +106,136 @@ type Configuration struct {
 	//Hack: Plugins
 	PluginPath string
 	Plugin     string
-	IniFile    ini.File
+}
+
+func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
+	var temp, iface interface{}
+	log.Debugf("Lookup %s", lookup)
+	for index, key := range lookup {
+		if index == 0 {
+			iface, ok := c.ConfigMap[key]
+			if !ok {
+				log.Debugf("Couldn't find %s in %s", key, c.ConfigMap)
+				return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
+			} else {
+				log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
+				temp = iface
+			}
+		} else {
+			if iface != nil {
+				iface, ok := iface.(map[string]interface{})[key]
+				if !ok {
+					log.Debugf("Couldn't find %s in %s", key, iface)
+					return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+				} else {
+					log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
+					temp = iface
+				}
+			}
+			return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+		}
+	}
+	log.Debugf("Lookup returning %s for %s", temp, lookup)
+	return temp, nil
+}
+
+func (c *Configuration) Get(lookup ...string) (interface{}, error) {
+	var iface interface{}
+	for index, key := range lookup {
+		if index == 0 {
+			iface, ok := c.ConfigMap[key]
+			if !ok {
+				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
+			}
+		} else {
+			iface, ok := iface.(map[string]interface{})[key]
+			if !ok {
+				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+			}
+		}
+	}
+	return iface, nil
+}
+
+func (c *Configuration) GetBool(lookup ...string) (bool, error) {
+	iFaceValue, err := c.getByArray(lookup)
+	if err != nil {
+		return false, err
+
+	} else {
+		bval, ok := iFaceValue.(bool)
+		if ok {
+			return bval, nil
+		} else {
+			return false, errors.New(fmt.Sprintf("Can't convert to bool %s", iFaceValue))
+		}
+	}
+}
+
+func (c *Configuration) GetString(lookup ...string) (string, error) {
+	iFaceValue, err := c.getByArray(lookup)
+	if err != nil {
+		return "", err
+	} else {
+		stringVal, ok := iFaceValue.(string)
+		if ok {
+			return stringVal, nil
+		} else {
+			return "", errors.New(fmt.Sprintf("Can't convert %s to string", iFaceValue))
+		}
+	}
+}
+
+func (c *Configuration) GetStrings(lookup ...string) ([]string, error) {
+	iFaceValue, err := c.getByArray(lookup)
+	if err != nil {
+		return make([]string, 0), err
+	} else {
+		stringArray, ok := iFaceValue.([]string)
+		if ok {
+			return stringArray, nil
+		} else {
+			return make([]string, 0), errors.New(fmt.Sprintf("Can't convert %s to [] string", iFaceValue))
+		}
+	}
+}
+
+func (c *Configuration) GetMap(lookup ...string) (map[string]interface{}, error) {
+	iFaceValue, err := c.getByArray(lookup)
+	var temp_map map[string]interface{}
+	if err != nil {
+		return temp_map, err
+	} else {
+		stringArray, ok := iFaceValue.(map[string]interface{})
+		if ok {
+			return stringArray, nil
+		} else {
+			return temp_map, errors.New(fmt.Sprintf("Can't convert %s to map[string] interface{}", iFaceValue))
+		}
+	}
+}
+
+func LoadFile(filename string) (Configuration, error) {
+	var temp_conf Configuration
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return temp_conf, err
+	}
+	m := make(map[string]interface{})
+	err = yaml.Unmarshal(content, &m)
+	if err != nil {
+		var i interface{}
+		yaml.Unmarshal(content, &i)
+		switch t := i.(type) {
+		default:
+			log.Infof(fmt.Sprintf("Real type of yaml object is %T %s", t, i))
+		}
+		return temp_conf, err
+	} else {
+		temp_conf = Configuration{ConfigMap: m}
+		return temp_conf, nil
+	}
+	return temp_conf, err
 }
 
 type ConfigurationError struct {
@@ -114,21 +245,10 @@ type ConfigurationError struct {
 
 func (c *Configuration) AMQPURL() string {
 	scheme := "amqp"
-
 	if c.AMQPTLSEnabled {
 		scheme = "amqps"
 	}
-
 	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
-}
-
-func (c *Configuration) GetInStanza(stanza string, key string) (string, bool) {
-	return c.IniFile.Get(stanza, key)
-}
-
-func (c * Configuration) GetStanza(stanza string) (map[string] string, bool) {
-	section := c.IniFile.Section(stanza)
-	return section,true
 }
 
 func (e ConfigurationError) Error() string {
@@ -159,7 +279,7 @@ func parseCbConf() (username, password string, err error) {
 	return
 }
 
-func (c *Configuration) parseEventTypes(input ini.File) {
+func (c *Configuration) parseEventTypes(input Configuration) {
 	eventTypes := [...]struct {
 		configKey string
 		eventList []string
@@ -200,44 +320,51 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 		}},
 	}
 
+	var eventTypesArray []string = make([]string, 24)
+
 	for _, eventType := range eventTypes {
-		val, ok := input.Get("bridge", eventType.configKey)
-		if ok {
+		val, err := input.GetString(eventType.configKey)
+		if err == nil {
 			val = strings.ToLower(val)
 			if val == "all" {
 				for _, routingKey := range eventType.eventList {
-					c.EventTypes = append(c.EventTypes, routingKey)
+					eventTypesArray = append(eventTypesArray, routingKey)
 				}
 			} else if val == "0" {
 				// nothing
+
 			} else {
 				for _, routingKey := range strings.Split(val, ",") {
-					c.EventTypes = append(c.EventTypes, routingKey)
+					eventTypesArray = append(eventTypesArray, routingKey)
 				}
 			}
+		} else {
+			log.Debugf("Error processing event types in config file %v", err)
 		}
 	}
 
-	c.EventMap = make(map[string]bool)
+	var eventMap map[string]bool = make(map[string]bool)
 
 	log.Info("Raw Event Filtering Configuration:")
-	for _, eventName := range c.EventTypes {
-		c.EventMap[eventName] = true
+	for _, eventName := range eventTypesArray {
+		eventMap[eventName] = true
 		if strings.HasPrefix(eventName, "ingress.event.") {
-			log.Infof("%s: %t", eventName, c.EventMap[eventName])
+			log.Infof("%s: %t", eventName, eventMap[eventName])
 		}
 	}
+
+	c.EventTypes = eventTypesArray
+	c.EventMap = eventMap
 }
 
 func ParseConfig(fn string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
 
-	input, err := ini.LoadFile(fn)
+	input, err := LoadFile(fn)
 	if err != nil {
 		return config, err
 	}
-	config.IniFile = input
 
 	// defaults
 	config.DebugFlag = false
@@ -254,15 +381,15 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.S3CredentialProfileName = nil
 
 	// required values
-	val, ok := input.Get("bridge", "server_name")
-	if !ok {
+	val, error := input.GetString("server_name")
+	if error != nil {
 		config.ServerName = "CB"
 	} else {
 		config.ServerName = val
 	}
 
-	val, ok = input.Get("bridge", "debug")
-	if ok {
+	val, error = input.GetString("debug")
+	if error == nil {
 		if val == "1" {
 			config.DebugFlag = true
 			log.SetLevel(log.DebugLevel)
@@ -276,10 +403,10 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	config.AddToOutput = make(map[string]string)
+	AddToOutput := make(map[string]string)
 
-	addToOutput, ok := input.Get("bridge", "add_to_output")
-	if ok {
+	addToOutput, err := input.GetString("add_to_output")
+	if err == nil {
 		thingsToAdd := strings.Split(addToOutput, ",")
 
 		for _, element := range thingsToAdd {
@@ -287,13 +414,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			if len(keyValToAdd) >= 2 {
 				key := strings.TrimSpace(keyValToAdd[0])
 				val := strings.TrimSpace(keyValToAdd[1])
-				config.AddToOutput[key] = val
+				AddToOutput[key] = val
 			}
 		}
 	}
+	config.AddToOutput = AddToOutput
 
-	removeFromOutput, ok := input.Get("bridge", "remove_from_output")
-	if ok {
+	removeFromOutput, err := input.GetString("remove_from_output")
+	if err == nil {
 		thingsToRemove := strings.Split(removeFromOutput, ",")
 		numberOfThingsToRemove := len(thingsToRemove)
 		strippedThingsToRemove := make([]string, numberOfThingsToRemove)
@@ -309,8 +437,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.RemoveFromOutput = make([]string, 0)
 	}
 
-	debugStore, ok := input.Get("bridge", "debug_store")
-	if ok {
+	debugStore, err := input.GetString("debug_store")
+	if err == nil {
 		config.DebugStore = debugStore
 	} else {
 		config.DebugStore = "/var/log/cb/integrations/cb-event-forwarder"
@@ -318,28 +446,28 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
 
-	val, ok = input.Get("bridge", "http_server_port")
-	if ok {
+	val, err = input.GetString("http_server_port")
+	if err == nil {
 		port, err := strconv.Atoi(val)
 		if err == nil {
 			config.HTTPServerPort = port
 		}
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_username")
-	if ok {
+	val, err = input.GetString("rabbit_mq_username")
+	if err == nil {
 		config.AMQPUsername = val
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_password")
-	if !ok {
+	val, err = input.GetString("rabbit_mq_password")
+	if err != nil {
 		errs.addErrorString("Missing required rabbit_mq_password section")
 	} else {
 		config.AMQPPassword = val
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_port")
-	if ok {
+	val, err = input.GetString("rabbit_mq_port")
+	if err == nil {
 		port, err := strconv.Atoi(val)
 		if err == nil {
 			config.AMQPPort = port
@@ -353,40 +481,38 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_use_tls")
-	if ok {
-		if ok {
-			b, err := strconv.ParseBool(val)
-			if err == nil {
-				config.AMQPTLSEnabled = b
-			}
+	val, err = input.GetString("rabbit_mq_use_tls")
+	if err == nil {
+		b, err := strconv.ParseBool(val)
+		if err == nil {
+			config.AMQPTLSEnabled = b
 		}
 	}
 
-	rabbitKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
-	if ok {
+	rabbitKeyFilename, err := input.GetString("rabbit_mq_key")
+	if err == nil {
 		config.AMQPTLSClientKey = rabbitKeyFilename
 	}
 
-	rabbitCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
-	if ok {
+	rabbitCertFilename, err := input.GetString("rabbit_mq_cert")
+	if err == nil {
 		config.AMQPTLSClientCert = rabbitCertFilename
 	}
 
-	rabbitCaCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
-	if ok {
+	rabbitCaCertFilename, err := input.GetString("rabbit_mq_ca_cert")
+	if err == nil {
 		config.AMQPTLSCACert = rabbitCaCertFilename
 	}
 
-	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
-	if ok {
+	rabbitQueueName, err := input.GetString("rabbit_mq_queue_name")
+	if err == nil {
 		config.AMQPQueueName = rabbitQueueName
 	}
 
 	config.AMQPAutomaticAcking = true
-	rabbitAutomaticAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
+	rabbitAutomaticAcking, err := input.GetString("rabbit_mq_automatic_acking")
 
-	if ok {
+	if err == nil {
 		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
 		if err == nil {
 			if boolval == false {
@@ -397,21 +523,21 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, ok = input.Get("bridge", "cb_server_hostname")
-	if ok {
+	val, err = input.GetString("cb_server_hostname")
+	if err == nil {
 		config.AMQPHostname = val
 	}
 
-	val, ok = input.Get("bridge", "cb_server_url")
-	if ok {
+	val, err = input.GetString("cb_server_url")
+	if err == nil {
 		if !strings.HasSuffix(val, "/") {
 			val = val + "/"
 		}
 		config.CbServerURL = val
 	}
 
-	val, ok = input.Get("bridge", "output_format")
-	if ok {
+	val, err = input.GetString("output_format")
+	if err == nil {
 		val = strings.TrimSpace(val)
 		val = strings.ToLower(val)
 		if val == "leef" {
@@ -419,10 +545,10 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		if val == "cef" {
 			config.OutputFormat = CEFOutputFormat
-			val, ok := input.Get("bridge","cef_event_severity")
-			if ok { 
-				CefEventSeverity, err := strconv.ParseInt(val,10,32)
-				if (err == nil ) {
+			val, err := input.GetString("cef_event_severity")
+			if err == nil {
+				CefEventSeverity, err := strconv.ParseInt(val, 10, 32)
+				if err == nil {
 					config.CefEventSeverity = 5
 				} else {
 					config.CefEventSeverity = int(CefEventSeverity)
@@ -432,8 +558,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.FileHandlerCompressData = false
-	val, ok = input.Get("bridge", "compress_data")
-	if ok {
+	val, err = input.GetString("compress_data")
+	if err == nil {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
 			config.FileHandlerCompressData = b
@@ -441,17 +567,17 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.AuditLog = false
-	val, ok = input.Get("bridge", "audit_log")
-	if ok {
+	val, err = input.GetString("audit_log")
+	if err == nil {
 		b, err := strconv.ParseBool(val)
 		if err == nil {
 			config.AuditLog = b
 		}
 	}
 
-	outType, ok := input.Get("bridge", "output_type")
+	outType, err := input.GetString("output_type")
 	var parameterKey string
-	if ok {
+	if err == nil {
 		outType = strings.TrimSpace(outType)
 		outType = strings.ToLower(outType)
 
@@ -469,23 +595,23 @@ func ParseConfig(fn string) (Configuration, error) {
 			parameterKey = "s3out"
 			config.OutputType = S3OutputType
 
-			profileName, ok := input.Get("s3", "credential_profile")
-			if ok {
+			profileName, err := input.GetString("s3", "credential_profile")
+			if err == nil {
 				config.S3CredentialProfileName = &profileName
 			}
 
-			aclPolicy, ok := input.Get("s3", "acl_policy")
-			if ok {
+			aclPolicy, err := input.GetString("s3", "acl_policy")
+			if err == nil {
 				config.S3ACLPolicy = &aclPolicy
 			}
 
-			sseType, ok := input.Get("s3", "server_side_encryption")
-			if ok {
+			sseType, err := input.GetString("s3", "server_side_encryption")
+			if err == nil {
 				config.S3ServerSideEncryption = &sseType
 			}
 
-			objectPrefix, ok := input.Get("s3", "object_prefix")
-			if ok {
+			objectPrefix, err := input.GetString("s3", "object_prefix")
+			if err == nil {
 				config.S3ObjectPrefix = &objectPrefix
 			}
 
@@ -493,14 +619,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			parameterKey = "httpout"
 			config.OutputType = HTTPOutputType
 
-			token, ok := input.Get("http", "authorization_token")
-			if ok {
+			token, err := input.GetString("http", "authorization_token")
+			if err == nil {
 				config.HTTPAuthorizationToken = &token
 			}
 
-			postTemplate, ok := input.Get("http", "http_post_template")
+			postTemplate, err := input.GetString("http", "http_post_template")
 			config.HTTPPostTemplate = template.New("http_post_output")
-			if ok {
+			if err == nil {
 				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
 			} else {
 				if config.OutputFormat == JSONOutputFormat {
@@ -511,8 +637,8 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 
-			contentType, ok := input.Get("http", "content_type")
-			if ok {
+			contentType, err := input.GetString("http", "content_type")
+			if err == nil {
 				config.HTTPContentType = &contentType
 			} else {
 				jsonString := "application/json"
@@ -525,14 +651,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			parameterKey = "splunkout"
 			config.OutputType = SplunkOutputType
 
-			token, ok := input.Get("splunk", "hec_token")
-			if ok {
+			token, err := input.GetString("splunk", "hec_token")
+			if err == nil {
 				config.SplunkToken = &token
 			}
 
-			postTemplate, ok := input.Get("splunk", "http_post_template")
+			postTemplate, err := input.GetString("splunk", "http_post_template")
 			config.HTTPPostTemplate = template.New("http_post_output")
-			if ok {
+			if err == nil {
 				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
 			} else {
 				if config.OutputFormat == JSONOutputFormat {
@@ -543,8 +669,8 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 
-			contentType, ok := input.Get("http", "content_type")
-			if ok {
+			contentType, err := input.GetString("http", "content_type")
+			if err == nil {
 				config.HTTPContentType = &contentType
 			} else {
 				jsonString := "application/json"
@@ -552,7 +678,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 		case "plugin":
 			config.OutputType = PluginOutputType
-
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
 		}
@@ -562,8 +687,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(parameterKey) > 0 {
-		val, ok = input.Get("bridge", parameterKey)
-		if !ok {
+		val, err = input.GetString(parameterKey)
+		if err != nil {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
 		} else {
@@ -571,8 +696,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, ok = input.Get("bridge", "use_raw_sensor_exchange")
-	if ok {
+	val, err = input.GetString("use_raw_sensor_exchange")
+	if err == nil {
 		boolval, err := strconv.ParseBool(val)
 		if err == nil {
 			config.UseRawSensorExchange = boolval
@@ -588,24 +713,24 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	// TLS configuration
-	clientKeyFilename, ok := input.Get(outType, "client_key")
-	if ok {
+	clientKeyFilename, err := input.GetString(outType, "client_key")
+	if err == nil {
 		config.TLSClientKey = &clientKeyFilename
 	}
 
-	clientCertFilename, ok := input.Get(outType, "client_cert")
-	if ok {
+	clientCertFilename, err := input.GetString(outType, "client_cert")
+	if err == nil {
 		config.TLSClientCert = &clientCertFilename
 	}
 
-	caCertFilename, ok := input.Get(outType, "ca_cert")
-	if ok {
+	caCertFilename, err := input.GetString(outType, "ca_cert")
+	if err == nil {
 		config.TLSCACert = &caCertFilename
 	}
 
 	config.TLSVerify = true
-	tlsVerify, ok := input.Get(outType, "tls_verify")
-	if ok {
+	tlsVerify, err := input.GetString(outType, "tls_verify")
+	if err == nil {
 		boolval, err := strconv.ParseBool(tlsVerify)
 		if err == nil {
 			if boolval == false {
@@ -617,8 +742,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.TLS12Only = true
-	tlsInsecure, ok := input.Get(outType, "insecure_tls")
-	if ok {
+	tlsInsecure, err := input.GetString(outType, "insecure_tls")
+	if err == nil {
 		boolval, err := strconv.ParseBool(tlsInsecure)
 		if err == nil {
 			if boolval == true {
@@ -629,8 +754,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	serverCName, ok := input.Get(outType, "server_cname")
-	if ok {
+	serverCName, err := input.GetString(outType, "server_cname")
+	if err == nil {
 		config.TLSCName = &serverCName
 	}
 
@@ -645,8 +770,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		config.UploadEmptyFiles = true
 	}
-	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
-	if ok {
+	sendEmptyFiles, err := input.GetString(outType, "upload_empty_files")
+	if err == nil {
 		boolval, err := strconv.ParseBool(sendEmptyFiles)
 		if err == nil {
 			if boolval == false {
@@ -665,8 +790,8 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// default 10MB bundle size max before forcing a send
 	config.BundleSizeMax = 10 * 1024 * 1024
-	bundleSizeMax, ok := input.Get(outType, "bundle_size_max")
-	if ok {
+	bundleSizeMax, err := input.GetString(outType, "bundle_size_max")
+	if err == nil {
 		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
 		if err == nil {
 			config.BundleSizeMax = bundleSizeMax
@@ -675,43 +800,43 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// default 5 minute send interval
 	config.BundleSendTimeout = 5 * time.Minute
-	bundleSendTimeout, ok := input.Get(outType, "bundle_send_timeout")
-	if ok {
+	bundleSendTimeout, err := input.GetString(outType, "bundle_send_timeout")
+	if err == nil {
 		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
 		if err == nil {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 		}
 	}
 
-	val, ok = input.Get("bridge", "api_verify_ssl")
-	if ok {
+	val, err = input.GetString("api_verify_ssl")
+	if err == nil {
 		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
 		if err != nil {
 			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
-	val, ok = input.Get("bridge", "api_token")
-	if ok {
+	val, err = input.GetString("api_token")
+	if err == nil {
 		config.CbAPIToken = val
 		config.PerformFeedPostprocessing = true
 	}
 
 	config.CbAPIProxyURL = ""
-	val, ok = input.Get("bridge", "api_proxy_url")
-	if ok {
+	val, err = input.GetString("api_proxy_url")
+	if err == nil {
 		config.CbAPIProxyURL = val
 	}
 
 	config.parseEventTypes(input)
 
 	if config.OutputType == PluginOutputType {
-		plugin, ok := input.Get("plugin", "plugin")
-		if ok {
+		plugin, err := input.GetString("plugin")
+		if err == nil {
 			config.Plugin = plugin
-			strPluginPath, ok := input.Get("plugin", "plugin_path")
-			if ok {
+			strPluginPath, err := input.GetString("plugin_path")
+			if err == nil {
 				config.PluginPath = strPluginPath
-				log.Debugf("Got plugin path %s correctly",strPluginPath)
+				log.Debugf("Got plugin path %s correctly", strPluginPath)
 			} else {
 				config.PluginPath = "."
 				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")
