@@ -9,10 +9,10 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
-	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -107,7 +107,6 @@ type Consumer struct {
 	channel *amqp.Channel
 	tag     string
 }
-
 
 /*
  * worker
@@ -244,7 +243,7 @@ func outputMessage(msg map[string]interface{}) error {
 	case conf.LEEFOutputFormat:
 		outmsg, err = leef.Encode(msg)
 	case conf.CEFOutputFormat:
-		outmsg, err = cef.Encode(msg)
+		outmsg, err = cef.EncodeWithSeverity(msg, config.CefEventSeverity)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
 	}
@@ -307,6 +306,7 @@ func logFileProcessingLoop() <-chan error {
 	    "cb-audit-useractivity": Audit_Log_Useractivity
 	}
 	*/
+
 	go spawnTailer("/var/log/cb/audit/live-response.log", "audit.log.liveresponse")
 	go spawnTailer("/var/log/cb/audit/banning.log", "audit.log.banning")
 	go spawnTailer("/var/log/cb/audit/isolation.log", "audit.log.isolation")
@@ -370,7 +370,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 }
 
 func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHandler {
-	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginPath, pluginName)
+	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginName, pluginPath)
 	plugin, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
 	if err != nil {
 		log.Panic(err)

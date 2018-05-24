@@ -38,28 +38,43 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 
 	o.config = config
 
-	var configMap map[string] string;
+	var configMap map[string]interface{}
 
-	configMap, ok := config.GetStanza("plugin")
+	configMap, err := config.GetMap("plugin", "kafkaconfig")
+	if err != nil {
+		log.Info("Error getting pluginconfig")
+	}
 
-	log.Infof("Trying to create kafka output with plugin section: %s",configMap)
+	log.Infof("Trying to create kafka output with plugin section: %s", configMap)
 
 	kafkaConfigMap := kafka.ConfigMap{}
 
 	for key, value := range configMap {
-		kafkaConfigMap[key] = value
+		switch value.(type) {
+		case string:
+			kafkaConfigMap[key] = value.(string)
+		case int:
+			kafkaConfigMap[key] = value.(int)
+		case float32:
+			kafkaConfigMap[key] = value.(float32)
+		case float64:
+			kafkaConfigMap[key] = value.(float64)
+		default:
+			kafkaConfigMap[key] = value.(string)
+		}
 	}
 
-	brokers, ok  := configMap["bootstrap.servers"]
-	if ok {
-		o.brokers = brokers
-	} else {
-		o.brokers = brokers
+	if brokers, ok := configMap["bootstrap.servers"]; ok {
+		if brokers, ok := brokers.(string); ok {
+			o.brokers = brokers
+		} else {
+			o.brokers = "localhost:9092"
+		}
 	}
 
-	topicSuffix, ok := config.GetInStanza("plugin", "topicsuffix")
+	topicSuffix, err := config.GetString("plugin", "topicsuffix")
 
-	if ok {
+	if err == nil {
 		o.topicSuffix = topicSuffix
 	} else {
 		o.topicSuffix = ""
