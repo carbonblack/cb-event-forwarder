@@ -122,58 +122,42 @@ func loadEncoderFuncMapFromPlugin(pluginPath string, pluginName string) template
 	}
 	pluginGetFuncMapRaw, err := plug.Lookup("GetFuncMap")
 	if err != nil {
-		log.Panicf("Failed to load plugin %v", err)
+		log.Panicf("Failed to load encoder plugin %v", err)
 	}
 	return pluginGetFuncMapRaw.(func() template.FuncMap)()
 }
 
 func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
-	var temp, iface interface{}
-	log.Infof("Lookup %s", lookup)
+	var temp interface{}
+	log.Debugf("Lookup %s", lookup)
 	for index, key := range lookup {
 		if index == 0 {
 			iface, ok := c.ConfigMap[key]
 			if !ok {
-				log.Debugf("Couldn't find %s in %s", key, c.ConfigMap)
-				return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
+				log.Debugf("Couldn't find %s in %s in %s", key,lookup, c.ConfigMap)
+				return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", lookup, c.ConfigMap))
 			} else {
-				log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
-				temp = iface
+				log.Debugf("Found key %s in %s in %s value is %s", key, lookup, c.ConfigMap, iface)
+				temp=iface
 			}
 		} else {
-			if iface != nil {
-				iface, ok := iface.(map[string]interface{})[key]
+			if temp != nil {
+				iface, ok := temp.(map[interface{}]interface{})[key]
 				if !ok {
-					log.Debugf("Couldn't find %s in %s", key, iface)
-					return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
+					log.Debugf("Couldn't find %s in %s in %s", key, lookup, iface)
+					return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", lookup, iface))
 				} else {
-					log.Debugf("Found key %s in %s value is %s", key, c.ConfigMap, iface)
+					log.Debugf("Found key %s in %s in %s value is %s", key,lookup,temp,iface)
 					temp = iface
 				}
+			} else {
+				log.Debugf("Couldn't find %s in %s in %s [temp iface is nil]", key, lookup, temp)
+				return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", lookup, temp))
 			}
-			return nil, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
 		}
 	}
-	log.Infof("Lookup returning %s for %s", temp, lookup)
+	log.Debugf("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
-}
-
-func (c *Configuration) Get(lookup ...string) (interface{}, error) {
-	var iface interface{}
-	for index, key := range lookup {
-		if index == 0 {
-			iface, ok := c.ConfigMap[key]
-			if !ok {
-				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, c.ConfigMap))
-			}
-		} else {
-			iface, ok := iface.(map[string]interface{})[key]
-			if !ok {
-				return iface, errors.New(fmt.Sprintf("Couldn't find %s in %s", key, iface))
-			}
-		}
-	}
-	return iface, nil
 }
 
 func (c *Configuration) GetBool(lookup ...string) (bool, error) {
@@ -870,6 +854,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.parseEventTypes(input)
+
+	config.PluginPath = "."
 
 	if config.OutputType == PluginOutputType {
 		plugin, err := input.GetString("plugin")

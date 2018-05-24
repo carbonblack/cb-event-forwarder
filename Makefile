@@ -14,7 +14,9 @@ dep-ensure:
 
 build-plugins: dep-ensure
 	go build -buildmode=plugin -o plugins/kafka/kafka_output.so plugins/kafka/kafka_output.go     
+	go build -buildmode=plugin -o plugins/encoder_plugins/basic/basic_encoder.so plugins/encoder_plugins/basic/basic_encoder.go     
 	cp plugins/kafka/kafka_output.so .
+	mv plugins/encoder_plugins/basic/basic_encoder.so basic.so 
 
 build: build-plugins 
 	go get -u github.com/golang/protobuf/proto
