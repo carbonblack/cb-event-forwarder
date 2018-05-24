@@ -186,7 +186,22 @@ func (c *Configuration) GetBool(lookup ...string) (bool, error) {
 		if ok {
 			return bval, nil
 		} else {
-			return false, errors.New(fmt.Sprintf("Can't convert to bool %s", iFaceValue))
+			return false, errors.New(fmt.Sprintf("Can't convert to bool : %s", iFaceValue))
+		}
+	}
+}
+
+func (c *Configuration) GetInt(lookup ...string) (int, error) {
+	iFaceValue, err := c.getByArray(lookup)
+	if err != nil {
+		return 0, err
+
+	} else {
+		ival, ok := iFaceValue.(int)
+		if ok {
+			return ival, nil
+		} else {
+			return 0, errors.New(fmt.Sprintf("Can't convert to bool %s", iFaceValue))
 		}
 	}
 }
@@ -196,12 +211,25 @@ func (c *Configuration) GetString(lookup ...string) (string, error) {
 	if err != nil {
 		return "", err
 	} else {
-		stringVal, ok := iFaceValue.(string)
-		if ok {
-			return stringVal, nil
-		} else {
-			return "", errors.New(fmt.Sprintf("Can't convert %s to string", iFaceValue))
+		stringVal := ""
+		switch iFaceValue.(type) {
+		case string:
+			var ok bool = false
+			stringVal, ok = iFaceValue.(string)
+			if !ok {
+				return "", errors.New(fmt.Sprintf("Can't convert %s to string", iFaceValue))
+			}
+		case int:
+			stringVal = fmt.Sprintf("%d", iFaceValue)
+		case float32, float64:
+			stringVal = fmt.Sprintf("%f", iFaceValue)
+		case bool:
+			stringVal = fmt.Sprintf("%b", iFaceValue)
+		default:
+			stringVal = fmt.Sprintf("%s", iFaceValue)
 		}
+		return stringVal, nil
+
 	}
 }
 
@@ -347,14 +375,18 @@ func (c *Configuration) parseEventTypes(input Configuration) {
 			val = strings.ToLower(val)
 			if val == "all" {
 				for _, routingKey := range eventType.eventList {
-					eventTypesArray = append(eventTypesArray, routingKey)
+					if len(routingKey) > 0 {
+						eventTypesArray = append(eventTypesArray, routingKey)
+					}
 				}
 			} else if val == "0" {
 				// nothing
 
 			} else {
 				for _, routingKey := range strings.Split(val, ",") {
-					eventTypesArray = append(eventTypesArray, routingKey)
+					if len(routingKey) > 0 {
+						eventTypesArray = append(eventTypesArray, routingKey)
+					}
 				}
 			}
 		} else {
@@ -407,19 +439,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.ServerName = val
 	}
 
-	val, error = input.GetString("debug")
-	if error == nil {
-		if val == "1" {
-			config.DebugFlag = true
-			log.SetLevel(log.DebugLevel)
+	bval, error := input.GetBool("debug")
+	if error == nil && bval {
+		config.DebugFlag = true
+		log.SetLevel(log.DebugLevel)
 
-			customFormatter := new(log.TextFormatter)
-			customFormatter.TimestampFormat = "2006-01-02 15:04:05"
-			log.SetFormatter(customFormatter)
-			customFormatter.FullTimestamp = true
+		customFormatter := new(log.TextFormatter)
+		customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+		log.SetFormatter(customFormatter)
+		customFormatter.FullTimestamp = true
 
-			log.Debug("Debugging output is set to True")
-		}
+		log.Debug("Debugging output is set to True")
 	}
 
 	AddToOutput := make(map[string]string)
@@ -500,12 +530,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("rabbit_mq_use_tls")
+	bval, err = input.GetBool("rabbit_mq_use_tls")
 	if err == nil {
-		b, err := strconv.ParseBool(val)
-		if err == nil {
-			config.AMQPTLSEnabled = b
-		}
+		config.AMQPTLSEnabled = bval
 	}
 
 	rabbitKeyFilename, err := input.GetString("rabbit_mq_key")
@@ -529,17 +556,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.AMQPAutomaticAcking = true
-	rabbitAutomaticAcking, err := input.GetString("rabbit_mq_automatic_acking")
+	rabbitAutomaticAcking, err := input.GetBool("rabbit_mq_automatic_acking")
 
 	if err == nil {
-		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
-		if err == nil {
-			if boolval == false {
-				config.AMQPAutomaticAcking = false
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
-		}
+		config.AMQPAutomaticAcking = rabbitAutomaticAcking
+	} else {
+		log.Warn("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
 	}
 
 	val, err = input.GetString("cb_server_hostname")
@@ -598,21 +620,15 @@ func ParseConfig(fn string) (Configuration, error) {
 
 
 	config.FileHandlerCompressData = false
-	val, err = input.GetString("compress_data")
+	bval, err = input.GetBool("compress_data")
 	if err == nil {
-		b, err := strconv.ParseBool(val)
-		if err == nil {
-			config.FileHandlerCompressData = b
-		}
+		config.FileHandlerCompressData = bval
 	}
 
 	config.AuditLog = false
-	val, err = input.GetString("audit_log")
+	bval, err = input.GetBool("audit_log")
 	if err == nil {
-		b, err := strconv.ParseBool(val)
-		if err == nil {
-			config.AuditLog = b
-		}
+		config.AuditLog = bval
 	}
 
 	outType, err := input.GetString("output_type")
@@ -736,20 +752,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("use_raw_sensor_exchange")
+	bval, err = input.GetBool("use_raw_sensor_exchange")
 	if err == nil {
-		boolval, err := strconv.ParseBool(val)
-		if err == nil {
-			config.UseRawSensorExchange = boolval
-			if boolval {
-				log.Warn("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
-				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Warn("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
-				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
+		config.UseRawSensorExchange = bval
+		if bval {
+			log.Warn("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
+			log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
+			log.Warn("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
+			log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
 		}
+	} else {
+		log.Warn("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
+		config.UseRawSensorExchange = false
 	}
 
 	// TLS configuration
@@ -769,29 +783,21 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.TLSVerify = true
-	tlsVerify, err := input.GetString(outType, "tls_verify")
+	tlsVerify, err := input.GetBool(outType, "tls_verify")
 	if err == nil {
-		boolval, err := strconv.ParseBool(tlsVerify)
-		if err == nil {
-			if boolval == false {
-				config.TLSVerify = false
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
-		}
+		config.TLSVerify = tlsVerify
+	} else {
+		config.TLSVerify = true
+		log.Warn("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
 	}
 
 	config.TLS12Only = true
-	tlsInsecure, err := input.GetString(outType, "insecure_tls")
+	tlsInsecure, err := input.GetBool(outType, "insecure_tls")
 	if err == nil {
-		boolval, err := strconv.ParseBool(tlsInsecure)
-		if err == nil {
-			if boolval == true {
-				config.TLS12Only = false
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'insecure_tls': ")
-		}
+		config.TLS12Only = tlsInsecure
+	} else {
+		config.TLS12Only = true
+		log.Warn("Unknown value for 'insecure_tls': ")
 	}
 
 	serverCName, err := input.GetString(outType, "server_cname")
@@ -810,16 +816,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		config.UploadEmptyFiles = true
 	}
-	sendEmptyFiles, err := input.GetString(outType, "upload_empty_files")
+	sendEmptyFiles, err := input.GetBool(outType, "upload_empty_files")
 	if err == nil {
-		boolval, err := strconv.ParseBool(sendEmptyFiles)
-		if err == nil {
-			if boolval == false {
-				config.UploadEmptyFiles = false
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'upload_empty_files': valid values are true, false, 1, 0. Default is 'true'")
-		}
+		config.UploadEmptyFiles = sendEmptyFiles
+	} else {
+		config.UploadEmptyFiles = true
+		log.Warn("Unknown value for 'upload_empty_files': valid values are true, false, 1, 0. Default is 'true'")
 	}
 
 	if config.OutputFormat == JSONOutputFormat {
@@ -848,12 +850,12 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	val, err = input.GetString("api_verify_ssl")
+	bval, err = input.GetBool("api_verify_ssl")
 	if err == nil {
-		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
-		if err != nil {
-			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
-		}
+		config.CbAPIVerifySSL = bval
+	} else {
+		log.Warn("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
+		config.CbAPIVerifySSL = false
 	}
 	val, err = input.GetString("api_token")
 	if err == nil {
