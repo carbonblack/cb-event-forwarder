@@ -17,7 +17,6 @@ import (
 )
 
 type KafkaOutput struct {
-	config            conf.Configuration
 	brokers           string
 	topicSuffix       string
 	producer          *kafka.Producer
@@ -35,8 +34,6 @@ type KafkaStatistics struct {
 func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
-
-	o.config = config
 
 	var configMap map[string]interface{}
 
@@ -59,8 +56,10 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 			kafkaConfigMap[key] = value.(float32)
 		case float64:
 			kafkaConfigMap[key] = value.(float64)
+		case bool:
+			kafkaConfigMap[key] = value.(bool)
 		default:
-			kafkaConfigMap[key] = value.(string)
+			kafkaConfigMap[key] = fmt.Sprintf("%s",value)
 		}
 	}
 

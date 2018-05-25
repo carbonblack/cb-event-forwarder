@@ -10,12 +10,12 @@ import (
 	"github.com/vaughan0/go-ini"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"path"
+	"plugin"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
-	"plugin"
-	"path"
 )
 
 const (
@@ -111,15 +111,15 @@ type Configuration struct {
 	Plugin     string
 
 	//TemplateEncoder support
-	EncoderTemplate * template.Template
+	EncoderTemplate *template.Template
 
 	//FilterTemplate support
-	FilterTemplate * template.Template
-	FilterEnabled bool
+	FilterTemplate *template.Template
+	FilterEnabled  bool
 }
 
-func loadEncoderFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
-	log.Infof("loadEncoderPlugin: Trying to load encoder plugin %s at %s", pluginName, pluginPath)
+func loadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
+	log.Infof("loadPluginFuncMap: Trying to load plugin funcmap provider %s at %s", pluginName, pluginPath)
 	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
 	if err != nil {
 		log.Panic(err)
@@ -138,35 +138,35 @@ func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 		if index == 0 {
 			iface, ok := c.ConfigMap[key]
 			if !ok {
-				errStr := fmt.Sprintf("Couldn't find %s of %s in %s",key,lookup,c.ConfigMap)
+				errStr := fmt.Sprintf("Couldn't find %s of %s in %s", key, lookup, c.ConfigMap)
 				log.Debugf(errStr)
 				return nil, errors.New(errStr)
 			} else {
 				log.Debugf("Found key %s of %s in %s value is %s", key, lookup, c.ConfigMap, iface)
-				temp=iface
+				temp = iface
 			}
 		} else {
 			if temp != nil {
-				tempmap, ok:= temp.(map[interface{}]interface{})
+				tempmap, ok := temp.(map[interface{}]interface{})
 				if ok {
-					iface,ok := tempmap[key]
+					iface, ok := tempmap[key]
 					if !ok {
-						errStr := fmt.Sprintf("Couldn't find %s in %s in %s within %s", key, lookup, tempmap,c.ConfigMap)
+						errStr := fmt.Sprintf("Couldn't find %s in %s in %s within %s", key, lookup, tempmap, c.ConfigMap)
 						log.Debugf(errStr)
 						return iface, errors.New(errStr)
 					} else {
-						log.Debugf("Found key %s of %s in %s within %s value is %s", key,lookup,temp,iface,c.ConfigMap)
+						log.Debugf("Found key %s of %s in %s within %s value is %s", key, lookup, temp, iface, c.ConfigMap)
 						temp = iface
 					}
 				} else {
 					errStr := "Type coercion failed"
 					switch t := temp.(type) {
-						default:
-							errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} %T",temp,t)
+					default:
+						errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} %T", temp, t)
 					}
 
 					log.Debugf(errStr)
-					return nil,errors.New(errStr)
+					return nil, errors.New(errStr)
 
 				}
 			} else {
@@ -178,6 +178,20 @@ func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 	}
 	log.Debugf("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
+}
+
+func (c * Configuration) Get(lookup ... string) (interface {} , error){
+	return c.getByArray(lookup)
+}
+
+func (c * Configuration) GetWithDefault(d interface{}, lookup ... string) interface{} {
+	found, err := c.getByArray(lookup)
+	if err == nil {
+		return found
+	} else {
+		return d
+	}
+
 }
 
 func (c *Configuration) GetBool(lookup ...string) (bool, error) {
@@ -195,7 +209,7 @@ func (c *Configuration) GetBool(lookup ...string) (bool, error) {
 	}
 }
 
-func (c *Configuration) GetBoolWithDefault(def bool,lookup ... string) bool {
+func (c *Configuration) GetBoolWithDefault(def bool, lookup ...string) bool {
 	iFaceValue, err := c.getByArray(lookup)
 	if err != nil {
 		return def
@@ -618,7 +632,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		if val == "template" {
 			config.OutputFormat = TemplateOutputFormat
-			val, err := config.GetString("encoder","template")
+			val, err := config.GetString("encoder", "template")
 			if err == nil {
 				tmpl, err := template.New("TemplateEncoder").Parse(val)
 				if err != nil {
@@ -627,7 +641,7 @@ func ParseConfig(fn string) (Configuration, error) {
 					config.EncoderTemplate = tmpl
 				}
 			}
-			val, err = config.GetString("encoder","plugin")
+			val, err = config.GetString("encoder", "plugin")
 			if err == nil && len(val) > 0 {
 				EncoderPlugin = val
 			} else {
@@ -635,7 +649,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 		} //config.EncoderTemplate nil when not configured
 	}
-
 
 	config.FileHandlerCompressData = false
 	bval, err = config.GetBool("compress_data")
@@ -887,7 +900,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbAPIProxyURL = val
 	}
 
-
 	config.parseEventTypes(config)
 
 	config.PluginPath = "."
@@ -906,8 +918,6 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.PluginPath = "."
 				errs.addErrorString("Unable to parse plugin_path from config [plugin] section")
 			}
-
-
 		} else {
 			log.Info("No plugin specified in [plugin]!")
 			errs.addErrorString("Unable to parse plugin from config [plugin] section")
@@ -916,12 +926,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	//load encoder plugin if specified
-	if config.OutputFormat == TemplateOutputFormat &&  EncoderPlugin != "" {
+	if config.OutputFormat == TemplateOutputFormat && EncoderPlugin != "" {
 		log.Warn("!!!LOADING ENCODER PLUGIN!!!")
-		config.EncoderTemplate = config.EncoderTemplate.Funcs(loadEncoderFuncMapFromPlugin(config.PluginPath,EncoderPlugin))
+		config.EncoderTemplate = config.EncoderTemplate.Funcs(loadFuncMapFromPlugin(config.PluginPath, EncoderPlugin))
 	}
 
-	filter_events := config.GetBoolWithDefault(false,"filter","enabled")
+	filter_events := config.GetBoolWithDefault(false, "filter", "enabled")
 	config.FilterEnabled = filter_events
 	if config.FilterEnabled {
 		log.Warn("!!!EVENT FILTERING ENALBED!!!")
@@ -929,12 +939,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			errs.addErrorString("Filter enabled but no filter.template specified")
 		}
-		config.FilterTemplate,err = template.New("eventfilter").Parse(filter_temp)
+		config.FilterTemplate, err = template.New("eventfilter").Parse(filter_temp)
 		if err != nil {
 			errs.addError(err)
 		}
+		filter_plugin, err := config.GetString("filter","plugin")
+		if err != nil {
+			log.Warn("!!!NO EVENT FILTERING PLUGIN LOADED!!!")
+		} else {
+			log.Warn("!!!EVENT FILTERING PLUGIN ENALBED!!!")
+			config.FilterTemplate = config.FilterTemplate.Funcs(loadFuncMapFromPlugin(config.PluginPath, filter_plugin))
+		}
 	}
-
 
 	if !errs.Empty {
 		return config, errs
