@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/filter"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
@@ -44,6 +45,7 @@ var config conf.Configuration
 type Status struct {
 	InputEventCount  *expvar.Int
 	OutputEventCount *expvar.Int
+	FilteredEventCount *expvar.Int
 	ErrorCount       *expvar.Int
 	IsConnected      bool
 	LastConnectTime  time.Time
@@ -69,6 +71,7 @@ func init() {
 	flag.Parse()
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
+	status.FilteredEventCount = expvar.NewInt("filtered_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
 
 	expvar.Publish("connection_status",
@@ -234,28 +237,38 @@ func outputMessage(msg map[string]interface{}) error {
 		delete(msg, v)
 	}
 
-	var outmsg string
-
-	switch config.OutputFormat {
-	case conf.JSONOutputFormat:
-		var b []byte
-		b, err = json.Marshal(msg)
-		outmsg = string(b)
-	case conf.LEEFOutputFormat:
-		outmsg, err = leef.Encode(msg)
-	case conf.CEFOutputFormat:
-		outmsg, err = cef.EncodeWithSeverity(msg, config.CefEventSeverity)
-	case conf.TemplateOutputFormat:
-		outmsg, err = te.EncodeWithTemplate(msg,config.EncoderTemplate)
-	default:
-		panic("Impossible: invalid output_format, exiting immediately")
+	//Apply Event Filter if specified
+	keepEvent := true
+	if config.FilterEnabled && config.FilterTemplate != nil {
+		keepEvent = filter.FilterWithTemplate(msg,config.FilterTemplate)
 	}
 
-	if len(outmsg) > 0 && err == nil {
-		status.OutputEventCount.Add(1)
-		results <- string(outmsg)
-	} else {
-		return err
+	if keepEvent {
+		var outmsg string
+
+		switch config.OutputFormat {
+		case conf.JSONOutputFormat:
+			var b []byte
+			b, err = json.Marshal(msg)
+			outmsg = string(b)
+		case conf.LEEFOutputFormat:
+			outmsg, err = leef.Encode(msg)
+		case conf.CEFOutputFormat:
+			outmsg, err = cef.EncodeWithSeverity(msg, config.CefEventSeverity)
+		case conf.TemplateOutputFormat:
+			outmsg, err = te.EncodeWithTemplate(msg, config.EncoderTemplate)
+		default:
+			panic("Impossible: invalid output_format, exiting immediately")
+		}
+
+		if len(outmsg) > 0 && err == nil {
+			status.OutputEventCount.Add(1)
+			results <- string(outmsg)
+		} else if err != nil {
+			return err
+		}
+	} else { //EventDropped due to filter
+		status.FilteredEventCount.Add(1)
 	}
 
 	return nil
