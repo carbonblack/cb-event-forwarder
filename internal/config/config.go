@@ -191,7 +191,6 @@ func (c * Configuration) GetWithDefault(d interface{}, lookup ... string) interf
 	} else {
 		return d
 	}
-
 }
 
 func (c *Configuration) GetBool(lookup ...string) (bool, error) {
