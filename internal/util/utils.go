@@ -1,20 +1,84 @@
-package util 
+package util
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/filetype.v1"
 	"net"
 	"os"
 	"path/filepath"
+	"text/template"
+	"encoding/json"
+	"gopkg.in/yaml.v2"
+	"time"
+	"github.com/carbonblack/cb-event-forwarder/internal/cef"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 )
 
 /*
  * conversion routines
  */
+
+func Leef (raw_input map[string] interface{}) (string, error) {
+	return leef.Encode(raw_input)
+}
+
+func Cef (raw_input map[string] interface{}, cef_severity int) (string, error) {
+	return cef.EncodeWithSeverity(raw_input, cef_severity)
+}
+
+func Json( raw_input map[string] interface{} ) (string, error){
+	ret,err := json.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s",ret),nil
+}
+
+func Yaml( raw_input map[string] interface{} ) (string, error){
+	ret,err := yaml.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s",ret),nil
+}
+
+func GetUtilFuncMap() template.FuncMap {
+	funcMap := template.FuncMap{"LeefFormat": Leef, "CefFormat" : Cef , "JsonFormat" : Json , "YamlFormat" : Yaml, "GetCurrentTimeFormat"  : GetCurrentTimeFormat,  "GetCurrentTimeRFC3339" : GetCurrentTimeRFC3339 , "GetCurrentTimeUnix" : GetCurrentTimeUnix, "GetCurrentTimeUTC" : GetCurrentTimeUTC, "ParseTime" : ParseTime}
+	return funcMap
+}
+
+func GetCurrentTimeRFC3339() string {
+	t := time.Now()
+	return t.Format(time.RFC3339)
+}
+
+func GetCurrentTimeFormat(format string) string {
+	 t := time.Now()
+	 return t.Format(format)
+}
+
+func GetCurrentTimeUnix() string {
+	t := time.Now()
+	return fmt.Sprintf("%v",t.Unix())
+}
+
+func GetCurrentTimeUTC() string {
+	t := time.Now()
+	return fmt.Sprintf("%v",t.UTC())
+}
+
+func ParseTime(t string , format string) (string, error) {
+	parsed, err := time.Parse(format, t)
+	if err == nil {
+		return fmt.Sprintf("%v", parsed), nil
+	} else {
+		return "", err
+	}
+}
 
 func WindowsTimeToUnixTime(windowsTime int64) int64 {
 	// number of milliseconds between Jan 1st 1601 and Jan 1st 1970
@@ -137,7 +201,7 @@ func IsGzip(fp *os.File) bool {
 	return false
 }
 
-func MoveFileToDebug(config conf.Configuration,name string) {
+func MoveFileToDebug(config conf.Configuration, name string) {
 	if config.DebugFlag {
 		baseName := filepath.Base(name)
 		dest := filepath.Join(config.DebugStore, baseName)
