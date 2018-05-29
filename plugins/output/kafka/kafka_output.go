@@ -59,7 +59,7 @@ func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error
 		case bool:
 			kafkaConfigMap[key] = value.(bool)
 		default:
-			kafkaConfigMap[key] = fmt.Sprintf("%s",value)
+			kafkaConfigMap[key] = fmt.Sprintf("%s", value)
 		}
 	}
 

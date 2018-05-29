@@ -180,11 +180,11 @@ func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 	return temp, nil
 }
 
-func (c * Configuration) Get(lookup ... string) (interface {} , error){
+func (c *Configuration) Get(lookup ...string) (interface{}, error) {
 	return c.getByArray(lookup)
 }
 
-func (c * Configuration) GetWithDefault(d interface{}, lookup ... string) interface{} {
+func (c *Configuration) GetWithDefault(d interface{}, lookup ...string) interface{} {
 	found, err := c.getByArray(lookup)
 	if err == nil {
 		return found
@@ -246,22 +246,17 @@ func (c *Configuration) GetString(lookup ...string) (string, error) {
 		stringVal := ""
 		switch iFaceValue.(type) {
 		case string:
-			var ok bool = false
-			stringVal, ok = iFaceValue.(string)
-			if !ok {
-				return "", errors.New(fmt.Sprintf("Can't convert %s to string", iFaceValue))
-			}
+			stringVal, _ = iFaceValue.(string)
 		case int:
 			stringVal = fmt.Sprintf("%d", iFaceValue)
 		case float32, float64:
 			stringVal = fmt.Sprintf("%f", iFaceValue)
 		case bool:
-			stringVal = fmt.Sprintf("%b", iFaceValue)
+			stringVal = fmt.Sprintf("%t", iFaceValue)
 		default:
-			stringVal = fmt.Sprintf("%s", iFaceValue)
+			stringVal = fmt.Sprintf("%v", iFaceValue)
 		}
 		return stringVal, nil
-
 	}
 }
 
@@ -608,8 +603,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbServerURL = val
 	}
 
-	EncoderPlugin := ""
-
 	val, err = config.GetString("output_format")
 	if err == nil {
 		val = strings.TrimSpace(val)
@@ -631,21 +624,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		if val == "template" {
 			config.OutputFormat = TemplateOutputFormat
-			val, err := config.GetString("encoder", "template")
-			if err == nil {
-				tmpl, err := template.New("TemplateEncoder").Parse(val)
-				if err != nil {
-					log.Panicf("Error setting up template for encoder", err)
-				} else {
-					config.EncoderTemplate = tmpl
-				}
-			}
-			val, err = config.GetString("encoder", "plugin")
-			if err == nil && len(val) > 0 {
-				EncoderPlugin = val
-			} else {
-				EncoderPlugin = ""
-			}
 		} //config.EncoderTemplate nil when not configured
 	}
 
@@ -925,9 +903,27 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	//load encoder plugin if specified
-	if config.OutputFormat == TemplateOutputFormat && EncoderPlugin != "" {
-		log.Warn("!!!LOADING ENCODER PLUGIN!!!")
-		config.EncoderTemplate = config.EncoderTemplate.Funcs(loadFuncMapFromPlugin(config.PluginPath, EncoderPlugin))
+	if config.OutputFormat == TemplateOutputFormat {
+		encoder_template_string, err := config.GetString("encoder", "template")
+		if err == nil {
+			encoder_plugin_string, err := config.GetString("encoder", "plugin")
+			if err == nil && len(encoder_plugin_string) > 0 {
+				log.Warn("!!!LOADING ENCODER PLUGIN!!!")
+				 tmpl,err := template.New("TemplateEncoder").Funcs(loadFuncMapFromPlugin(config.PluginPath, encoder_plugin_string)).Parse(encoder_template_string)
+				 if err == nil {
+					 config.EncoderTemplate = tmpl
+				 } else {
+					 log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
+				 }
+			} else {
+				tmpl, err := template.New("TemplateEncoder").Parse(encoder_template_string)
+				if err != nil {
+					log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
+				} else {
+					config.EncoderTemplate = tmpl
+				}
+			}
+		}
 	}
 
 	filter_events := config.GetBoolWithDefault(false, "filter", "enabled")
@@ -938,11 +934,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			errs.addErrorString("Filter enabled but no filter.template specified")
 		}
-		config.FilterTemplate, err = template.New("eventfilter").Parse(filter_temp)
+		log.Infof("Filter temp = %s",filter_temp)
+		config.FilterTemplate = nil
+		filterTemplate, err := template.New("eventfilter").Parse(filter_temp)
 		if err != nil {
 			errs.addError(err)
+		} else {
+			config.FilterTemplate = filterTemplate
 		}
-		filter_plugin, err := config.GetString("filter","plugin")
+		filter_plugin, err := config.GetString("filter", "plugin")
 		if err != nil {
 			log.Warn("!!!NO EVENT FILTERING PLUGIN LOADED!!!")
 		} else {
