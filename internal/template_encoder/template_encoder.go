@@ -1,6 +1,5 @@
 package templateencoder
 //package main
-
 import (
 	"bytes"
 	"text/template"
