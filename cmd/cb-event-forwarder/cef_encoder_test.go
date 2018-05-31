@@ -29,7 +29,7 @@ func generateCefOutput(exampleJSONInput string) error {
 	}
 
 	for i, msg := range msgs {
-		if _, err := cef.Encode(msg); err != nil {
+		if _, err := cef.EncodeWithSeverity(msg,5); err != nil {
 			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}
@@ -54,7 +54,6 @@ func TestCefEncoder(t *testing.T) {
 		}
 	}
 }
-
 
 func BenchmarkCefEncoder(b *testing.B) {
 	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")

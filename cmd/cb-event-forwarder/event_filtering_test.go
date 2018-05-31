@@ -1,101 +1,84 @@
 package main
-
 import (
-	"bytes"
-	"encoding/json"
-	"github.com/streadway/amqp"
-	"io/ioutil"
-	"os"
-	"path"
+	"github.com/carbonblack/cb-event-forwarder/internal/filter"
 	"testing"
+	"text/template"
+	"encoding/json"
+	"bytes"
+	"path"
+	"os"
+	"io/ioutil"
+	log "github.com/sirupsen/logrus"
 )
 
-func processJSON(routingKey string, indata []byte) ([]map[string]interface{}, error) {
+var FilterTemplate * template.Template = template.New("testfilter")
+
+func init() {
+	testFilterTemplate, err := FilterTemplate.Parse("{{if (eq .type \"alert.watchlist.hit.query.binary\")}}KEEP{{else}}DROP{{end}}")
+	if err == nil {
+		log.Info("Test template filter success")
+		FilterTemplate = testFilterTemplate
+	} else {
+		log.Info("Test template filter failed")
+	}
+}
+
+func filterMessages(msgs []map[string]interface{}) [] map[string] interface{}  {
+	var ret [] map[string] interface{} = make([] map[string] interface{},0)
+	for _, msg := range msgs {
+		msg["cb_server"] = "cbserver"
+		if keep := filter.FilterWithTemplate(msg,FilterTemplate); keep {
+			ret = append(ret,msg)
+		}
+	}
+	return ret
+}
+
+func generateFilteredOutput(exampleJSONInput string, FilterTemplate * template.Template ) error {
+
 	var msg map[string]interface{}
 
-	decoder := json.NewDecoder(bytes.NewReader(indata))
+	decoder := json.NewDecoder(bytes.NewReader([]byte(exampleJSONInput)))
 
 	// Ensure that we decode numbers in the JSON as integers and *not* float64s
 	decoder.UseNumber()
 
 	if err := decoder.Decode(&msg); err != nil {
-		return nil, err
+		return err
 	}
 
-	msgs, err := ProcessJSONMessage(msg, routingKey)
+	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return msgs, nil
-}
-
-func marshalJSON(msgs []map[string]interface{}) (string, error) {
-	var ret string
 
 	for _, msg := range msgs {
-		msg["cb_server"] = "cbserver"
-		marshaled, err := json.Marshal(msg)
-		if err != nil {
-			return "", err
+		if ok := filter.FilterWithTemplate(msg,FilterTemplate); ok {
+
 		}
-		ret += string(marshaled) + "\n"
 	}
 
-	return ret, nil
+	return nil
 }
 
-func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}, error) {
-	emptyHeaders := new(amqp.Table)
-
-	msg, err := ProcessProtobufMessage(routingKey, indata, *emptyHeaders)
-	if err != nil {
-		return nil, err
-	}
-	msgs := make([]map[string]interface{}, 0, 1)
-	msgs = append(msgs, msg)
-	return msgs, nil
-}
-
-func BenchmarkProtobufEventProcessing(b *testing.B) {
-	fn := path.Join("../../test/raw_data/protobuf/ingress.event.process/0.protobuf")
-	fp, _ := os.Open(fn)
-	d, _ := ioutil.ReadAll(fp)
-
-	for i := 0; i < b.N; i++ {
-		processProtobuf("ingress.event.process", d)
-	}
-}
-
-func BenchmarkJsonEventProcessing(b *testing.B) {
+func BenchmarkFilter(b *testing.B) {
 	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
-
+	s := string(d)
 	for i := 0; i < b.N; i++ {
-		processJSON("watchlist.hit.process", d)
+		generateFilteredOutput(s,FilterTemplate)
 	}
 }
 
-func BenchmarkZipBundleProcessing(b *testing.B) {
-	fn := path.Join("../../test/stress_rabbit/zipbundles/1")
-	fp, _ := os.Open(fn)
-	d, _ := ioutil.ReadAll(fp)
-
-	fakeHeaders := amqp.Table{}
-
-	for i := 0; i < b.N; i++ {
-		ProcessRawZipBundle("", d, fakeHeaders)
-	}
+func TestFilterOutput(t *testing.T) {
+	t.Log("Generated filtered_output to filtered_output")
+	filterTestEvents(t, "filtered_output", filterMessages)
 }
 
-type outputMessageFunc func ([]map[string]interface{}) (string, error)
+type FilterFunc func ([] map[string] interface{}) [] map[string] interface{}
 
-func TestEventProcessing(t *testing.T) {
-	t.Log("Generating JSON output to go_output...")
-	processTestEvents(t, "go_output", marshalJSON)
-}
-
-func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageFunc) {
+func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 	formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
@@ -175,20 +158,23 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 					continue
 				}
 
-				out, err := outputFunc(msgs)
-				if err != nil {
-					t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
-					continue
-				}
+				msgs = filterFunc(msgs)
+				if msgs != nil && len(msgs) > 0 {
+					out, err := marshalJSON(msgs)
+					if err != nil {
+						t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
+						continue
+					}
 
-				outfp, err := os.Create(path.Join("../../test_output", outputDir, format.formatType, routingKey, fn.Name()))
-				if err != nil {
-					t.Errorf("Error creating file: %s", err)
-					continue
-				}
+					outfp, err := os.Create(path.Join("../../test_output", outputDir, format.formatType, routingKey, fn.Name()))
+					if err != nil {
+						t.Errorf("Error creating file: %s", err)
+						continue
+					}
 
-				outfp.Write([]byte(out))
-				outfp.Close()
+					outfp.Write([]byte(out))
+					outfp.Close()
+				}
 			}
 		}
 	}
