@@ -65,6 +65,6 @@ func RegexMatch(s string,r string) bool {
 }
 
 func GetFuncMap() template.FuncMap {
-	funcMap := template.FuncMap{"RegexMatch":RegexMatch,"ErrorEq":ErrorEq,"Delete": Delete,"Mutate" : Mutate,"LeefFormat": util.Leef, "CefFormat" : util.Cef , "JsonFormat" : util.Json , "YamlFormat" : util.Yaml, "GetCurrentTimeFormat"  : util.GetCurrentTimeFormat,  "GetCurrentTimeRFC3339" : util.GetCurrentTimeRFC3339 , "GetCurrentTimeUnix" : util.GetCurrentTimeUnix, "GetCurrentTimeUTC" : util.GetCurrentTimeUTC, "ParseTime" : util.ParseTime}
+	funcMap := template.FuncMap{"RegexMatch":RegexMatch,"MapGetByArray" : util.MapGetByArray ,"Delete": Delete,"Mutate" : Mutate,"LeefFormat": util.Leef, "CefFormat" : util.Cef , "JsonFormat" : util.Json , "YamlFormat" : util.Yaml, "GetCurrentTimeFormat"  : util.GetCurrentTimeFormat,  "GetCurrentTimeRFC3339" : util.GetCurrentTimeRFC3339 , "GetCurrentTimeUnix" : util.GetCurrentTimeUnix, "GetCurrentTimeUTC" : util.GetCurrentTimeUTC, "ParseTime" : util.ParseTime}
 	return funcMap
 }

@@ -277,7 +277,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 						//  due not to some transient issue on the server side (overloading, service not available, etc)
 						//  and instead an issue with the data we've sent. So move the file to the debug area and
 						//  don't try to upload it again.
-						util.MoveFileToDebug(o.config, fileResult.FileName)
+						util.MoveFileToDebug(o.config.DebugFlag,o.config.DebugStore,fileResult.FileName)
 					}
 
 					log.Infof("Error uploading file %s: %s", fileResult.FileName, fileResult.Result)

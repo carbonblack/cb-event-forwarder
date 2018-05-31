@@ -16,6 +16,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 )
 
 const (
@@ -132,7 +133,7 @@ func loadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMa
 }
 
 func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
-	var temp interface{}
+	/*var temp interface{}
 	log.Debugf("Lookup %s", lookup)
 	for index, key := range lookup {
 		if index == 0 {
@@ -177,7 +178,8 @@ func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
 		}
 	}
 	log.Debugf("Lookup returning %s for %s", temp, lookup)
-	return temp, nil
+	return temp, nil */
+	return util.MapGetByArray(c.ConfigMap,lookup)
 }
 
 func (c *Configuration) Get(lookup ...string) (interface{}, error) {
@@ -916,7 +918,7 @@ func ParseConfig(fn string) (Configuration, error) {
 					 log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
 				 }
 			} else {
-				tmpl, err := template.New("TemplateEncoder").Parse(encoder_template_string)
+				tmpl, err := template.New("TemplateEncoder").Funcs(util.GetUtilFuncMap()).Parse(encoder_template_string)
 				if err != nil {
 					log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
 				} else {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/filetype.v1"
 	"net"
@@ -18,6 +17,34 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 )
+
+/*
+ * conversion routines
+ */
+
+func Leef (raw_input map[string] interface{}) (string, error) {
+	return leef.Encode(raw_input)
+}
+
+func Cef (raw_input map[string] interface{}, cef_severity int) (string, error) {
+	return cef.EncodeWithSeverity(raw_input, cef_severity)
+}
+
+func Json( raw_input map[string] interface{} ) (string, error){
+	ret,err := json.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s",ret),nil
+}
+
+func Yaml( raw_input map[string] interface{} ) (string, error){
+	ret,err := yaml.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s",ret),nil
+}
 
 func MapGetByArray(m map[string] interface{} , lookup [] string)  (interface {} , error ) {
 	var temp interface{}
@@ -66,33 +93,6 @@ func MapGetByArray(m map[string] interface{} , lookup [] string)  (interface {} 
 	}
 	log.Debugf("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
-}
-/*
- * conversion routines
- */
-
-func Leef (raw_input map[string] interface{}) (string, error) {
-	return leef.Encode(raw_input)
-}
-
-func Cef (raw_input map[string] interface{}, cef_severity int) (string, error) {
-	return cef.EncodeWithSeverity(raw_input, cef_severity)
-}
-
-func Json( raw_input map[string] interface{} ) (string, error){
-	ret,err := json.Marshal(raw_input)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s",ret),nil
-}
-
-func Yaml( raw_input map[string] interface{} ) (string, error){
-	ret,err := yaml.Marshal(raw_input)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s",ret),nil
 }
 
 func GetUtilFuncMap() template.FuncMap {
@@ -250,10 +250,10 @@ func IsGzip(fp *os.File) bool {
 	return false
 }
 
-func MoveFileToDebug(config conf.Configuration, name string) {
-	if config.DebugFlag {
+func MoveFileToDebug(debugFlag bool,debugStore string, name string) {
+	if debugFlag {
 		baseName := filepath.Base(name)
-		dest := filepath.Join(config.DebugStore, baseName)
+		dest := filepath.Join(debugStore, baseName)
 		log.Debugf("MoveFileToDebug mv %s %s", name, dest)
 		err := os.Rename(name, dest)
 		if err != nil {
