@@ -40,16 +40,16 @@ var (
 var version = "NOT FOR RELEASE"
 
 var wg sync.WaitGroup
-var config conf.Configuration
+var config *conf.Configuration = &conf.Configuration{}
 
 type Status struct {
-	InputEventCount  *expvar.Int
-	OutputEventCount *expvar.Int
+	InputEventCount    *expvar.Int
+	OutputEventCount   *expvar.Int
 	FilteredEventCount *expvar.Int
-	ErrorCount       *expvar.Int
-	IsConnected      bool
-	LastConnectTime  time.Time
-	StartTime        time.Time
+	ErrorCount         *expvar.Int
+	IsConnected        bool
+	LastConnectTime    time.Time
+	StartTime          time.Time
 
 	LastConnectError string
 	ErrorTime        time.Time
@@ -240,7 +240,7 @@ func outputMessage(msg map[string]interface{}) error {
 	//Apply Event Filter if specified
 	keepEvent := true
 	if config.FilterEnabled && config.FilterTemplate != nil {
-		keepEvent = filter.FilterWithTemplate(msg,config.FilterTemplate)
+		keepEvent = filter.FilterWithTemplate(msg, config.FilterTemplate)
 	}
 
 	if keepEvent {

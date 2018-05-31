@@ -13,7 +13,7 @@ import (
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
 type SplunkBehavior struct {
-	config  conf.Configuration
+	config  *conf.Configuration
 	dest    string
 	headers map[string]string
 
@@ -29,7 +29,7 @@ type SplunkStatistics struct {
 }
 
 /* Construct the syslog_output.go object */
-func (this *SplunkBehavior) Initialize(dest string, config conf.Configuration) error {
+func (this *SplunkBehavior) Initialize(dest string, config *conf.Configuration) error {
 	this.config = config
 	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))

@@ -3,23 +3,50 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/cef"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/filetype.v1"
+	"gopkg.in/yaml.v2"
 	"net"
 	"os"
 	"path/filepath"
 	"text/template"
-	"encoding/json"
-	"gopkg.in/yaml.v2"
 	"time"
-	"errors"
-	"github.com/carbonblack/cb-event-forwarder/internal/cef"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 )
 
-func MapGetByArray(m map[string] interface{} , lookup [] string)  (interface {} , error ) {
+/*
+ * conversion routines
+ */
+
+func Leef(raw_input map[string]interface{}) (string, error) {
+	return leef.Encode(raw_input)
+}
+
+func Cef(raw_input map[string]interface{}, cef_severity int) (string, error) {
+	return cef.EncodeWithSeverity(raw_input, cef_severity)
+}
+
+func Json(raw_input map[string]interface{}) (string, error) {
+	ret, err := json.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s", ret), nil
+}
+
+func Yaml(raw_input map[string]interface{}) (string, error) {
+	ret, err := yaml.Marshal(raw_input)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s", ret), nil
+}
+
+func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, error) {
 	var temp interface{}
 	log.Debugf("Lookup %s", lookup)
 	for index, key := range lookup {
@@ -67,36 +94,9 @@ func MapGetByArray(m map[string] interface{} , lookup [] string)  (interface {} 
 	log.Debugf("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
 }
-/*
- * conversion routines
- */
-
-func Leef (raw_input map[string] interface{}) (string, error) {
-	return leef.Encode(raw_input)
-}
-
-func Cef (raw_input map[string] interface{}, cef_severity int) (string, error) {
-	return cef.EncodeWithSeverity(raw_input, cef_severity)
-}
-
-func Json( raw_input map[string] interface{} ) (string, error){
-	ret,err := json.Marshal(raw_input)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s",ret),nil
-}
-
-func Yaml( raw_input map[string] interface{} ) (string, error){
-	ret,err := yaml.Marshal(raw_input)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s",ret),nil
-}
 
 func GetUtilFuncMap() template.FuncMap {
-	funcMap := template.FuncMap{"LeefFormat": Leef, "CefFormat" : Cef , "JsonFormat" : Json , "YamlFormat" : Yaml, "GetCurrentTimeFormat"  : GetCurrentTimeFormat,  "GetCurrentTimeRFC3339" : GetCurrentTimeRFC3339 , "GetCurrentTimeUnix" : GetCurrentTimeUnix, "GetCurrentTimeUTC" : GetCurrentTimeUTC, "ParseTime" : ParseTime}
+	funcMap := template.FuncMap{"LeefFormat": Leef, "CefFormat": Cef, "JsonFormat": Json, "YamlFormat": Yaml, "GetCurrentTimeFormat": GetCurrentTimeFormat, "GetCurrentTimeRFC3339": GetCurrentTimeRFC3339, "GetCurrentTimeUnix": GetCurrentTimeUnix, "GetCurrentTimeUTC": GetCurrentTimeUTC, "ParseTime": ParseTime}
 	return funcMap
 }
 
@@ -106,21 +106,21 @@ func GetCurrentTimeRFC3339() string {
 }
 
 func GetCurrentTimeFormat(format string) string {
-	 t := time.Now()
-	 return t.Format(format)
+	t := time.Now()
+	return t.Format(format)
 }
 
 func GetCurrentTimeUnix() string {
 	t := time.Now()
-	return fmt.Sprintf("%v",t.Unix())
+	return fmt.Sprintf("%v", t.Unix())
 }
 
 func GetCurrentTimeUTC() string {
 	t := time.Now()
-	return fmt.Sprintf("%v",t.UTC())
+	return fmt.Sprintf("%v", t.UTC())
 }
 
-func ParseTime(t string , format string) (string, error) {
+func ParseTime(t string, format string) (string, error) {
 	parsed, err := time.Parse(format, t)
 	if err == nil {
 		return fmt.Sprintf("%v", parsed), nil
@@ -250,10 +250,10 @@ func IsGzip(fp *os.File) bool {
 	return false
 }
 
-func MoveFileToDebug(config conf.Configuration, name string) {
-	if config.DebugFlag {
+func MoveFileToDebug(debugFlag bool, debugStore string, name string) {
+	if debugFlag {
 		baseName := filepath.Base(name)
-		dest := filepath.Join(config.DebugStore, baseName)
+		dest := filepath.Join(debugStore, baseName)
 		log.Debugf("MoveFileToDebug mv %s %s", name, dest)
 		err := os.Rename(name, dest)
 		if err != nil {

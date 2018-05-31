@@ -1,14 +1,15 @@
 package filter
+
 //package main
 
 import (
 	"bytes"
-	"text/template"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"encoding/json"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
+	"text/template"
 )
 
 //boolean returns false if the message should be discarded by the event forwarder
@@ -40,13 +41,13 @@ func main() {
 	config, err := conf.ParseConfig(os.Args[1])
 	if err == nil {
 		m := "{\"k\": {\"k\":\"v\"}}"
-		json.Unmarshal([] byte (m), &msgDict)
+		json.Unmarshal([]byte(m), &msgDict)
 		keepEvent := true
 		if config.FilterEnabled {
 			keepEvent = FilterWithTemplate(msgDict, config.FilterTemplate)
 			log.Infof("Filter result :  %t ", keepEvent)
 		}
 	} else {
-		log.Warn("%v",err)
+		log.Warn("%v", err)
 	}
 }

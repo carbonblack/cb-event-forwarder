@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	cef "github.com/carbonblack/cb-event-forwarder/internal/cef"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 )
 
@@ -26,7 +29,7 @@ func generateCefOutput(exampleJSONInput string) error {
 	}
 
 	for i, msg := range msgs {
-		if _, err := cef.Encode(msg); err != nil {
+		if _, err := cef.EncodeWithSeverity(msg, 5); err != nil {
 			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}
@@ -49,5 +52,14 @@ func TestCefEncoder(t *testing.T) {
 		if err := generateCefOutput(jsonInput); err != nil {
 			t.Errorf("Error generating CEF output for %s: %s", jsonInput, err.Error())
 		}
+	}
+}
+
+func BenchmarkCefEncoder(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+	for i := 0; i < b.N; i++ {
+		generateCefOutput(string(d))
 	}
 }

@@ -14,8 +14,8 @@ var (
 	productVendorName string
 	productName       string
 	productVersion    string
-	cefVersion       string
-	eventSeverity	  int
+	cefVersion        string
+	eventSeverity     int
 	formatter         *strings.Replacer
 )
 
@@ -41,11 +41,10 @@ func init() {
 }
 
 func generateHeader(cbVersion, eventType string) string {
-	// name | Severity | Extension 
+	// name | Severity | Extension
 	return fmt.Sprintf("CEF:%s|%s|%s|%s|%s|%s|%d|", cefVersion, productVendorName, productName, cbVersion,
-		eventType,eventType,eventSeverity)
+		eventType, eventType, eventSeverity)
 }
-
 
 func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
 	outboundConnections := map[string]string{
@@ -77,15 +76,15 @@ func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) 
 	}
 }
 
-func Encode(msg map[string] interface{}) (string, error) {
-	return encode(msg,5)
+func Encode(msg map[string]interface{}) (string, error) {
+	return encode(msg, 5)
 }
 
-func EncodeWithSeverity(msg map[string] interface{},severity int) (string, error) { 
+func EncodeWithSeverity(msg map[string]interface{}, severity int) (string, error) {
 	return encode(msg, severity)
 }
 
-func encode(msg map[string]interface{}, severity int ) (string, error) {
+func encode(msg map[string]interface{}, severity int) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
 

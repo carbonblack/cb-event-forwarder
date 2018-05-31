@@ -22,7 +22,7 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
-	config              conf.Configuration
+	config              *conf.Configuration
 	outputFileName      string
 	outputFileExtension string
 	outputFile          io.WriteCloser
@@ -52,7 +52,7 @@ func (o *FileOutput) Key() string {
 	return fmt.Sprintf("file:%s", o.outputFileName)
 }
 
-func (o *FileOutput) Initialize(fileName string, config conf.Configuration) error {
+func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 

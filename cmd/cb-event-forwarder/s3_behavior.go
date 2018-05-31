@@ -18,7 +18,7 @@ type S3Behavior struct {
 	bucketName string
 	out        *s3.S3
 	region     string
-	config     conf.Configuration
+	config     *conf.Configuration
 }
 
 type S3Statistics struct {
@@ -54,7 +54,7 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) output.UploadStatus {
 	return output.UploadStatus{FileName: fileName, Result: err}
 }
 
-func (o *S3Behavior) Initialize(connString string, config conf.Configuration) error {
+func (o *S3Behavior) Initialize(connString string, config *conf.Configuration) error {
 	// bucketName can either be a single value (just the bucket name itself, defaulting to "/var/cb/data/event-forwarder" as the
 	// temporary file directory and "us-east-1" for the AWS region), or:
 	//

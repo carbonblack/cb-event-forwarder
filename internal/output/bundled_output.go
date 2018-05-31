@@ -41,7 +41,7 @@ type BundledOutput struct {
 
 	// TODO: make this thread-safe from the status page
 	sync.RWMutex
-	config conf.Configuration
+	config *conf.Configuration
 }
 
 type BundleStatistics struct {
@@ -61,7 +61,7 @@ type BundleStatistics struct {
 // initialize itself, and report back statistics.
 type BundleBehavior interface {
 	Upload(fileName string, fp *os.File) UploadStatus
-	Initialize(connString string, config conf.Configuration) error
+	Initialize(connString string, config *conf.Configuration) error
 	Statistics() interface{}
 	Key() string
 	String() string
@@ -125,7 +125,7 @@ func (o *BundledOutput) queueStragglers() {
 	}
 }
 
-func (o *BundledOutput) Initialize(connString string, config conf.Configuration) error {
+func (o *BundledOutput) Initialize(connString string, config *conf.Configuration) error {
 	o.fileResultChan = make(chan UploadStatus)
 	o.filesToUpload = make([]string, 0)
 
@@ -277,7 +277,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 						//  due not to some transient issue on the server side (overloading, service not available, etc)
 						//  and instead an issue with the data we've sent. So move the file to the debug area and
 						//  don't try to upload it again.
-						util.MoveFileToDebug(o.config, fileResult.FileName)
+						util.MoveFileToDebug(o.config.DebugFlag, o.config.DebugStore, fileResult.FileName)
 					}
 
 					log.Infof("Error uploading file %s: %s", fileResult.FileName, fileResult.Result)
