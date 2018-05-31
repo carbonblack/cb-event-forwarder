@@ -6,6 +6,9 @@ import (
 	"fmt"
 	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"testing"
+	"os"
+	"path"
+	"io/ioutil"
 )
 
 func generateLeefOutput(exampleJSONInput string) error {
@@ -51,3 +54,15 @@ func TestLeefEncoder(t *testing.T) {
 		}
 	}
 }
+
+
+
+func BenchmarkLeefEncoder(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+	for i := 0; i < b.N; i++ {
+		generateLeefOutput(string(d))
+	}
+}
+

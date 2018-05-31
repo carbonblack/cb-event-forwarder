@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-func Mutate(value interface {} , cbmsg map [string] interface{}, keys ... string)  error {
+func Mutate(value interface {}, cbmsg map [string] interface{}, keys ... string)  error {
 	var ref map[string] interface{} = cbmsg
 	var tref interface{}
 	var err error = nil
@@ -34,7 +34,6 @@ func Mutate(value interface {} , cbmsg map [string] interface{}, keys ... string
 		return err
 	}
 }
-
 
 func Delete(cbmsg map [string] interface{}, keys ... string)  error {
 	var ref map[string] interface{} = cbmsg
@@ -63,10 +62,6 @@ func Delete(cbmsg map [string] interface{}, keys ... string)  error {
 func RegexMatch(s string,r string) bool {
 	_, err := regexp.MatchString(s,r)
 	return err == nil
-}
-
-func ErrorEq(e1 error , e2 error ) bool {
-	return e1 == e2
 }
 
 func GetFuncMap() template.FuncMap {
