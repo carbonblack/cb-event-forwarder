@@ -7,17 +7,20 @@ import (
 	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	"testing"
-    "text/template"
+    	"text/template"
 	"path"
 	"os"
 	"io/ioutil"
 )
 
-func generateTemplateOutput(exampleJSONInput string) error {
+var testEncoderTemplate * template.Template =  template.New("testencoder")
 
-    var EncoderTemplate * template.Template =  template.New("testencoder")
-    EncoderTemplate = EncoderTemplate.Funcs(template.FuncMap{"JsonFormat":util.Json })
-    EncoderTemplate, _ = EncoderTemplate.Parse("{{JsonFormat .}}")
+func init() {
+	testEncoderTemplate = testEncoderTemplate.Funcs(util.GetUtilFuncMap())
+}
+
+func generateTemplateOutput(exampleJSONInput string, EncoderTemplate * template.Template ) error {
+
 	var msg map[string]interface{}
 
 	decoder := json.NewDecoder(bytes.NewReader([]byte(exampleJSONInput)))
@@ -54,19 +57,66 @@ func TestTemplateEncoder(t *testing.T) {
 		`{"server_name": "cbtest", "docs": [{"host_count": 1, "digsig_result": "Signed", "observed_filename": ["c:\\windows\\system32\\aeinv.dll"], "product_version": "6.3.9600.17415", "signed": "Signed", "digsig_sign_time": "2014-11-08T08:02:00Z", "is_executable_image": false, "orig_mod_len": 537088, "is_64bit": true, "digsig_publisher": "Microsoft Corporation", "group": ["Default Group"], "file_version": "6.3.9600.17415 (winblue_r4.141028-1500)", "company_name": "Microsoft Corporation", "internal_name": "aeinv.dll", "product_name": "Microsoft\u00ae Windows\u00ae Operating System", "digsig_result_code": "0", "timestamp": "2015-11-17T01:34:20.786Z", "copied_mod_len": 537088, "server_added_timestamp": "2015-11-17T01:34:20.786Z", "md5": "18640BDECFFE12E3B2522B081F77FC30", "endpoint": ["WIN-OTEMNUTBS23|7"], "legal_copyright": "\u00a9 Microsoft Corporation. All rights reserved.", "original_filename": "aeinv.dll", "cb_version": 510, "os_type": "Windows", "file_desc": "Application Experience Program Inventory Component", "last_seen": "2015-11-17T01:34:20.786Z"}, {"host_count": 1, "digsig_result": "Signed", "observed_filename": ["c:\\windows\\system32\\aepdu.dll"], "product_version": "6.3.9600.16384", "signed": "Signed", "digsig_sign_time": "2014-11-08T08:02:00Z", "is_executable_image": false, "orig_mod_len": 688128, "is_64bit": true, "digsig_publisher": "Microsoft Corporation", "group": ["Default Group"], "file_version": "6.3.9600.16384 (winblue_rtm.130821-1623)", "company_name": "Microsoft Corporation", "internal_name": "(unknown)", "product_name": "Microsoft\u00ae Windows\u00ae Operating System", "digsig_result_code": "0", "timestamp": "2015-11-17T01:34:20.784Z", "copied_mod_len": 688128, "server_added_timestamp": "2015-11-17T01:34:20.784Z", "md5": "2953772F25ECCF74B04306E94C686CED", "endpoint": ["WIN-OTEMNUTBS23|7"], "legal_copyright": "\u00a9 Microsoft Corporation. All rights reserved.", "original_filename": "(unknown)", "cb_version": 510, "os_type": "Windows", "file_desc": "Program Compatibility Data Updater", "last_seen": "2015-11-17T01:34:20.784Z"}], "event_timestamp": 1447724404.15, "watchlist_id": 3, "highlights": [], "cb_version": "5.1.0.150914.1400", "watchlist_name": "Newly Loaded Modules"}`,
 	}
 
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{JsonFormat .}}")
+
 	for _, jsonInput := range jsonInputs {
-		if err := generateTemplateOutput(jsonInput); err != nil {
+		if err := generateTemplateOutput(jsonInput,myEncoderTemplate); err != nil {
 			t.Errorf("Error generating Template output for %s: %s", jsonInput, err.Error())
 		}
 	}
 }
 
-
 func BenchmarkTemplateEncoder(b *testing.B) {
 	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
+	s := string(d)
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{.}}")
 	for i := 0; i < b.N; i++ {
-		generateTemplateOutput(string(d))
+		generateTemplateOutput(s,myEncoderTemplate)
+	}
+}
+
+func BenchmarkTemplateEncoderJson(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+	s := string(d)
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{JsonFormat .}}")
+	for i := 0; i < b.N; i++ {
+		generateTemplateOutput(s,myEncoderTemplate)
+	}
+}
+
+func BenchmarkTemplateEncoderYaml(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+	s := string(d)
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{YamlFormat .}}")
+	for i := 0; i < b.N; i++ {
+		generateTemplateOutput(s,myEncoderTemplate)
+	}
+}
+
+func BenchmarkTemplateEncoderCef(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{CefFormat . 5}}")
+	s := string(d)
+	for i := 0; i < b.N; i++ {
+		generateTemplateOutput(s,myEncoderTemplate)
+	}
+}
+
+func BenchmarkTemplateEncoderLeef(b *testing.B) {
+	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fp, _ := os.Open(fn)
+	d, _ := ioutil.ReadAll(fp)
+    	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{LeefFormat .}}")
+	s := string(d)
+	for i := 0; i < b.N; i++ {
+		generateTemplateOutput(s,myEncoderTemplate)
 	}
 }

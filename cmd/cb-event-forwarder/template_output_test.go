@@ -9,7 +9,7 @@ import (
 
 func marshalTemplate(msgs []map[string]interface{}) (string, error) {
     var EncoderTemplate * template.Template = template.New("testencoder").Funcs(template.FuncMap{"JsonFormat":util.Json})
-    EncoderTemplate, _ = EncoderTemplate.Parse("{{.}}")
+    EncoderTemplate, _ = EncoderTemplate.Parse("{{JsonFormat .}}")
 	var ret string
 
 	for _, msg := range msgs {
