@@ -6,6 +6,7 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
 	"gopkg.in/yaml.v2"
@@ -16,7 +17,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"github.com/carbonblack/cb-event-forwarder/internal/util"
 )
 
 const (
@@ -133,53 +133,7 @@ func loadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMa
 }
 
 func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
-	/*var temp interface{}
-	log.Debugf("Lookup %s", lookup)
-	for index, key := range lookup {
-		if index == 0 {
-			iface, ok := c.ConfigMap[key]
-			if !ok {
-				errStr := fmt.Sprintf("Couldn't find %s of %s in %s", key, lookup, c.ConfigMap)
-				log.Debugf(errStr)
-				return nil, errors.New(errStr)
-			} else {
-				log.Debugf("Found key %s of %s in %s value is %s", key, lookup, c.ConfigMap, iface)
-				temp = iface
-			}
-		} else {
-			if temp != nil {
-				tempmap, ok := temp.(map[interface{}]interface{})
-				if ok {
-					iface, ok := tempmap[key]
-					if !ok {
-						errStr := fmt.Sprintf("Couldn't find %s in %s in %s within %s", key, lookup, tempmap, c.ConfigMap)
-						log.Debugf(errStr)
-						return iface, errors.New(errStr)
-					} else {
-						log.Debugf("Found key %s of %s in %s within %s value is %s", key, lookup, temp, iface, c.ConfigMap)
-						temp = iface
-					}
-				} else {
-					errStr := "Type coercion failed"
-					switch t := temp.(type) {
-					default:
-						errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} %T", temp, t)
-					}
-
-					log.Debugf(errStr)
-					return nil, errors.New(errStr)
-
-				}
-			} else {
-				errStr := fmt.Sprintf("Couldn't find %s of %s in %s within %s [TEMP IFACE IS NIL]", key, lookup, temp, c.ConfigMap)
-				log.Debugf(errStr)
-				return nil, errors.New(errStr)
-			}
-		}
-	}
-	log.Debugf("Lookup returning %s for %s", temp, lookup)
-	return temp, nil */
-	return util.MapGetByArray(c.ConfigMap,lookup)
+	return util.MapGetByArray(c.ConfigMap, lookup)
 }
 
 func (c *Configuration) Get(lookup ...string) (interface{}, error) {
@@ -291,8 +245,8 @@ func (c *Configuration) GetMap(lookup ...string) (map[string]interface{}, error)
 	}
 }
 
-func LoadFile(filename string) (Configuration, error) {
-	var temp_conf Configuration = Configuration{}
+func LoadFile(filename string) (*Configuration, error) {
+	var temp_conf *Configuration = nil
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return temp_conf, err
@@ -308,7 +262,7 @@ func LoadFile(filename string) (Configuration, error) {
 		}
 		return temp_conf, err
 	} else {
-		temp_conf = Configuration{ConfigMap: m}
+		temp_conf = &Configuration{ConfigMap: m}
 		return temp_conf, nil
 	}
 	return temp_conf, err
@@ -355,7 +309,7 @@ func parseCbConf() (username, password string, err error) {
 	return
 }
 
-func (c *Configuration) parseEventTypes(input Configuration) {
+func (c *Configuration) parseEventTypes() {
 	eventTypes := [...]struct {
 		configKey string
 		eventList []string
@@ -399,7 +353,7 @@ func (c *Configuration) parseEventTypes(input Configuration) {
 	var eventTypesArray []string = make([]string, 24)
 
 	for _, eventType := range eventTypes {
-		val, err := input.GetString(eventType.configKey)
+		val, err := c.GetString(eventType.configKey)
 		if err == nil {
 			val = strings.ToLower(val)
 			if val == "all" {
@@ -437,7 +391,7 @@ func (c *Configuration) parseEventTypes(input Configuration) {
 	c.EventMap = eventMap
 }
 
-func ParseConfig(fn string) (Configuration, error) {
+func ParseConfig(fn string) (*Configuration, error) {
 	errs := ConfigurationError{Empty: true}
 
 	config, err := LoadFile(fn)
@@ -815,7 +769,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.TLSCName = &serverCName
 	}
 
-	config.TLSConfig = configureTLS(config)
+	config.configureTLS()
 
 	// Bundle configuration
 
@@ -879,15 +833,15 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbAPIProxyURL = val
 	}
 
-	config.parseEventTypes(config)
+	config.parseEventTypes()
 
 	config.PluginPath = "."
 
 	if config.OutputType == PluginOutputType {
 		log.Warn("!!!LOADING OUTPUT PLUGIN!!!")
-		plugin, err := config.GetString("plugin")
+		plug, err := config.GetString("plugin")
 		if err == nil {
-			config.Plugin = plugin
+			config.Plugin = plug
 			strPluginPath, err := config.GetString("plugin_path")
 			if err == nil {
 				config.PluginPath = strPluginPath
@@ -911,16 +865,16 @@ func ParseConfig(fn string) (Configuration, error) {
 			encoder_plugin_string, err := config.GetString("encoder", "plugin")
 			if err == nil && len(encoder_plugin_string) > 0 {
 				log.Warn("!!!LOADING ENCODER PLUGIN!!!")
-				 tmpl,err := template.New("TemplateEncoder").Funcs(loadFuncMapFromPlugin(config.PluginPath, encoder_plugin_string)).Parse(encoder_template_string)
-				 if err == nil {
-					 config.EncoderTemplate = tmpl
-				 } else {
-					 log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
-				 }
+				tmpl, err := template.New("TemplateEncoder").Funcs(loadFuncMapFromPlugin(config.PluginPath, encoder_plugin_string)).Parse(encoder_template_string)
+				if err == nil {
+					config.EncoderTemplate = tmpl
+				} else {
+					log.Panicf("Error setting up template for encoder %s %s", encoder_template_string, err)
+				}
 			} else {
 				tmpl, err := template.New("TemplateEncoder").Funcs(util.GetUtilFuncMap()).Parse(encoder_template_string)
 				if err != nil {
-					log.Panicf("Error setting up template for encoder %s %s",encoder_template_string, err)
+					log.Panicf("Error setting up template for encoder %s %s", encoder_template_string, err)
 				} else {
 					config.EncoderTemplate = tmpl
 				}
@@ -936,7 +890,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			errs.addErrorString("Filter enabled but no filter.template specified")
 		}
-		log.Infof("Filter temp = %s",filter_temp)
+		log.Infof("Filter temp = %s", filter_temp)
 		config.FilterTemplate = nil
 		filterTemplate, err := template.New("eventfilter").Parse(filter_temp)
 		if err != nil {
@@ -960,7 +914,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	return config, nil
 }
 
-func configureTLS(config Configuration) *tls.Config {
+func (config *Configuration) configureTLS() {
 	tlsConfig := &tls.Config{}
 
 	if config.TLSVerify == false {
@@ -1003,5 +957,5 @@ func configureTLS(config Configuration) *tls.Config {
 		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
-	return tlsConfig
+	config.TLSConfig = tlsConfig
 }

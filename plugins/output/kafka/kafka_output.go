@@ -31,7 +31,7 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error {
+func (o *KafkaOutput) Initialize(unused string, config *conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 

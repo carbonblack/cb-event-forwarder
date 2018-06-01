@@ -29,7 +29,7 @@ type SyslogOutput struct {
 
 	sync.RWMutex
 
-	config conf.Configuration
+	config *conf.Configuration
 }
 
 type SyslogStatistics struct {
@@ -43,7 +43,7 @@ type SyslogStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp+tls:destination.server.example.com:512
-func (o *SyslogOutput) Initialize(netConn string, config conf.Configuration) error {
+func (o *SyslogOutput) Initialize(netConn string, config *conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 

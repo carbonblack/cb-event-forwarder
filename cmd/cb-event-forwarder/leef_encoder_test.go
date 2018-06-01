@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"testing"
+	"io/ioutil"
 	"os"
 	"path"
-	"io/ioutil"
+	"testing"
 )
 
 func generateLeefOutput(exampleJSONInput string) error {
@@ -55,8 +55,6 @@ func TestLeefEncoder(t *testing.T) {
 	}
 }
 
-
-
 func BenchmarkLeefEncoder(b *testing.B) {
 	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
@@ -65,4 +63,3 @@ func BenchmarkLeefEncoder(b *testing.B) {
 		generateLeefOutput(string(d))
 	}
 }
-

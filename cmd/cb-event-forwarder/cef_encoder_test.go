@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	cef "github.com/carbonblack/cb-event-forwarder/internal/cef"
-	"testing"
+	"io/ioutil"
 	"os"
 	"path"
-	"io/ioutil"
+	"testing"
 )
 
 func generateCefOutput(exampleJSONInput string) error {
@@ -29,7 +29,7 @@ func generateCefOutput(exampleJSONInput string) error {
 	}
 
 	for i, msg := range msgs {
-		if _, err := cef.EncodeWithSeverity(msg,5); err != nil {
+		if _, err := cef.EncodeWithSeverity(msg, 5); err != nil {
 			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}

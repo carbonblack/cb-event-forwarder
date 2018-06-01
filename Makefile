@@ -8,6 +8,9 @@ GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 .PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
+
+go-fmt:
+	go fmt github.com/carbonblack/cb-event-forwarder/...
 	
 dep-ensure:
 	dep ensure

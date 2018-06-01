@@ -30,7 +30,7 @@ type NetOutput struct {
 
 	sync.RWMutex
 
-	config conf.Configuration
+	config *conf.Configuration
 }
 
 type NetStatistics struct {
@@ -44,7 +44,7 @@ type NetStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp:destination.server.example.com:512
-func (o *NetOutput) Initialize(netConn string, config conf.Configuration) error {
+func (o *NetOutput) Initialize(netConn string, config *conf.Configuration) error {
 	o.Lock()
 	defer o.Unlock()
 

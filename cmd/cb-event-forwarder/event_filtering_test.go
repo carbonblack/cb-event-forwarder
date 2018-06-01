@@ -1,17 +1,18 @@
 package main
+
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 	"text/template"
-	"encoding/json"
-	"bytes"
-	"path"
-	"os"
-	"io/ioutil"
-	log "github.com/sirupsen/logrus"
 )
 
-var FilterTemplate * template.Template = template.New("testfilter")
+var FilterTemplate *template.Template = template.New("testfilter")
 
 func init() {
 	testFilterTemplate, err := FilterTemplate.Parse("{{if (eq .type \"alert.watchlist.hit.query.binary\")}}KEEP{{else}}DROP{{end}}")
@@ -23,18 +24,18 @@ func init() {
 	}
 }
 
-func filterMessages(msgs []map[string]interface{}) [] map[string] interface{}  {
-	var ret [] map[string] interface{} = make([] map[string] interface{},0)
+func filterMessages(msgs []map[string]interface{}) []map[string]interface{} {
+	var ret []map[string]interface{} = make([]map[string]interface{}, 0)
 	for _, msg := range msgs {
 		msg["cb_server"] = "cbserver"
-		if keep := filter.FilterWithTemplate(msg,FilterTemplate); keep {
-			ret = append(ret,msg)
+		if keep := filter.FilterWithTemplate(msg, FilterTemplate); keep {
+			ret = append(ret, msg)
 		}
 	}
 	return ret
 }
 
-func generateFilteredOutput(exampleJSONInput string, FilterTemplate * template.Template ) error {
+func generateFilteredOutput(exampleJSONInput string, FilterTemplate *template.Template) error {
 
 	var msg map[string]interface{}
 
@@ -53,7 +54,7 @@ func generateFilteredOutput(exampleJSONInput string, FilterTemplate * template.T
 	}
 
 	for _, msg := range msgs {
-		if ok := filter.FilterWithTemplate(msg,FilterTemplate); ok {
+		if ok := filter.FilterWithTemplate(msg, FilterTemplate); ok {
 
 		}
 	}
@@ -67,7 +68,7 @@ func BenchmarkFilter(b *testing.B) {
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
 	for i := 0; i < b.N; i++ {
-		generateFilteredOutput(s,FilterTemplate)
+		generateFilteredOutput(s, FilterTemplate)
 	}
 }
 
@@ -76,7 +77,7 @@ func TestFilterOutput(t *testing.T) {
 	filterTestEvents(t, "filtered_output", filterMessages)
 }
 
-type FilterFunc func ([] map[string] interface{}) [] map[string] interface{}
+type FilterFunc func([]map[string]interface{}) []map[string]interface{}
 
 func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 	formats := [...]struct {

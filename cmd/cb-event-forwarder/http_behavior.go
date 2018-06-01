@@ -22,7 +22,7 @@ type HTTPBehavior struct {
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
 
-	config conf.Configuration
+	config *conf.Configuration
 }
 
 type HTTPStatistics struct {
@@ -30,7 +30,7 @@ type HTTPStatistics struct {
 }
 
 /* Construct the HTTPBehavior object */
-func (this *HTTPBehavior) Initialize(dest string, config conf.Configuration) error {
+func (this *HTTPBehavior) Initialize(dest string, config *conf.Configuration) error {
 	this.HTTPPostTemplate = config.HTTPPostTemplate
 	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
