@@ -1,9 +1,8 @@
-package main
+package output
 
 import (
 	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
-	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,8 +10,9 @@ import (
 	"text/template"
 )
 
-/* This is the HTTP implementation of the OutputHandler interface defined in main.go */
-type HTTPBehavior struct {
+/* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
+type SplunkBehavior struct {
+	config  *conf.Configuration
 	dest    string
 	headers map[string]string
 
@@ -21,30 +21,28 @@ type HTTPBehavior struct {
 	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
-
-	config *conf.Configuration
 }
 
-type HTTPStatistics struct {
+type SplunkStatistics struct {
 	Destination string `json:"destination"`
 }
 
-/* Construct the HTTPBehavior object */
-func (this *HTTPBehavior) Initialize(dest string, config *conf.Configuration) error {
+/* Construct the syslog_output.go object */
+func (this *SplunkBehavior) Initialize(dest string, config *conf.Configuration) error {
+	this.config = config
 	this.HTTPPostTemplate = config.HTTPPostTemplate
-	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
-	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
-
+	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
+	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	this.headers = make(map[string]string)
 
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.HTTPAuthorizationToken != nil {
-		this.headers["Authorization"] = *config.HTTPAuthorizationToken
+	if config.SplunkToken != nil {
+		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", config.SplunkToken)
 	}
 
-	this.headers["Content-Type"] = *config.HTTPContentType
+	this.headers["Content-Type"] = config.HTTPContentType
 
 	transport := &http.Transport{
 		TLSClientConfig: config.TLSConfig,
@@ -54,23 +52,23 @@ func (this *HTTPBehavior) Initialize(dest string, config *conf.Configuration) er
 	return nil
 }
 
-func (this *HTTPBehavior) String() string {
-	return "HTTP POST " + this.Key()
+func (this *SplunkBehavior) String() string {
+	return "Splunk HTTP Event Collector " + this.Key()
 }
 
-func (this *HTTPBehavior) Statistics() interface{} {
-	return HTTPStatistics{
+func (this *SplunkBehavior) Statistics() interface{} {
+	return SplunkStatistics{
 		Destination: this.dest,
 	}
 }
 
-func (this *HTTPBehavior) Key() string {
+func (this *SplunkBehavior) Key() string {
 	return this.dest
 }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *HTTPBehavior) Upload(fileName string, fp *os.File) output.UploadStatus {
+func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -91,7 +89,6 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) output.UploadStat
 
 		// spawn goroutine to read from the file
 		go convertFileIntoTemplate(this.config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
-
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
@@ -103,7 +100,7 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) output.UploadStat
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
 	if err != nil {
-		return output.UploadStatus{FileName: fileName, Result: err}
+		return UploadStatus{FileName: fileName, Result: err, Status: 0}
 	}
 	defer resp.Body.Close()
 
@@ -112,8 +109,8 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) output.UploadStat
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
-		return output.UploadStatus{FileName: fileName,
+		return UploadStatus{FileName: fileName,
 			Result: fmt.Errorf("HTTP request failed: Error code %s", errorData), Status: resp.StatusCode}
 	}
-	return output.UploadStatus{FileName: fileName, Result: err, Status: 200}
+	return UploadStatus{FileName: fileName, Result: err, Status: 200}
 }

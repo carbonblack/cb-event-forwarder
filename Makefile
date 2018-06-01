@@ -19,7 +19,9 @@ build-plugins: dep-ensure
 	go build -buildmode=plugin -o plugins/output/kafka/kafka_output.so plugins/output/kafka/kafka_output.go     
 	go build -buildmode=plugin -o plugins/encoder/basic/basic_encoder.so plugins/encoder/basic/basic_encoder.go     
 	go build -buildmode=plugin -o plugins/filter/basic/basic_filter.so plugins/filter/basic/basic_filter.go     
+	go build -buildmode=plugin -o plugins/output/hdfs/hdfs_output.so plugins/output/hdfs/hdfs_output.go     
 	cp plugins/output/kafka/kafka_output.so .
+	cp plugins/output/hdfs/hdfs_output.so .
 	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
@@ -52,7 +54,7 @@ test:
 	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
-	go test ./cmd/cb-event-forwarder
+	cd gotests ; go test ; cd .. 
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:

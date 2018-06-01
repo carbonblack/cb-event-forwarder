@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func TestJsonProcessing(t *testing.T) {
 		return
 	}
 
-	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
+	msgs, err := jsmp.ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err == nil {
 		for _, msg := range msgs {
 			_, _ = json.Marshal(msg)

@@ -1,9 +1,10 @@
-package main
+package tests
 
 import (
 	"bytes"
 	"encoding/json"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
+	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"io/ioutil"
 	"os"
 	"path"
@@ -45,7 +46,7 @@ func generateFilteredOutput(exampleJSONInput string, FilterTemplate *template.Te
 		return err
 	}
 
-	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
+	msgs, err := jsmp.ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func generateFilteredOutput(exampleJSONInput string, FilterTemplate *template.Te
 }
 
 func BenchmarkFilter(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
@@ -80,13 +81,10 @@ func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 	formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
-	}{{"json", processJSON}, {"protobuf", processProtobuf}}
-
-	config.CbServerURL = "https://cbtests/"
-	config.EventMap = make(map[string]bool)
+	}{{"json", jsmp.ProcessJSON}, {"protobuf", pbmp.ProcessProtobuf}}
 
 	for _, format := range formats {
-		pathname := path.Join("../../test/raw_data", format.formatType)
+		pathname := path.Join("../test/raw_data", format.formatType)
 		fp, err := os.Open(pathname)
 		if err != nil {
 			t.Logf("Could not open %s", pathname)
@@ -107,7 +105,7 @@ func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 			}
 
 			routingKey := info.Name()
-			os.MkdirAll(path.Join("../../test_output", outputDir, format.formatType, routingKey), 0755)
+			os.MkdirAll(path.Join("../test_output", outputDir, format.formatType, routingKey), 0755)
 
 			// add this routing key into the filtering map
 			config.EventMap[routingKey] = true
@@ -158,13 +156,13 @@ func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 
 				msgs = filterFunc(msgs)
 				if msgs != nil && len(msgs) > 0 {
-					out, err := marshalJSON(msgs)
+					out, err := jsonmessageprocessor.MarshalJSON(msgs)
 					if err != nil {
 						t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
 						continue
 					}
 
-					outfp, err := os.Create(path.Join("../../test_output", outputDir, format.formatType, routingKey, fn.Name()))
+					outfp, err := os.Create(path.Join("../test_output", outputDir, format.formatType, routingKey, fn.Name()))
 					if err != nil {
 						t.Errorf("Error creating file: %s", err)
 						continue

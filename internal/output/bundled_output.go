@@ -23,7 +23,7 @@ type UploadStatus struct {
 type BundledOutput struct {
 	Behavior BundleBehavior
 
-	tempFileDirectory string
+	TempFileDirectory string
 	tempFileOutput    *FileOutput
 	rollOverDuration  time.Duration
 	currentFileSize   int64
@@ -99,7 +99,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 }
 
 func (o *BundledOutput) queueStragglers() {
-	fp, err := os.Open(o.tempFileDirectory)
+	fp, err := os.Open(o.TempFileDirectory)
 	if err != nil {
 		return
 	}
@@ -120,7 +120,7 @@ func (o *BundledOutput) queueStragglers() {
 		}
 
 		if len(strings.TrimPrefix(fn, "event-forwarder")) > 0 {
-			o.filesToUpload = append(o.filesToUpload, filepath.Join(o.tempFileDirectory, fn))
+			o.filesToUpload = append(o.filesToUpload, filepath.Join(o.TempFileDirectory, fn))
 		}
 	}
 }
@@ -138,12 +138,12 @@ func (o *BundledOutput) Initialize(connString string, config *conf.Configuration
 	o.rollOverDuration = o.config.BundleSendTimeout
 
 	parts := strings.SplitN(connString, ":", 2)
-	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
-		o.tempFileDirectory = parts[0]
+	if o.TempFileDirectory == "" && len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
+		o.TempFileDirectory = parts[0]
 		connString = parts[1]
-	} else {
+	} else if o.TempFileDirectory == "" {
 		// temporary file location
-		o.tempFileDirectory = "/var/cb/data/event-forwarder"
+		o.TempFileDirectory = "/var/cb/data/event-forwarder"
 	}
 
 	if o.Behavior == nil {
@@ -154,11 +154,11 @@ func (o *BundledOutput) Initialize(connString string, config *conf.Configuration
 		return err
 	}
 
-	if err := os.MkdirAll(o.tempFileDirectory, 0700); err != nil {
+	if err := os.MkdirAll(o.TempFileDirectory, 0700); err != nil {
 		return err
 	}
 
-	currentPath := filepath.Join(o.tempFileDirectory, "event-forwarder")
+	currentPath := filepath.Join(o.TempFileDirectory, "event-forwarder")
 
 	o.tempFileOutput = &FileOutput{}
 	err := o.tempFileOutput.Initialize(currentPath, o.config)
@@ -224,7 +224,7 @@ func (o *BundledOutput) Statistics() interface{} {
 	}
 }
 
-func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
@@ -251,6 +251,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 
 			case <-refreshTicker.C:
 				if time.Now().Sub(o.tempFileOutput.lastRolledOver) > o.rollOverDuration {
+					log.Infof("last rolled over = %s , duration = %s", o.tempFileOutput.lastRolledOver, o.rollOverDuration)
 					if err := o.rollOver(); err != nil {
 						errorChan <- err
 						return
@@ -299,6 +300,10 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 				errorChan <- errors.New("SIGTERM received")
 				refreshTicker.Stop()
 				log.Info("Received SIGTERM. Exiting")
+				return
+			case <-stopchan:
+				log.Info("Received stop request. Exiting")
+				refreshTicker.Stop()
 				return
 			}
 		}

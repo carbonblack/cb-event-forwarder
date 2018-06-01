@@ -1,9 +1,8 @@
-package main
+package output
 
 import (
 	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
-	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,9 +10,8 @@ import (
 	"text/template"
 )
 
-/* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
-type SplunkBehavior struct {
-	config  *conf.Configuration
+/* This is the HTTP implementation of the OutputHandler interface defined in main.go */
+type HTTPBehavior struct {
 	dest    string
 	headers map[string]string
 
@@ -22,54 +20,59 @@ type SplunkBehavior struct {
 	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
+
+	Config *conf.Configuration
 }
 
-type SplunkStatistics struct {
+type HTTPStatistics struct {
 	Destination string `json:"destination"`
 }
 
-/* Construct the syslog_output.go object */
-func (this *SplunkBehavior) Initialize(dest string, config *conf.Configuration) error {
-	this.config = config
-	this.HTTPPostTemplate = config.HTTPPostTemplate
-	this.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
-	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
+/* Construct the HTTPBehavior object */
+func (this *HTTPBehavior) Initialize(dest string, Config *conf.Configuration) error {
+	this.Config = Config
+	if this.HTTPPostTemplate == nil {
+		this.HTTPPostTemplate = Config.HTTPPostTemplate
+	}
+	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
+	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
+
 	this.headers = make(map[string]string)
 
 	this.dest = dest
 
 	/* add authorization token, if applicable */
-	if config.SplunkToken != nil {
-		this.headers["Authorization"] = fmt.Sprintf("Splunk %s", *config.SplunkToken)
+	if Config.HTTPAuthorizationToken != "" {
+		this.headers["Authorization"] = Config.HTTPAuthorizationToken
 	}
 
-	this.headers["Content-Type"] = *config.HTTPContentType
+	this.headers["Content-Type"] = Config.HTTPContentType
 
 	transport := &http.Transport{
-		TLSClientConfig: config.TLSConfig,
+		TLSClientConfig: Config.TLSConfig,
 	}
 	this.client = &http.Client{Transport: transport}
 
 	return nil
 }
 
-func (this *SplunkBehavior) String() string {
-	return "Splunk HTTP Event Collector " + this.Key()
+func (this *HTTPBehavior) String() string {
+	return "HTTP POST " + this.Key()
 }
 
-func (this *SplunkBehavior) Statistics() interface{} {
-	return SplunkStatistics{
+func (this *HTTPBehavior) Statistics() interface{} {
+	return HTTPStatistics{
 		Destination: this.dest,
 	}
 }
 
-func (this *SplunkBehavior) Key() string {
+func (this *HTTPBehavior) Key() string {
 	return this.dest
 }
 
 /* This function does a POST of the given event to this.dest. UploadBehavior is called from within its own
    goroutine so we can do some expensive work here. */
-func (this *SplunkBehavior) Upload(fileName string, fp *os.File) output.UploadStatus {
+func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var err error = nil
 	var uploadData UploadData
 
@@ -89,7 +92,8 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) output.UploadSt
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(this.config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.Config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
@@ -101,7 +105,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) output.UploadSt
 	/* Execute the POST */
 	resp, err := this.client.Do(request)
 	if err != nil {
-		return output.UploadStatus{FileName: fileName, Result: err, Status: 0}
+		return UploadStatus{FileName: fileName, Result: err}
 	}
 	defer resp.Body.Close()
 
@@ -110,8 +114,8 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) output.UploadSt
 		body, _ := ioutil.ReadAll(resp.Body)
 		errorData := resp.Status + "\n" + string(body)
 
-		return output.UploadStatus{FileName: fileName,
+		return UploadStatus{FileName: fileName,
 			Result: fmt.Errorf("HTTP request failed: Error code %s", errorData), Status: resp.StatusCode}
 	}
-	return output.UploadStatus{FileName: fileName, Result: err, Status: 200}
+	return UploadStatus{FileName: fileName, Result: err, Status: 200}
 }

@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"path"
 	"plugin"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -54,6 +53,7 @@ type Configuration struct {
 	AMQPTLSCACert        string
 	AMQPQueueName        string
 	AMQPAutomaticAcking  bool
+	AMQPDurableQueues    bool
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -62,23 +62,23 @@ type Configuration struct {
 	UseRawSensorExchange bool
 
 	// this is a hack for S3 specific configuration
-	S3ServerSideEncryption  *string
-	S3CredentialProfileName *string
-	S3ACLPolicy             *string
-	S3ObjectPrefix          *string
+	S3ServerSideEncryption  string
+	S3CredentialProfileName string
+	S3ACLPolicy             string
+	S3ObjectPrefix          string
 
 	// SSL/TLS-specific configuration
-	TLSClientKey  *string
-	TLSClientCert *string
-	TLSCACert     *string
+	TLSClientKey  string
+	TLSClientCert string
+	TLSCACert     string
 	TLSVerify     bool
-	TLSCName      *string
+	TLSCName      string
 	TLS12Only     bool
 
 	// HTTP-specific configuration
-	HTTPAuthorizationToken *string
+	HTTPAuthorizationToken string
 	HTTPPostTemplate       *template.Template
-	HTTPContentType        *string
+	HTTPContentType        string
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -409,10 +409,6 @@ func ParseConfig(fn string) (*Configuration, error) {
 	config.AMQPPort = 5004
 	config.DebugStore = "/tmp"
 
-	config.S3ACLPolicy = nil
-	config.S3ServerSideEncryption = nil
-	config.S3CredentialProfileName = nil
-
 	// required values
 	val, error := config.GetString("server_name")
 	if error != nil {
@@ -477,12 +473,9 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
 
-	val, err = config.GetString("http_server_port")
+	ival, err := config.GetInt("http_server_port")
 	if err == nil {
-		port, err := strconv.Atoi(val)
-		if err == nil {
-			config.HTTPServerPort = port
-		}
+		config.HTTPServerPort = ival
 	}
 
 	val, err = config.GetString("rabbit_mq_username")
@@ -497,12 +490,14 @@ func ParseConfig(fn string) (*Configuration, error) {
 		config.AMQPPassword = val
 	}
 
-	val, err = config.GetString("rabbit_mq_port")
+	ival, err = config.GetInt("rabbit_mq_port")
 	if err == nil {
-		port, err := strconv.Atoi(val)
-		if err == nil {
-			config.AMQPPort = port
-		}
+		config.AMQPPort = ival
+	}
+
+	bval, err = config.GetBool("rabbit_mq_durable_queues")
+	if err == nil {
+		config.AMQPDurableQueues = bval
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
@@ -568,14 +563,11 @@ func ParseConfig(fn string) (*Configuration, error) {
 		}
 		if val == "cef" {
 			config.OutputFormat = CEFOutputFormat
-			val, err := config.GetString("cef_event_severity")
+			val, err := config.GetInt("cef_event_severity")
 			if err == nil {
-				CefEventSeverity, err := strconv.ParseInt(val, 10, 32)
-				if err == nil {
-					config.CefEventSeverity = 5
-				} else {
-					config.CefEventSeverity = int(CefEventSeverity)
-				}
+				config.CefEventSeverity = val
+			} else {
+				config.CefEventSeverity = 5
 			}
 		}
 		if val == "template" {
@@ -617,22 +609,22 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			profileName, err := config.GetString("s3", "credential_profile")
 			if err == nil {
-				config.S3CredentialProfileName = &profileName
+				config.S3CredentialProfileName = profileName
 			}
 
 			aclPolicy, err := config.GetString("s3", "acl_policy")
 			if err == nil {
-				config.S3ACLPolicy = &aclPolicy
+				config.S3ACLPolicy = aclPolicy
 			}
 
 			sseType, err := config.GetString("s3", "server_side_encryption")
 			if err == nil {
-				config.S3ServerSideEncryption = &sseType
+				config.S3ServerSideEncryption = sseType
 			}
 
 			objectPrefix, err := config.GetString("s3", "object_prefix")
 			if err == nil {
-				config.S3ObjectPrefix = &objectPrefix
+				config.S3ObjectPrefix = objectPrefix
 			}
 
 		case "http":
@@ -641,7 +633,7 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			token, err := config.GetString("http", "authorization_token")
 			if err == nil {
-				config.HTTPAuthorizationToken = &token
+				config.HTTPAuthorizationToken = token
 			}
 
 			postTemplate, err := config.GetString("http", "http_post_template")
@@ -659,10 +651,10 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			contentType, err := config.GetString("http", "content_type")
 			if err == nil {
-				config.HTTPContentType = &contentType
+				config.HTTPContentType = contentType
 			} else {
 				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
+				config.HTTPContentType = jsonString
 			}
 		case "syslog":
 			parameterKey = "syslogout"
@@ -691,10 +683,10 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			contentType, err := config.GetString("http", "content_type")
 			if err == nil {
-				config.HTTPContentType = &contentType
+				config.HTTPContentType = contentType
 			} else {
 				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
+				config.HTTPContentType = jsonString
 			}
 		case "plugin":
 			config.OutputType = PluginOutputType
@@ -733,17 +725,17 @@ func ParseConfig(fn string) (*Configuration, error) {
 	// TLS configuration
 	clientKeyFilename, err := config.GetString(outType, "client_key")
 	if err == nil {
-		config.TLSClientKey = &clientKeyFilename
+		config.TLSClientKey = clientKeyFilename
 	}
 
 	clientCertFilename, err := config.GetString(outType, "client_cert")
 	if err == nil {
-		config.TLSClientCert = &clientCertFilename
+		config.TLSClientCert = clientCertFilename
 	}
 
 	caCertFilename, err := config.GetString(outType, "ca_cert")
 	if err == nil {
-		config.TLSCACert = &caCertFilename
+		config.TLSCACert = caCertFilename
 	}
 
 	config.TLSVerify = true
@@ -766,7 +758,7 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	serverCName, err := config.GetString(outType, "server_cname")
 	if err == nil {
-		config.TLSCName = &serverCName
+		config.TLSCName = serverCName
 	}
 
 	config.configureTLS()
@@ -790,28 +782,29 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	if config.OutputFormat == JSONOutputFormat {
 		config.CommaSeparateEvents = true
+	} else if config.OutputFormat == TemplateOutputFormat {
+		commaSeparatedEvents, err := config.GetBool("encoder", "comma_seperated")
+		if err == nil {
+			config.CommaSeparateEvents = commaSeparatedEvents
+		} else {
+			config.CommaSeparateEvents = false
+		}
 	} else {
 		config.CommaSeparateEvents = false
 	}
 
 	// default 10MB bundle size max before forcing a send
 	config.BundleSizeMax = 10 * 1024 * 1024
-	bundleSizeMax, err := config.GetString(outType, "bundle_size_max")
+	bundleSizeMax, err := config.GetInt(outType, "bundle_size_max")
 	if err == nil {
-		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
-		if err == nil {
-			config.BundleSizeMax = bundleSizeMax
-		}
+		config.BundleSizeMax = int64(bundleSizeMax)
 	}
 
 	// default 5 minute send interval
 	config.BundleSendTimeout = 5 * time.Minute
-	bundleSendTimeout, err := config.GetString(outType, "bundle_send_timeout")
+	bundleSendTimeout, err := config.GetInt(outType, "bundle_send_timeout")
 	if err == nil {
-		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
-		if err == nil {
-			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
-		}
+		config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 	}
 
 	bval, err = config.GetBool("api_verify_ssl")
@@ -922,20 +915,20 @@ func (config *Configuration) configureTLS() {
 		tlsConfig.InsecureSkipVerify = true
 	}
 
-	if config.TLSClientCert != nil && config.TLSClientKey != nil && len(*config.TLSClientCert) > 0 &&
-		len(*config.TLSClientKey) > 0 {
-		log.Infof("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
-		cert, err := tls.LoadX509KeyPair(*config.TLSClientCert, *config.TLSClientKey)
+	if config.TLSClientCert != "" && config.TLSClientKey != "" && len(config.TLSClientCert) > 0 &&
+		len(config.TLSClientKey) > 0 {
+		log.Infof("Loading client cert/key from %s & %s", config.TLSClientCert, config.TLSClientKey)
+		cert, err := tls.LoadX509KeyPair(config.TLSClientCert, config.TLSClientKey)
 		if err != nil {
 			log.Fatal(err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if config.TLSCACert != nil && len(*config.TLSCACert) > 0 {
+	if config.TLSCACert != "" && len(config.TLSCACert) > 0 {
 		// Load CA cert
-		log.Infof("Loading valid CAs from file %s", *config.TLSCACert)
-		caCert, err := ioutil.ReadFile(*config.TLSCACert)
+		log.Infof("Loading valid CAs from file %s", config.TLSCACert)
+		caCert, err := ioutil.ReadFile(config.TLSCACert)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -944,9 +937,9 @@ func (config *Configuration) configureTLS() {
 		tlsConfig.RootCAs = caCertPool
 	}
 
-	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
-		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
-		tlsConfig.ServerName = *config.TLSCName
+	if config.TLSCName != "" && len(config.TLSCName) > 0 {
+		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", config.TLSCName)
+		tlsConfig.ServerName = config.TLSCName
 	}
 
 	if config.TLS12Only == true {

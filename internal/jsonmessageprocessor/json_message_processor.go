@@ -1,9 +1,12 @@
-package main
+package jsonmessageprocessor
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/cbapi"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
@@ -13,6 +16,11 @@ import (
 	"strconv"
 	"strings"
 )
+
+type JsonMessageProcessor struct {
+	Config *conf.Configuration
+	CbAPI  *cbapi.CbAPIHandler
+}
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
 
@@ -72,7 +80,7 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 	return
 }
 
-func fixupMessage(messageType string, msg map[string]interface{}) {
+func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 
 	for key, value := range msg {
@@ -168,8 +176,8 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 	}
 
 	// add deep links back into the Cb web UI if configured
-	if config.CbServerURL != "" {
-		AddLinksToMessage(messageType, config.CbServerURL, msg)
+	if jsp.Config.CbServerURL != "" {
+		AddLinksToMessage(messageType, jsp.Config.CbServerURL, msg)
 	}
 }
 
@@ -229,9 +237,9 @@ func PrettyPrintMap(msg map[string]interface{}) {
 	fmt.Print(string(b))
 }
 
-func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
+func (jsp *JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
 	msg["type"] = fixupMessageType(routingKey)
-	fixupMessage(routingKey, msg)
+	jsp.fixupMessage(routingKey, msg)
 
 	msgs := make([]map[string]interface{}, 0, 1)
 
@@ -245,7 +253,7 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 			newMsg := deepcopy.Iface(msg).(map[string]interface{})
 			newSlice := make([]map[string]interface{}, 0, 1)
 			newDoc := deepcopy.Iface(submsg).(map[string]interface{})
-			fixupMessage(routingKey, newDoc)
+			jsp.fixupMessage(routingKey, newDoc)
 			newSlice = append(newSlice, newDoc)
 			newMsg["docs"] = newSlice
 			msgs = append(msgs, newMsg)
@@ -262,7 +270,7 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
  * To do this we must query the Cb Response Server's REST API to get the report_title.  NOTE: In order to do this
  * functionality we need the Cb Response Server URL and API Token set within the config.
  */
-func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
+func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
 	if val, ok := msg["type"]; ok {
 		messageType := val.(string)
@@ -286,7 +294,7 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 						/*
 						 * Get the report_title for this feed hit
 						 */
-						reportTitle, reportScore, reportLink, err := GetReport(int(iFeedID), reportID.(string))
+						reportTitle, reportScore, reportLink, err := jsp.CbAPI.GetReport(int(iFeedID), reportID.(string))
 						log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
 						if err == nil {
 							/*
@@ -315,4 +323,38 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
 	}
 	return msg
+}
+
+func MarshalJSON(msgs []map[string]interface{}) (string, error) {
+	var ret string
+
+	for _, msg := range msgs {
+		msg["cb_server"] = "cbserver"
+		marshaled, err := json.Marshal(msg)
+		if err != nil {
+			return "", err
+		}
+		ret += string(marshaled) + "\n"
+	}
+
+	return ret, nil
+}
+
+func (jsp *JsonMessageProcessor) ProcessJSON(routingKey string, indata []byte) ([]map[string]interface{}, error) {
+	var msg map[string]interface{}
+
+	decoder := json.NewDecoder(bytes.NewReader(indata))
+
+	// Ensure that we decode numbers in the JSON as integers and *not* float64s
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&msg); err != nil {
+		return nil, err
+	}
+
+	msgs, err := jsp.ProcessJSONMessage(msg, routingKey)
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }

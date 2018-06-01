@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	cef "github.com/carbonblack/cb-event-forwarder/internal/cef"

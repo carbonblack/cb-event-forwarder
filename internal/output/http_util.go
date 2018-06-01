@@ -1,4 +1,4 @@
-package main
+package output
 
 import (
 	"bufio"
@@ -23,7 +23,7 @@ type UploadEvent struct {
 	EventText string
 }
 
-func convertFileIntoTemplate(config *conf.Configuration, fp *os.File, events chan<- UploadEvent, firstEventTemplate, subsequentEventTemplate *template.Template) {
+func convertFileIntoTemplate(config *conf.Configuration, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
 	defer close(events)
 
 	var fileReader io.ReadCloser

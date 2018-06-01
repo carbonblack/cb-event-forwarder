@@ -1,9 +1,10 @@
-package main
+package cbapi
 
 import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -52,17 +53,21 @@ type APIInfo struct {
  */
 var FeedCache = ttlru.New(128, ttlru.WithTTL(5*time.Minute))
 
-func GetCb(route string) ([]byte, error) {
+type CbAPIHandler struct {
+	Config *conf.Configuration
+}
+
+func (cbapi *CbAPIHandler) GetCb(route string) ([]byte, error) {
 
 	var proxyRequest func(*http.Request) (*url.URL, error)
 
-	if config.CbAPIProxyURL == "" {
+	if cbapi.Config.CbAPIProxyURL == "" {
 		/*
 		 * No Proxy was specified
 		 */
 		proxyRequest = nil
 	} else {
-		proxyURL, err := url.Parse(config.CbAPIProxyURL)
+		proxyURL, err := url.Parse(cbapi.Config.CbAPIProxyURL)
 		if err != nil {
 			return nil, err
 		}
@@ -70,16 +75,16 @@ func GetCb(route string) ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL, MinVersion: tls.VersionTLS12},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: !cbapi.Config.CbAPIVerifySSL, MinVersion: tls.VersionTLS12},
 		Proxy:           proxyRequest,
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", config.CbServerURL, route), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", cbapi.Config.CbServerURL, route), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("X-Auth-Token", config.CbAPIToken)
+	req.Header.Add("X-Auth-Token", cbapi.Config.CbAPIToken)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -95,13 +100,13 @@ func GetCb(route string) ([]byte, error) {
 	return body, err
 }
 
-func GetCbVersion() (version string, err error) {
+func (cbapi *CbAPIHandler) GetCbVersion() (version string, err error) {
 	cbInfo := APIInfo{}
 
 	/*
 	 * NOTE: CbAPIServerUrl ends with a '/'
 	 */
-	body, err := GetCb("api/info")
+	body, err := cbapi.GetCb("api/info")
 	if err != nil {
 		return
 	}
@@ -112,7 +117,7 @@ func GetCbVersion() (version string, err error) {
 	return
 }
 
-func GetReportTitle(FeedID int, ReportID string) (string, error) {
+func (cbapi *CbAPIHandler) GetReportTitle(FeedID int, ReportID string) (string, error) {
 	threatReport := ThreatReport{}
 
 	key := strconv.Itoa(FeedID) + "|" + ReportID
@@ -122,7 +127,7 @@ func GetReportTitle(FeedID int, ReportID string) (string, error) {
 	if cachePresent && reportTitle != nil {
 		return reportTitle.(string), nil
 	}
-	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
+	body, err := cbapi.GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +143,7 @@ func GetReportTitle(FeedID int, ReportID string) (string, error) {
 	return threatReport.Title, nil
 }
 
-func GetReport(FeedID int, ReportID string) (string, int, string, error) {
+func (cbapi *CbAPIHandler) GetReport(FeedID int, ReportID string) (string, int, string, error) {
 
 	threatReport := ThreatReport{}
 
@@ -158,7 +163,7 @@ func GetReport(FeedID int, ReportID string) (string, int, string, error) {
 
 	}
 	//implicit ELSE
-	body, err := GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
+	body, err := cbapi.GetCb(fmt.Sprintf("api/v1/feed/%d/report/%s", FeedID, ReportID))
 
 	if err != nil {
 		return "", 0, "", err

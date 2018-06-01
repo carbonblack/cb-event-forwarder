@@ -22,7 +22,7 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
-	config              *conf.Configuration
+	Config              *conf.Configuration
 	outputFileName      string
 	outputFileExtension string
 	outputFile          io.WriteCloser
@@ -56,7 +56,7 @@ func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) err
 	o.Lock()
 	defer o.Unlock()
 
-	o.config = config
+	o.Config = config
 
 	o.outputFileName = fileName
 
@@ -83,7 +83,7 @@ func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) err
 		}
 	}
 
-	if o.config.FileHandlerCompressData != false {
+	if o.Config.FileHandlerCompressData != false {
 		log.Info("File handler configured to compress data")
 		o.outputGzWriter = gzip.NewWriter(fp)
 	}
@@ -96,7 +96,7 @@ func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) err
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
 	if o.outputFile == nil {
 		return errors.New("No output file specified")
 	}
@@ -148,6 +148,9 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				log.Info("Received SIGTERM. Exiting")
 				errorChan <- errors.New("SIGTERM received")
 				return
+			case <-stopchan:
+				log.Info("Recieved stop msg, exiting")
+				return
 			}
 		}
 	}()
@@ -170,7 +173,7 @@ func (o *FileOutput) flushOutput(force bool) error {
 
 	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-		if o.config.FileHandlerCompressData && o.outputGzWriter != nil {
+		if o.Config.FileHandlerCompressData && o.outputGzWriter != nil {
 
 			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
 			o.outputGzWriter.Flush()
@@ -208,17 +211,19 @@ func (o *FileOutput) output(s string) error {
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	o.closeFile()
 
+	log.Infof("Rolling over file with format string: %s", tf)
+
 	newName, err := o.rollOverRename(tf)
 	if err != nil {
 		return "", err
 	}
 
-	return newName, o.Initialize(o.outputFileName, o.config)
+	return newName, o.Initialize(o.outputFileName, o.Config)
 }
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	var newName string
-	if o.config.FileHandlerCompressData == true {
+	if o.Config.FileHandlerCompressData == true {
 		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
 		newName = fileNameWithoutExtension + "." + o.lastRolledOver.Format(tf) + ".gz"
 	} else {
