@@ -790,7 +790,14 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	if config.OutputFormat == JSONOutputFormat {
 		config.CommaSeparateEvents = true
-	} else {
+	} else if config.OutputFormat == TemplateOutputFormat {
+		commaSeparatedEvents, err := config.GetBool("encoder","comma_seperated")
+		if err == nil {
+			config.CommaSeparateEvents = commaSeparatedEvents
+		} else {
+			config.CommaSeparateEvents = false
+		}
+	} else  {
 		config.CommaSeparateEvents = false
 	}
 
