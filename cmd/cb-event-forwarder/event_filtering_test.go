@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path"
@@ -17,10 +16,8 @@ var FilterTemplate *template.Template = template.New("testfilter")
 func init() {
 	testFilterTemplate, err := FilterTemplate.Parse("{{if (eq .type \"alert.watchlist.hit.query.binary\")}}KEEP{{else}}DROP{{end}}")
 	if err == nil {
-		log.Info("Test template filter success")
 		FilterTemplate = testFilterTemplate
 	} else {
-		log.Info("Test template filter failed")
 	}
 }
 
