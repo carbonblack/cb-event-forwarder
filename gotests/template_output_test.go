@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"

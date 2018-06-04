@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ func generateCefOutput(exampleJSONInput string) error {
 		return err
 	}
 
-	msgs, err := ProcessJSONMessage(msg, "watchlist.hit.test")
+	msgs, err := jsmp.ProcessJSONMessage(msg, "watchlist.hit.test")
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func TestCefEncoder(t *testing.T) {
 }
 
 func BenchmarkCefEncoder(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	for i := 0; i < b.N; i++ {

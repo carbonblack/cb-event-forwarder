@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
@@ -9,21 +10,20 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-	"path"
-	"errors"
 )
 
 type HdfsOutput struct {
-	hdfsServer           string
-	hdfsClient        * hdfs.Client
-	hdfsPath	  string
+	hdfsServer        string
+	hdfsClient        *hdfs.Client
+	hdfsPath          string
 	droppedEventCount int64
 	eventSentCount    int64
-	deliveryChan chan DeliveryMessage
+	deliveryChan      chan DeliveryMessage
 	sync.RWMutex
 }
 
@@ -33,7 +33,7 @@ type HdfsStatistics struct {
 }
 
 type DeliveryMessage struct {
-	Error error
+	Error          error
 	SuccessMessage string
 }
 
@@ -42,30 +42,28 @@ func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error
 	o.Lock()
 	defer o.Unlock()
 
-	hdfsServer, err := config.GetString("plugin","hdfs_server")
+	hdfsServer, err := config.GetString("plugin", "hdfs_server")
 	if err != nil {
 		log.Infof("Failed to create HDFS client : %s\n", err)
 		return err
 	} else {
 		o.hdfsServer = hdfsServer
 	}
-	hdfsPath, err := config.GetString("plugin","hdfs_path")
+	hdfsPath, err := config.GetString("plugin", "hdfs_path")
 	if err != nil {
-		log.Infof("Failed to get HDFS path : %v",err)
+		log.Infof("Failed to get HDFS path : %v", err)
 		o.hdfsPath = "/"
 	} else {
 		o.hdfsPath = hdfsPath
 	}
 
-	hdfsClient,err   := hdfs.New(o.hdfsServer)
+	hdfsClient, err := hdfs.New(o.hdfsServer)
 	if err == nil {
 		o.hdfsClient = hdfsClient
 	} else {
-		log.Infof("Failed to create HDFS client %v",err)
+		log.Infof("Failed to create HDFS client %v", err)
 		return err
 	}
-
-
 
 	o.deliveryChan = make(chan DeliveryMessage)
 
@@ -131,18 +129,18 @@ func (o *HdfsOutput) Key() string {
 }
 
 func (o *HdfsOutput) output(fn, m string) {
-	writeto := path.Join(o.hdfsPath,fn)
-	writer, err := o.hdfsClient.Create(path.Join(o.hdfsPath,fn))
+	writeto := path.Join(o.hdfsPath, fn)
+	writer, err := o.hdfsClient.Create(path.Join(o.hdfsPath, fn))
 	if err == nil {
 		_, err := writer.Write([]byte(m))
 		if err == nil {
-			o.deliveryChan <- DeliveryMessage{Error: nil , SuccessMessage:fmt.Sprintf("Succesfully delivered to %s",writeto)}
+			o.deliveryChan <- DeliveryMessage{Error: nil, SuccessMessage: fmt.Sprintf("Succesfully delivered to %s", writeto)}
 		} else {
-			log.Warnf("Error writing to HDFS %v",err)
-			o.deliveryChan <- DeliveryMessage{Error: errors.New(fmt.Sprintf("Error writing to %s %v",writeto, err)), SuccessMessage:""}
+			log.Warnf("Error writing to HDFS %v", err)
+			o.deliveryChan <- DeliveryMessage{Error: errors.New(fmt.Sprintf("Error writing to %s %v", writeto, err)), SuccessMessage: ""}
 		}
 	} else {
-		log.Warnf("Error creating creating new writer for HDFS output %v",err)
+		log.Warnf("Error creating creating new writer for HDFS output %v", err)
 	}
 
 }

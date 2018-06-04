@@ -9,11 +9,14 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/cbapi"
 	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
+	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
+	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"
 	log "github.com/sirupsen/logrus"
@@ -126,7 +129,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	log.Errorf("Error while processing message through routing key %s:", routingKey)
 
 	var env *sensor_events.CbEnvironmentMsg
-	env, err := createEnvMessage(headers)
+	env, err := pbmessageprocessor.CreateEnvMessage(headers)
 	if err != nil {
 		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
 			env.Endpoint.GetSensorHostName())
@@ -152,7 +155,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	}
 }
 
-func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
+func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string, pbmp *pbmessageprocessor.PbMessageProcessor, jsmp *jsonmessageprocessor.JsonMessageProcessor) {
 	status.InputEventCount.Add(1)
 
 	var err error
@@ -162,7 +165,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	// Process message based on ContentType
 	//
 	if contentType == "application/zip" {
-		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
+		msgs, err = pbmp.ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
 			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
@@ -172,9 +175,9 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		// if we receive a protobuf through the raw sensor exchange, it's actually a protobuf "bundle" and not a
 		// single protobuf
 		if exchangeName == "api.rawsensordata" {
-			msgs, err = ProcessProtobufBundle(routingKey, body, headers)
+			msgs, err = pbmp.ProcessProtobufBundle(routingKey, body, headers)
 		} else {
-			msg, err := ProcessProtobufMessage(routingKey, body, headers)
+			msg, err := pbmp.ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
 				reportBundleDetails(routingKey, body, headers)
 				reportError(routingKey, "Could not process body", err)
@@ -198,7 +201,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 			return
 		}
 
-		msgs, err = ProcessJSONMessage(msg, routingKey)
+		msgs, err = jsmp.ProcessJSONMessage(msg, routingKey)
 	} else {
 		reportError(string(body), "Unknown content-type", errors.New(contentType))
 		return
@@ -207,7 +210,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	for _, msg := range msgs {
 		if config.PerformFeedPostprocessing {
 			go func(msg map[string]interface{}) {
-				outputMsg := PostprocessJSONMessage(msg)
+				outputMsg := jsmp.PostprocessJSONMessage(msg)
 				outputMessage(outputMsg)
 			}(msg)
 		} else {
@@ -274,7 +277,7 @@ func outputMessage(msg map[string]interface{}) error {
 	return nil
 }
 
-func worker(deliveries <-chan amqp.Delivery) {
+func worker(deliveries <-chan amqp.Delivery, pbmp *pbmessageprocessor.PbMessageProcessor, jsonmp *jsonmessageprocessor.JsonMessageProcessor) {
 	defer wg.Done()
 
 	for delivery := range deliveries {
@@ -282,7 +285,7 @@ func worker(deliveries <-chan amqp.Delivery) {
 			delivery.RoutingKey,
 			delivery.ContentType,
 			delivery.Headers,
-			delivery.Exchange)
+			delivery.Exchange, pbmp, jsonmp)
 	}
 
 	log.Info("Worker exiting")
@@ -330,7 +333,7 @@ func logFileProcessingLoop() <-chan error {
 	return errChan
 }
 
-func messageProcessingLoop(uri, queueName, consumerTag string) error {
+func messageProcessingLoop(uri, queueName, consumerTag string, cbapihandler *cbapi.CbAPIHandler) error {
 	connectionError := make(chan *amqp.Error, 1)
 
 	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
@@ -349,8 +352,13 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	log.Infof("Starting %d message processors\n", numProcessors)
 
 	wg.Add(numProcessors)
+
+	pbmp := pbmessageprocessor.PbMessageProcessor{Config: config}
+	jsmp := jsonmessageprocessor.JsonMessageProcessor{Config: config, CbAPI: cbapihandler}
+
 	for i := 0; i < numProcessors; i++ {
-		go worker(deliveries)
+
+		go worker(deliveries, &pbmp, &jsmp)
 	}
 
 	for {
@@ -485,8 +493,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	cbapihandler := cbapi.CbAPIHandler{Config: config}
+
 	if config.PerformFeedPostprocessing {
-		apiVersion, err := GetCbVersion()
+		apiVersion, err := cbapihandler.GetCbVersion()
 		if err != nil {
 			log.Fatal("Could not get cb version: " + err.Error())
 		} else {
@@ -604,7 +614,7 @@ func main() {
 		go func(consumerNumber int) {
 			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
 			for {
-				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber), &cbapihandler)
 				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
 				time.Sleep(30 * time.Second)
 			}
