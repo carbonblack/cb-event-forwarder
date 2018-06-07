@@ -72,7 +72,26 @@ func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error
 	return nil
 }
 
-func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+	stoppubchan := make(chan struct{}, 1)
+	go func() {
+
+		for {
+			select {
+			case message := <-messages:
+				var parsedMsg map[string]interface{}
+				json.Unmarshal([]byte(message), &parsedMsg)
+				t := parsedMsg["type"]
+				if typeString, ok := t.(string); ok {
+					o.output(typeString, message)
+				}
+			case <-stoppubchan:
+				log.Infof("Got stop message, exiting hdfs output goroutine")
+				return
+			}
+		}
+	}()
+
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
@@ -82,17 +101,14 @@ func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		signal.Notify(hup, syscall.SIGHUP)
 
 		defer signal.Stop(hup)
+		term := make(chan os.Signal, 1)
+
+		signal.Notify(term, syscall.SIGTERM)
+		signal.Notify(term, syscall.SIGINT)
+		defer signal.Stop(term)
 
 		for {
 			select {
-			case message := <-messages:
-				var parsedMsg map[string]interface{}
-
-				json.Unmarshal([]byte(message), &parsedMsg)
-				t := parsedMsg["type"]
-				if typeString, ok := t.(string); ok {
-					o.output(typeString, message)
-				}
 			case m := <-o.deliveryChan:
 				if m.Error != nil {
 					log.Infof("Delivery failed: %v\n", m.Error)
@@ -102,6 +118,10 @@ func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					log.Infof("Delivered message to HDFS: %s", m.SuccessMessage)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
+			case <-stopchan:
+				log.Infof("[HDFS] Plugin recieved stop request, exiting gracefully")
+				stoppubchan <- struct{}{}
+				return
 			}
 		}
 	}()
@@ -156,7 +176,7 @@ func main() {
 	c, _ := conf.ParseConfig(os.Args[1])
 	hdfsOutput.Initialize("", c)
 	go func() {
-		hdfsOutput.Go(messages, errors)
+		hdfsOutput.Go(messages, errors, make(chan struct{}))
 	}()
 	messages <- "{\"type\":\"Lol\"}"
 	log.Infof("%v", <-errors)

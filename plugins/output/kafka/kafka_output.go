@@ -16,10 +16,34 @@ import (
 	"time"
 )
 
+// Producer implements a High-level Apache Kafka Producer instance ZE 2018
+// This allows Mocking producers w/o actual contact to kafka broker for testing purposes
+type WrappedProducer interface {
+	String() string
+
+	Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error
+
+	Events() chan kafka.Event
+
+	ProduceChannel() chan *kafka.Message
+
+	Len() int
+
+	Flush(timeoutMs int) int
+
+	Close()
+
+	GetMetadata(topic *string, allTopics bool, timeoutMs int) (*kafka.Metadata, error)
+
+	QueryWatermarkOffsets(topic string, partition int32, timeoutMs int) (low, high int64, err error)
+
+	OffsetsForTimes(times []kafka.TopicPartition, timeoutMs int) (offsets []kafka.TopicPartition, err error)
+}
+
 type KafkaOutput struct {
 	brokers           string
 	topicSuffix       string
-	producer          *kafka.Producer
+	Producer          WrappedProducer
 	deliveryChannel   chan kafka.Event
 	droppedEventCount int64
 	eventSentCount    int64
@@ -79,23 +103,48 @@ func (o *KafkaOutput) Initialize(unused string, config *conf.Configuration) erro
 		o.topicSuffix = ""
 	}
 
-	producer, err := kafka.NewProducer(&kafkaConfigMap)
+	if o.Producer == nil {
+		producer, err := kafka.NewProducer(&kafkaConfigMap)
 
-	if err != nil {
-		log.Infof("Failed to create producer: %s\n", err)
-		return err
+		if err != nil {
+			log.Infof("Failed to create producer: %s\n", err)
+			return err
+		}
+
+		log.Infof("Created Producer %v\n", producer)
+
+		o.Producer = producer
 	}
 
-	log.Infof("Created Producer %v\n", producer)
-
-	o.producer = producer
-
 	o.deliveryChannel = make(chan kafka.Event)
-
+	log.Info("Done init")
 	return nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+	stoppubchan := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case message := <-messages:
+				log.Info("got message in plugin")
+				var parsedMsg map[string]interface{}
+				json.Unmarshal([]byte(message), &parsedMsg)
+				topic := parsedMsg["type"]
+				if topicString, ok := topic.(string); ok {
+					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+					topicString += o.topicSuffix
+					log.Info("sending message to output")
+					o.output(topicString, message)
+				} else {
+					log.Info("ERROR: Topic was not a string")
+				}
+			case <-stoppubchan:
+				log.Info("stop request recv'd ending publishing goroutine")
+				return
+			}
+		}
+	}()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
@@ -106,22 +155,16 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 		defer signal.Stop(hup)
 
+		term := make(chan os.Signal, 1)
+		signal.Notify(term, syscall.SIGTERM)
+		signal.Notify(term, syscall.SIGINT)
+
+		defer signal.Stop(term)
+
 		for {
 			select {
-			case message := <-messages:
-				var parsedMsg map[string]interface{}
-
-				json.Unmarshal([]byte(message), &parsedMsg)
-				topic := parsedMsg["type"]
-				if topicString, ok := topic.(string); ok {
-					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-					topicString += o.topicSuffix
-
-					o.output(topicString, message)
-				} else {
-					log.Info("ERROR: Topic was not a string")
-				}
 			case e := <-o.deliveryChannel:
+				log.Info("got delivery message in plugin")
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
 					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
@@ -132,9 +175,16 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
+			case <-stopchan:
+				log.Infof("Plugin recvd stop request - exiting gracefully immediately")
+				stoppubchan <- struct{}{}
+				return
+			case <-term:
+				log.Info("Got terminate/interupt signal - exiting gracefully")
+				stoppubchan <- struct{}{}
+				return
 			}
 		}
-
 	}()
 
 	return nil
@@ -160,10 +210,12 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	o.producer.Produce(&kafka.Message{
+	log.Infof("output got: %s topic %s message ", topic, m)
+	o.Producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
 	}, o.deliveryChannel)
+	log.Infof("o.Producer.Produce returned")
 }
 
 func GetOutputHandler() output.OutputHandler {
@@ -177,7 +229,7 @@ func main() {
 	c, _ := conf.ParseConfig(os.Args[1])
 	kafkaOutput.Initialize("", c)
 	go func() {
-		kafkaOutput.Go(messages, errors)
+		kafkaOutput.Go(messages, errors, make(chan struct{}))
 	}()
 	messages <- "{\"type\":\"Lol\"}"
 	log.Infof("%v", <-errors)

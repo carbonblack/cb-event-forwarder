@@ -41,7 +41,7 @@ var (
 )
 
 var version = "NOT FOR RELEASE"
-
+var stopchan chan struct{} = make(chan struct{}, 1)
 var wg sync.WaitGroup
 var config *conf.Configuration = &conf.Configuration{}
 
@@ -417,19 +417,19 @@ func startOutputs() error {
 	case conf.FileOutputType:
 		outputHandler = &output.FileOutput{}
 	case conf.TCPOutputType:
-		outputHandler = &NetOutput{}
+		outputHandler = &output.NetOutput{}
 		parameters = "tcp:" + parameters
 	case conf.UDPOutputType:
-		outputHandler = &NetOutput{}
+		outputHandler = &output.NetOutput{}
 		parameters = "udp:" + parameters
 	case conf.S3OutputType:
-		outputHandler = &output.BundledOutput{Behavior: &S3Behavior{}}
+		outputHandler = &output.BundledOutput{Behavior: &output.S3Behavior{}}
 	case conf.SyslogOutputType:
 		outputHandler = &SyslogOutput{}
 	case conf.HTTPOutputType:
-		outputHandler = &output.BundledOutput{Behavior: &HTTPBehavior{}}
+		outputHandler = &output.BundledOutput{Behavior: &output.HTTPBehavior{}}
 	case conf.SplunkOutputType:
-		outputHandler = &output.BundledOutput{Behavior: &SplunkBehavior{}}
+		outputHandler = &output.BundledOutput{Behavior: &output.SplunkBehavior{}}
 	case conf.PluginOutputType:
 		outputHandler = loadOutputFromPlugin(config.PluginPath, config.Plugin)
 	default:
@@ -475,7 +475,7 @@ func startOutputs() error {
 	}))
 
 	log.Infof("Initialized output: %s\n", outputHandler.String())
-	return outputHandler.Go(results, outputErrors)
+	return outputHandler.Go(results, outputErrors, stopchan)
 }
 
 func main() {
@@ -641,4 +641,6 @@ func main() {
 	}
 
 	log.Info("cb-event-forwarder exiting")
+	//tell outputhandler(s) to stop gracefully
+	stopchan <- struct{}{}
 }

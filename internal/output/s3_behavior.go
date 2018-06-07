@@ -1,4 +1,4 @@
-package main
+package output
 
 import (
 	"fmt"
@@ -7,16 +7,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
-	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+type WrappedS3 interface {
+	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	HeadBucket(inhb *s3.HeadBucketInput) (*s3.HeadBucketOutput, error)
+}
+
 type S3Behavior struct {
 	bucketName string
-	out        *s3.S3
+	Out        WrappedS3
 	region     string
 	config     *conf.Configuration
 }
@@ -27,31 +31,31 @@ type S3Statistics struct {
 	EncryptionEnabled bool   `json:"encryption_enabled"`
 }
 
-func (o *S3Behavior) Upload(fileName string, fp *os.File) output.UploadStatus {
+func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 	var baseName string
 
 	//
 	// If a prefix is specified then concatenate it with the Base of the filename
 	//
-	if config.S3ObjectPrefix != nil {
-		s := []string{*config.S3ObjectPrefix, filepath.Base(fileName)}
+	if o.config.S3ObjectPrefix != "" {
+		s := []string{o.config.S3ObjectPrefix, filepath.Base(fileName)}
 		baseName = strings.Join(s, "/")
 	} else {
 		baseName = filepath.Base(fileName)
 	}
 
-	_, err := o.out.PutObject(&s3.PutObjectInput{
+	_, err := o.Out.PutObject(&s3.PutObjectInput{
 		Body:                 fp,
 		Bucket:               &o.bucketName,
 		Key:                  &baseName,
-		ServerSideEncryption: config.S3ServerSideEncryption,
-		ACL:                  config.S3ACLPolicy,
+		ServerSideEncryption: &(o.config.S3ServerSideEncryption),
+		ACL:                  &(o.config.S3ACLPolicy),
 	})
 	fp.Close()
 
 	log.WithFields(log.Fields{"Filename": fileName, "Bucket": &o.bucketName}).Debug("Uploading File to Bucket")
 
-	return output.UploadStatus{FileName: fileName, Result: err}
+	return UploadStatus{FileName: fileName, Result: err}
 }
 
 func (o *S3Behavior) Initialize(connString string, config *conf.Configuration) error {
@@ -73,8 +77,8 @@ func (o *S3Behavior) Initialize(connString string, config *conf.Configuration) e
 	}
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
-	if config.S3CredentialProfileName != nil {
-		parts = strings.SplitN(*config.S3CredentialProfileName, ":", 2)
+	if config.S3CredentialProfileName != "" {
+		parts = strings.SplitN(config.S3CredentialProfileName, ":", 2)
 		credentialProvider := credentials.SharedCredentialsProvider{}
 
 		if len(parts) == 2 {
@@ -89,9 +93,11 @@ func (o *S3Behavior) Initialize(connString string, config *conf.Configuration) e
 	}
 
 	sess := session.New(awsConfig)
-	o.out = s3.New(sess)
+	if o.Out == nil {
+		o.Out = s3.New(sess)
+	}
 
-	_, err := o.out.HeadBucket(&s3.HeadBucketInput{Bucket: &o.bucketName})
+	_, err := o.Out.HeadBucket(&s3.HeadBucketInput{Bucket: &o.bucketName})
 	if err != nil {
 		// converting this to a warning, as you could have buckets with PutObject rights but not ListBucket
 		log.Infof("Could not open bucket %s: %s", o.bucketName, err)
@@ -114,6 +120,6 @@ func (o *S3Behavior) Statistics() interface{} {
 	return S3Statistics{
 		BucketName:        o.bucketName,
 		Region:            o.region,
-		EncryptionEnabled: o.config.S3ServerSideEncryption != nil,
+		EncryptionEnabled: o.config.S3ServerSideEncryption != "",
 	}
 }

@@ -120,6 +120,17 @@ func (o *SyslogOutput) closeAndScheduleReconnection() {
 	log.Infof("Lost connection to %s. Will try to reconnect at %s.", o.hostnamePort, o.reconnectTime)
 }
 
+func (o *SyslogOutput) close() {
+	o.Lock()
+	defer o.Unlock()
+
+	if o.connected {
+		o.outputSocket.Close()
+		o.connected = false
+	}
+	log.Infof("Closing connection to %s..", o.hostnamePort)
+}
+
 func (o *SyslogOutput) output(m string) error {
 	if !o.connected {
 		// drop this event on the floor...
@@ -136,7 +147,7 @@ func (o *SyslogOutput) output(m string) error {
 	return err
 }
 
-func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
 	if o.outputSocket == nil {
 		return errors.New("Output socket not open")
 	}
@@ -149,6 +160,11 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error 
 		signal.Notify(hup, syscall.SIGHUP)
 
 		defer signal.Stop(hup)
+
+		term := make(chan os.Signal, 1)
+		signal.Notify(hup, syscall.SIGTERM)
+
+		defer signal.Stop(term)
 
 		for {
 			select {
@@ -164,6 +180,14 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error 
 						o.closeAndScheduleReconnection()
 					}
 				}
+			case <-term:
+				log.Info("term sig received...exiting gracefully")
+				o.close()
+				return
+			case <-stopchan:
+				log.Info("Recieved exit request...exiting gracefully")
+				o.close()
+				return
 			}
 		}
 

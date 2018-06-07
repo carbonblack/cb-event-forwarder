@@ -114,7 +114,6 @@ func (o *NetOutput) close() {
 	log.Infof("Lost connection to %s. Closing", o.netConn)
 }
 
-
 func (o *NetOutput) Key() string {
 	o.RLock()
 	defer o.RUnlock()
@@ -155,12 +154,13 @@ func (o *NetOutput) output(m string) error {
 
 	_, err := o.outputSocket.Write([]byte(m))
 	if err != nil {
+		log.Infof("Error writing to netoutput socket: %v", err)
 		o.closeAndScheduleReconnection()
 	}
 	return err
 }
 
-func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
 	if o.outputSocket == nil {
 		return errors.New("Output socket not open")
 	}
@@ -184,15 +184,22 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				if err := o.output(message); err != nil {
 					errorChan <- err
 				}
-
+			case <-hup:
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
+					log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
+
 					err := o.Initialize(o.netConn, o.Config)
 					if err != nil {
 						o.closeAndScheduleReconnection()
 					}
 				}
-			case <- term:
+			case <-term:
+				o.close()
+				log.Info("Got terminate signal, exiting gracefully")
+				return
+			case <-stopchan:
+				log.Info("Got stop request, exiting gracefully")
 				o.close()
 				return
 			}

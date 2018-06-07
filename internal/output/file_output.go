@@ -96,7 +96,7 @@ func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) err
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
 	if o.outputFile == nil {
 		return errors.New("No output file specified")
 	}
@@ -147,6 +147,9 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				// handle exit gracefully
 				log.Info("Received SIGTERM. Exiting")
 				errorChan <- errors.New("SIGTERM received")
+				return
+			case <-stopchan:
+				log.Info("Recieved stop msg, exiting")
 				return
 			}
 		}
@@ -207,6 +210,8 @@ func (o *FileOutput) output(s string) error {
 
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	o.closeFile()
+
+	log.Infof("Rolling over file with format string: %s", tf)
 
 	newName, err := o.rollOverRename(tf)
 	if err != nil {

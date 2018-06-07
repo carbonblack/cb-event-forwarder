@@ -62,23 +62,23 @@ type Configuration struct {
 	UseRawSensorExchange bool
 
 	// this is a hack for S3 specific configuration
-	S3ServerSideEncryption  *string
-	S3CredentialProfileName *string
-	S3ACLPolicy             *string
-	S3ObjectPrefix          *string
+	S3ServerSideEncryption  string
+	S3CredentialProfileName string
+	S3ACLPolicy             string
+	S3ObjectPrefix          string
 
 	// SSL/TLS-specific configuration
-	TLSClientKey  *string
-	TLSClientCert *string
-	TLSCACert     *string
+	TLSClientKey  string
+	TLSClientCert string
+	TLSCACert     string
 	TLSVerify     bool
-	TLSCName      *string
+	TLSCName      string
 	TLS12Only     bool
 
 	// HTTP-specific configuration
-	HTTPAuthorizationToken *string
+	HTTPAuthorizationToken string
 	HTTPPostTemplate       *template.Template
-	HTTPContentType        *string
+	HTTPContentType        string
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -409,10 +409,6 @@ func ParseConfig(fn string) (*Configuration, error) {
 	config.AMQPPort = 5004
 	config.DebugStore = "/tmp"
 
-	config.S3ACLPolicy = nil
-	config.S3ServerSideEncryption = nil
-	config.S3CredentialProfileName = nil
-
 	// required values
 	val, error := config.GetString("server_name")
 	if error != nil {
@@ -617,22 +613,22 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			profileName, err := config.GetString("s3", "credential_profile")
 			if err == nil {
-				config.S3CredentialProfileName = &profileName
+				config.S3CredentialProfileName = profileName
 			}
 
 			aclPolicy, err := config.GetString("s3", "acl_policy")
 			if err == nil {
-				config.S3ACLPolicy = &aclPolicy
+				config.S3ACLPolicy = aclPolicy
 			}
 
 			sseType, err := config.GetString("s3", "server_side_encryption")
 			if err == nil {
-				config.S3ServerSideEncryption = &sseType
+				config.S3ServerSideEncryption = sseType
 			}
 
 			objectPrefix, err := config.GetString("s3", "object_prefix")
 			if err == nil {
-				config.S3ObjectPrefix = &objectPrefix
+				config.S3ObjectPrefix = objectPrefix
 			}
 
 		case "http":
@@ -641,7 +637,7 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			token, err := config.GetString("http", "authorization_token")
 			if err == nil {
-				config.HTTPAuthorizationToken = &token
+				config.HTTPAuthorizationToken = token
 			}
 
 			postTemplate, err := config.GetString("http", "http_post_template")
@@ -659,10 +655,10 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			contentType, err := config.GetString("http", "content_type")
 			if err == nil {
-				config.HTTPContentType = &contentType
+				config.HTTPContentType = contentType
 			} else {
 				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
+				config.HTTPContentType = jsonString
 			}
 		case "syslog":
 			parameterKey = "syslogout"
@@ -691,10 +687,10 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 			contentType, err := config.GetString("http", "content_type")
 			if err == nil {
-				config.HTTPContentType = &contentType
+				config.HTTPContentType = contentType
 			} else {
 				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
+				config.HTTPContentType = jsonString
 			}
 		case "plugin":
 			config.OutputType = PluginOutputType
@@ -733,17 +729,17 @@ func ParseConfig(fn string) (*Configuration, error) {
 	// TLS configuration
 	clientKeyFilename, err := config.GetString(outType, "client_key")
 	if err == nil {
-		config.TLSClientKey = &clientKeyFilename
+		config.TLSClientKey = clientKeyFilename
 	}
 
 	clientCertFilename, err := config.GetString(outType, "client_cert")
 	if err == nil {
-		config.TLSClientCert = &clientCertFilename
+		config.TLSClientCert = clientCertFilename
 	}
 
 	caCertFilename, err := config.GetString(outType, "ca_cert")
 	if err == nil {
-		config.TLSCACert = &caCertFilename
+		config.TLSCACert = caCertFilename
 	}
 
 	config.TLSVerify = true
@@ -766,7 +762,7 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	serverCName, err := config.GetString(outType, "server_cname")
 	if err == nil {
-		config.TLSCName = &serverCName
+		config.TLSCName = serverCName
 	}
 
 	config.configureTLS()
@@ -929,20 +925,20 @@ func (config *Configuration) configureTLS() {
 		tlsConfig.InsecureSkipVerify = true
 	}
 
-	if config.TLSClientCert != nil && config.TLSClientKey != nil && len(*config.TLSClientCert) > 0 &&
-		len(*config.TLSClientKey) > 0 {
-		log.Infof("Loading client cert/key from %s & %s", *config.TLSClientCert, *config.TLSClientKey)
-		cert, err := tls.LoadX509KeyPair(*config.TLSClientCert, *config.TLSClientKey)
+	if config.TLSClientCert != "" && config.TLSClientKey != "" && len(config.TLSClientCert) > 0 &&
+		len(config.TLSClientKey) > 0 {
+		log.Infof("Loading client cert/key from %s & %s", config.TLSClientCert, config.TLSClientKey)
+		cert, err := tls.LoadX509KeyPair(config.TLSClientCert, config.TLSClientKey)
 		if err != nil {
 			log.Fatal(err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if config.TLSCACert != nil && len(*config.TLSCACert) > 0 {
+	if config.TLSCACert != "" && len(config.TLSCACert) > 0 {
 		// Load CA cert
-		log.Infof("Loading valid CAs from file %s", *config.TLSCACert)
-		caCert, err := ioutil.ReadFile(*config.TLSCACert)
+		log.Infof("Loading valid CAs from file %s", config.TLSCACert)
+		caCert, err := ioutil.ReadFile(config.TLSCACert)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -951,9 +947,9 @@ func (config *Configuration) configureTLS() {
 		tlsConfig.RootCAs = caCertPool
 	}
 
-	if config.TLSCName != nil && len(*config.TLSCName) > 0 {
-		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", *config.TLSCName)
-		tlsConfig.ServerName = *config.TLSCName
+	if config.TLSCName != "" && len(config.TLSCName) > 0 {
+		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", config.TLSCName)
+		tlsConfig.ServerName = config.TLSCName
 	}
 
 	if config.TLS12Only == true {
