@@ -1,4 +1,4 @@
-package main
+package output
 
 import (
 	"errors"
@@ -28,7 +28,6 @@ type SyslogOutput struct {
 	droppedEventSinceConnection int64
 
 	sync.RWMutex
-
 	config *conf.Configuration
 }
 
@@ -172,7 +171,6 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, stopch
 				if err := o.output(message); err != nil {
 					errorChan <- err
 				}
-
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
 					err := o.Initialize(o.String(), o.config)
@@ -181,7 +179,7 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, stopch
 					}
 				}
 			case <-term:
-				log.Info("term sig received...exiting gracefully")
+				log.Info("Term signal received...exiting gracefully")
 				o.close()
 				return
 			case <-stopchan:
@@ -190,7 +188,6 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, stopch
 				return
 			}
 		}
-
 	}()
 
 	return nil

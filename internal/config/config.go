@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"path"
 	"plugin"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -54,6 +53,7 @@ type Configuration struct {
 	AMQPTLSCACert        string
 	AMQPQueueName        string
 	AMQPAutomaticAcking  bool
+	AMQPDurableQueues    bool
 	OutputParameters     string
 	EventTypes           []string
 	EventMap             map[string]bool
@@ -473,12 +473,9 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
 
-	val, err = config.GetString("http_server_port")
+	ival, err := config.GetInt("http_server_port")
 	if err == nil {
-		port, err := strconv.Atoi(val)
-		if err == nil {
-			config.HTTPServerPort = port
-		}
+		config.HTTPServerPort = ival
 	}
 
 	val, err = config.GetString("rabbit_mq_username")
@@ -493,12 +490,14 @@ func ParseConfig(fn string) (*Configuration, error) {
 		config.AMQPPassword = val
 	}
 
-	val, err = config.GetString("rabbit_mq_port")
+	ival, err = config.GetInt("rabbit_mq_port")
 	if err == nil {
-		port, err := strconv.Atoi(val)
-		if err == nil {
-			config.AMQPPort = port
-		}
+		config.AMQPPort = ival
+	}
+
+	bval, err = config.GetBool("rabbit_mq_durable_queues")
+	if err == nil {
+		config.AMQPDurableQueues = bval
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
@@ -564,14 +563,11 @@ func ParseConfig(fn string) (*Configuration, error) {
 		}
 		if val == "cef" {
 			config.OutputFormat = CEFOutputFormat
-			val, err := config.GetString("cef_event_severity")
+			val, err := config.GetInt("cef_event_severity")
 			if err == nil {
-				CefEventSeverity, err := strconv.ParseInt(val, 10, 32)
-				if err == nil {
-					config.CefEventSeverity = 5
-				} else {
-					config.CefEventSeverity = int(CefEventSeverity)
-				}
+				config.CefEventSeverity = val
+			} else {
+				config.CefEventSeverity = 5
 			}
 		}
 		if val == "template" {
@@ -799,22 +795,16 @@ func ParseConfig(fn string) (*Configuration, error) {
 
 	// default 10MB bundle size max before forcing a send
 	config.BundleSizeMax = 10 * 1024 * 1024
-	bundleSizeMax, err := config.GetString(outType, "bundle_size_max")
+	bundleSizeMax, err := config.GetInt(outType, "bundle_size_max")
 	if err == nil {
-		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
-		if err == nil {
-			config.BundleSizeMax = bundleSizeMax
-		}
+		config.BundleSizeMax = int64(bundleSizeMax)
 	}
 
 	// default 5 minute send interval
 	config.BundleSendTimeout = 5 * time.Minute
-	bundleSendTimeout, err := config.GetString(outType, "bundle_send_timeout")
+	bundleSendTimeout, err := config.GetInt(outType, "bundle_send_timeout")
 	if err == nil {
-		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
-		if err == nil {
-			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
-		}
+		config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 	}
 
 	bval, err = config.GetBool("api_verify_ssl")

@@ -117,30 +117,27 @@ func (o *KafkaOutput) Initialize(unused string, config *conf.Configuration) erro
 	}
 
 	o.deliveryChannel = make(chan kafka.Event)
-	log.Info("Done init")
 	return nil
 }
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
-	stoppubchan := make(chan struct{})
+	stoppubchan := make(chan struct{}, 1)
 	go func() {
 		for {
 			select {
 			case message := <-messages:
-				log.Info("got message in plugin")
 				var parsedMsg map[string]interface{}
 				json.Unmarshal([]byte(message), &parsedMsg)
 				topic := parsedMsg["type"]
 				if topicString, ok := topic.(string); ok {
 					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
 					topicString += o.topicSuffix
-					log.Info("sending message to output")
 					o.output(topicString, message)
 				} else {
 					log.Info("ERROR: Topic was not a string")
 				}
 			case <-stoppubchan:
-				log.Info("stop request recv'd ending publishing goroutine")
+				log.Info("stop request received ending publishing goroutine")
 				return
 			}
 		}
@@ -164,7 +161,6 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopcha
 		for {
 			select {
 			case e := <-o.deliveryChannel:
-				log.Info("got delivery message in plugin")
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
 					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
@@ -220,17 +216,4 @@ func (o *KafkaOutput) output(topic string, m string) {
 
 func GetOutputHandler() output.OutputHandler {
 	return &KafkaOutput{}
-}
-
-func main() {
-	messages := make(chan string)
-	errors := make(chan error)
-	var kafkaOutput output.OutputHandler = &KafkaOutput{}
-	c, _ := conf.ParseConfig(os.Args[1])
-	kafkaOutput.Initialize("", c)
-	go func() {
-		kafkaOutput.Go(messages, errors, make(chan struct{}))
-	}()
-	messages <- "{\"type\":\"Lol\"}"
-	log.Infof("%v", <-errors)
 }

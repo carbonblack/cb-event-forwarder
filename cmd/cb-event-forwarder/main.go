@@ -425,7 +425,7 @@ func startOutputs() error {
 	case conf.S3OutputType:
 		outputHandler = &output.BundledOutput{Behavior: &output.S3Behavior{}}
 	case conf.SyslogOutputType:
-		outputHandler = &SyslogOutput{}
+		outputHandler = &output.SyslogOutput{}
 	case conf.HTTPOutputType:
 		outputHandler = &output.BundledOutput{Behavior: &output.HTTPBehavior{}}
 	case conf.SplunkOutputType:

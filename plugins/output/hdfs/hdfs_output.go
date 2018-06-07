@@ -168,16 +168,3 @@ func (o *HdfsOutput) output(fn, m string) {
 func GetOutputHandler() output.OutputHandler {
 	return &HdfsOutput{}
 }
-
-func main() {
-	messages := make(chan string)
-	errors := make(chan error)
-	var hdfsOutput output.OutputHandler = &HdfsOutput{}
-	c, _ := conf.ParseConfig(os.Args[1])
-	hdfsOutput.Initialize("", c)
-	go func() {
-		hdfsOutput.Go(messages, errors, make(chan struct{}))
-	}()
-	messages <- "{\"type\":\"Lol\"}"
-	log.Infof("%v", <-errors)
-}

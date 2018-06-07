@@ -62,13 +62,14 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		return nil, nil, fmt.Errorf("Channel: %s", err)
 	}
 
+	durable := config.AMQPDurableQueues
 	queue, err := c.channel.QueueDeclare(
 		queueName,
-		false, // durable,
-		true,  // delete when unused
-		false, // exclusive
-		false, // nowait
-		nil,   // arguments
+		durable, // durable,
+		true,    // delete when unused
+		false,   // exclusive
+		false,   // nowait
+		nil,     // arguments
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Queue declare: %s", err)
