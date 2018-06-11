@@ -264,7 +264,6 @@ func LoadFile(filename string) (map[string]interface{}, []Configuration, error) 
 		return globs, conf_array, err
 	} else {
 		for k, v := range m {
-			log.Infof("Load File got k = v %s = %s ", k, v)
 			if k == "event_forwarders" {
 				for _, v2 := range v.([]interface{}) {
 					imapi, ok := v2.(map[interface{}]interface{})
@@ -275,7 +274,6 @@ func LoadFile(filename string) (map[string]interface{}, []Configuration, error) 
 					for k, vi := range imapi {
 						smapi[k.(string)] = vi
 					}
-					log.Infof("Smapi = %s", smapi)
 					conf_array = append(conf_array, Configuration{ConfigMap: smapi})
 				}
 			} else {
@@ -283,7 +281,7 @@ func LoadFile(filename string) (map[string]interface{}, []Configuration, error) 
 			}
 		}
 
-		log.Infof("Conf array = %s \n globals = %s", conf_array, globs)
+		log.Debugf("Conf array = %s \n globals = %s", conf_array, globs)
 
 		return globs, conf_array, nil
 	}

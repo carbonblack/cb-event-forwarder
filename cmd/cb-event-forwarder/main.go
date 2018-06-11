@@ -73,6 +73,22 @@ type Consumer struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
 	tag     string
+	stopchan chan struct{}
+}
+
+type CbEventForwarder struct {
+	config       conf.Configuration
+	jsmp         jsonmessageprocessor.JsonMessageProcessor
+	pbmp         pbmessageprocessor.PbMessageProcessor
+	cbapi        cbapi.CbAPIHandler
+	status       Status
+	name         string
+	numConsumers int
+	outputErrors chan error
+	results      chan string
+	wg           *sync.WaitGroup
+	Consumers [] * Consumer
+	controlchan chan os.Signal
 }
 
 /*
@@ -279,20 +295,6 @@ func (cbef *CbEventForwarder) logFileProcessingLoop() <-chan error {
 	return errChan
 }
 
-type CbEventForwarder struct {
-	config       conf.Configuration
-	jsmp         jsonmessageprocessor.JsonMessageProcessor
-	pbmp         pbmessageprocessor.PbMessageProcessor
-	cbapi        cbapi.CbAPIHandler
-	status       Status
-	name         string
-	numConsumers int
-	controlchan  chan os.Signal
-	outputErrors chan error
-	results      chan string
-	wg           *sync.WaitGroup
-}
-
 func (cbef *CbEventForwarder) startExpvarPublish() {
 	cbef.status.InputEventCount = expvar.NewInt("input_event_count")
 	cbef.status.OutputEventCount = expvar.NewInt("output_event_count")
@@ -324,81 +326,96 @@ func (cbef *CbEventForwarder) startExpvarPublish() {
 
 	cbef.status.StartTime = time.Now()
 }
+func (cbef * CbEventForwarder) terminateConsumers() {
+	for _,consumer := range cbef.Consumers {
+		consumer.stopchan <- struct{}{}
+	}
+}
+
 func (cbef *CbEventForwarder) launchConsumers(queueName string) {
 	cbef.startExpvarPublish()
-	go func(consumerNumber int) {
-		log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, cbef.config.AMQPURL(), queueName)
-		for {
-			connectionError := make(chan *amqp.Error, 1)
-			consumerTag := fmt.Sprintf("go-event-consumer-%d", consumerNumber)
-			c, deliveries, err := NewConsumer(&cbef.config, cbef.config.AMQPURL(), queueName, consumerTag, cbef.config.UseRawSensorExchange, cbef.config.EventTypes)
-			if err != nil {
-				cbef.status.LastConnectError = err.Error()
-				cbef.status.ErrorTime = time.Now()
-				break
-			}
-
-			cbef.status.LastConnectTime = time.Now()
-			cbef.status.IsConnected = true
-
-			c.conn.NotifyClose(connectionError)
-
-			numProcessors := runtime.NumCPU() * 2
-			log.Infof("Starting %d message processors\n", numProcessors)
-
-			cbef.wg.Add(numProcessors)
-
-			for i := 0; i < numProcessors; i++ {
-
-				//inline worker goroutine
-				go func(cbef *CbEventForwarder, deliveries <-chan amqp.Delivery) {
-					defer cbef.wg.Done()
-
-					for delivery := range deliveries {
-						cbef.processMessage(delivery.Body,
-							delivery.RoutingKey,
-							delivery.ContentType,
-							delivery.Headers,
-							delivery.Exchange)
-					}
-
-					log.Info("Worker exiting")
-				}(cbef, deliveries)
-			}
-
+	for i := 0 ; i < cbef.numConsumers ; i++ {
+		go func (consumerNumber int) {
+			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, cbef.config.AMQPURL(), queueName)
 			for {
-				select {
-				case outputError := <-cbef.outputErrors:
-					log.Errorf("ERROR during output: %s", outputError.Error())
+				connectionError := make(chan *amqp.Error, 1)
+				consumerTag := fmt.Sprintf("go-event-consumer-%d", consumerNumber)
+				c, deliveries, err := NewConsumer(&cbef.config, cbef.config.AMQPURL(), queueName, consumerTag, cbef.config.UseRawSensorExchange, cbef.config.EventTypes)
+				if err != nil {
+					cbef.status.LastConnectError = err.Error()
+					cbef.status.ErrorTime = time.Now()
+					break
+				}
+
+				cbef.Consumers = append(cbef.Consumers,c)
+
+				cbef.status.LastConnectTime = time.Now()
+				cbef.status.IsConnected = true
+
+				c.conn.NotifyClose(connectionError)
+
+				numProcessors := runtime.NumCPU() * 2
+				log.Infof("Starting %d message processors\n", numProcessors)
+
+				cbef.wg.Add(numProcessors)
+
+				for w := 0; w < numProcessors; w++ {
+					//inline worker goroutine
+					log.Infof("Launching AMQP working %d goroutine", w )
+					go func (cbef *CbEventForwarder, deliveries <-chan amqp.Delivery) {
+						defer cbef.wg.Done()
+						for delivery := range deliveries {
+							cbef.processMessage(delivery.Body,
+								delivery.RoutingKey,
+								delivery.ContentType,
+								delivery.Headers,
+								delivery.Exchange)
+						}
+
+						log.Info("Worker exiting")
+					}(cbef, deliveries)
+				}
+
+				for {
+					select {
+					case outputError := <-cbef.outputErrors:
+						log.Errorf("ERROR during output: %s", outputError.Error())
 
 					// hack to exit if the error happens while we are writing to a file
-					outputType := cbef.config.OutputType
-					if outputType == conf.FileOutputType || outputType == conf.SplunkOutputType || outputType == conf.HTTPOutputType {
-						log.Error("File output error; exiting immediately.")
-						c.Shutdown()
-						cbef.wg.Wait()
-						os.Exit(1)
-					}
-					err = outputError
-				case closeError := <-connectionError:
-					cbef.status.IsConnected = false
-					cbef.status.LastConnectError = closeError.Error()
-					cbef.status.ErrorTime = time.Now()
+						outputType := cbef.config.OutputType
+						if outputType == conf.FileOutputType || outputType == conf.SplunkOutputType || outputType == conf.HTTPOutputType {
+							log.Error("File output error; exiting immediately.")
+							c.Shutdown()
+							cbef.wg.Wait()
+							os.Exit(1)
+						}
+						err = outputError
+					case closeError := <-connectionError:
+						cbef.status.IsConnected = false
+						cbef.status.LastConnectError = closeError.Error()
+						cbef.status.ErrorTime = time.Now()
 
-					log.Errorf("Connection closed: %s", closeError.Error())
-					log.Info("Waiting for all workers to exit")
-					cbef.wg.Wait()
-					log.Info("All workers have exited")
-					err = closeError
+						log.Errorf("Connection closed: %s", closeError.Error())
+						log.Info("Waiting for all workers to exit")
+						cbef.wg.Wait()
+						log.Info("All workers have exited")
+						err = closeError
+					case <-c.stopchan:
+						log.Infof("Consumer told to stop")
+						cbef.wg.Wait()
+						log.Info("Consumer - all workers done - ")
+						return
+					}
 				}
+				//wait and reconnect
+				log.Infof("Loop exited for unknown reason %v", err)
+				c.Shutdown()
+				cbef.wg.Wait()
+				log.Infof("Loop exited - Will try again in 30 seconds %v ", err)
+				time.Sleep(30 * time.Second)
 			}
-			log.Infof("Loop exited for unknown reason %v", err)
-			c.Shutdown()
-			cbef.wg.Wait()
-			log.Infof("Loop exited - Will try again in 30 seconds %v ", err)
-			time.Sleep(30 * time.Second)
-		}
-	}(cbef.numConsumers)
+		}(i)
+	}
 }
 
 func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHandler {
@@ -534,6 +551,8 @@ func main() {
 		}
 	}
 
+	cbefs := make([]CbEventForwarder,1)
+
 	for _, config := range configs {
 
 		cbapihandler := cbapi.CbAPIHandler{Config: &config}
@@ -586,6 +605,7 @@ func main() {
 		if config.AMQPQueueName != "" {
 			queueName = config.AMQPQueueName
 		}
+
 		cbef.launchConsumers(queueName)
 
 		if cbef.config.AuditLog == true {
@@ -643,26 +663,35 @@ func main() {
 		}
 
 		controlchans = append(controlchans, cbef.controlchan)
+		cbefs = append(cbefs,cbef)
 	}
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", HTTPServerPort), nil)
 	log.Info("cb-event forwarder running...")
 	sigs := make(chan os.Signal, 5)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-
 	for {
 		select {
 		case sig := <-sigs:
-
-			for _, cchan := range controlchans {
-				cchan <- sig
-			}
-			switch sig {
-			case syscall.SIGTERM, syscall.SIGINT:
-				return
+			shouldret := false
+			switch 	sig {
+				case syscall.SIGTERM, syscall.SIGINT:
+					for _, cbef := range cbefs {
+						cbef.terminateConsumers()
+					}
+					shouldret = true
+					fallthrough
+				default:
+					log.Debugf("CbEF process got signal %s propogating it to forwarders",sig)
+					for _, cbef := range cbefs {
+						cbef.controlchan <- sig
+					}
+					if shouldret {
+						log.Debugf("CbEF process got exit signal")
+						return
+					}
 			}
 		}
 	}
-
 	log.Info("cb-event-forwarder exiting")
 }

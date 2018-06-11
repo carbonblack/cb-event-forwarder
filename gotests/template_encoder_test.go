@@ -67,7 +67,7 @@ func TestTemplateEncoder(t *testing.T) {
 }
 
 func BenchmarkTemplateEncoder(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
@@ -78,7 +78,7 @@ func BenchmarkTemplateEncoder(b *testing.B) {
 }
 
 func BenchmarkTemplateEncoderJson(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
@@ -89,7 +89,7 @@ func BenchmarkTemplateEncoderJson(b *testing.B) {
 }
 
 func BenchmarkTemplateEncoderYaml(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
@@ -100,7 +100,7 @@ func BenchmarkTemplateEncoderYaml(b *testing.B) {
 }
 
 func BenchmarkTemplateEncoderCef(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{CefFormat . 5}}")
@@ -111,7 +111,7 @@ func BenchmarkTemplateEncoderCef(b *testing.B) {
 }
 
 func BenchmarkTemplateEncoderLeef(b *testing.B) {
-	fn := path.Join("../../test/raw_data/json/watchlist.hit.process/0.json")
+	fn := path.Join("../test/raw_data/json/watchlist.hit.process/0.json")
 	fp, _ := os.Open(fn)
 	d, _ := ioutil.ReadAll(fp)
 	myEncoderTemplate, _ := testEncoderTemplate.Parse("{{LeefFormat .}}")

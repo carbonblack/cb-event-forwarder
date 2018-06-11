@@ -4,6 +4,8 @@
 
 * Yaml Configuration
     * The configuration format has been changed from .ini to .yaml. use `key: v` rather than `key=value` format.
+* Multilple Forwarders 
+    * Run multiple event forwarders 
 * Modular Output Plugins
     * Users can write their own modular outputs for the event forwarder, without commiting source upstream.
     * The existing kafka-output has been removed and replaced with a kafka-output plugin using go-kafka-confluent
