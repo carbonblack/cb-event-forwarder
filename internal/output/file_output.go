@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
@@ -96,7 +95,7 @@ func (o *FileOutput) Initialize(fileName string, config *conf.Configuration) err
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	if o.outputFile == nil {
 		return errors.New("No output file specified")
 	}
@@ -105,17 +104,8 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, stopchan
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
 
-		hup := make(chan os.Signal, 1)
-		signal.Notify(hup, syscall.SIGHUP)
-
-		term := make(chan os.Signal, 1)
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
-
 		defer o.closeFile()
 		defer o.flushOutput(true)
-		defer signal.Stop(hup)
-		defer signal.Stop(term)
 
 		for {
 
@@ -135,22 +125,21 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, stopchan
 				}
 				o.flushOutput(false)
 
-			case <-hup:
-				// reopen file
-				log.Info("Received SIGHUP, Rolling over file now.")
-				if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
-					errorChan <- err
+			case cmsg := <-controlchan:
+				switch cmsg {
+				case syscall.SIGHUP:
+					// reopen file
+					log.Info("Received SIGHUP, Rolling over file now.")
+					if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
+						errorChan <- err
+						return
+					}
+				case syscall.SIGTERM, syscall.SIGINT:
+					// handle exit gracefully
+					log.Info("Received SIGTERM. Exiting")
+					errorChan <- errors.New("SIGTERM received")
 					return
 				}
-
-			case <-term:
-				// handle exit gracefully
-				log.Info("Received SIGTERM. Exiting")
-				errorChan <- errors.New("SIGTERM received")
-				return
-			case <-stopchan:
-				log.Info("Recieved stop msg, exiting")
-				return
 			}
 		}
 	}()

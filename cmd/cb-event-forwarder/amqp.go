@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -13,7 +14,7 @@ import (
  * AMQP bookkeeping
  */
 
-func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
+func NewConsumer(config *conf.Configuration, amqpURI, queueName, ctag string, bindToRawExchange bool,
 	routingKeys []string) (*Consumer, <-chan amqp.Delivery, error) {
 	c := &Consumer{
 		conn:    nil,

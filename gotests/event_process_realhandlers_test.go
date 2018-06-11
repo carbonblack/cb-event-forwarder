@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -222,9 +223,9 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 
 	messages := make(chan string, 100)
 	errors := make(chan error)
-	stopchan := make(chan struct{}, 1)
+	controlchan := make(chan os.Signal, 1)
 
-	go oh.Go(messages, errors, stopchan)
+	go oh.Go(messages, errors, controlchan)
 
 	for _, format := range formats {
 		pathname := path.Join("../test/raw_data", format.formatType)
@@ -310,5 +311,5 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 	if shutdown != nil {
 		(*shutdown)()
 	}
-	stopchan <- struct{}{}
+	controlchan <- syscall.SIGTERM
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/colinmarc/hdfs"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"os/signal"
 	"path"
 	"sync"
 	"sync/atomic"
@@ -72,7 +71,7 @@ func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error
 	return nil
 }
 
-func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	stoppubchan := make(chan struct{}, 1)
 	go func() {
 
@@ -96,17 +95,6 @@ func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, stopchan
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
 
-		hup := make(chan os.Signal, 1)
-
-		signal.Notify(hup, syscall.SIGHUP)
-
-		defer signal.Stop(hup)
-		term := make(chan os.Signal, 1)
-
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
-		defer signal.Stop(term)
-
 		for {
 			select {
 			case m := <-o.deliveryChan:
@@ -118,10 +106,15 @@ func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, stopchan
 					log.Infof("Delivered message to HDFS: %s", m.SuccessMessage)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
-			case <-stopchan:
-				log.Infof("[HDFS] Plugin recieved stop request, exiting gracefully")
-				stoppubchan <- struct{}{}
-				return
+			case cmsg := <-controlchan:
+				switch cmsg {
+				case syscall.SIGTERM, syscall.SIGINT:
+					// handle exit gracefully
+					log.Info("Received SIGTERM. Exiting")
+					stoppubchan <- struct{}{}
+					return
+				}
+
 			}
 		}
 	}()

@@ -30,6 +30,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -131,9 +132,9 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 
 	messages := make(chan string, 100)
 	errors := make(chan error)
-	stopchan := make(chan struct{}, 1)
+	controlchan := make(chan os.Signal, 5)
 
-	oh.Go(messages, errors, stopchan)
+	oh.Go(messages, errors, controlchan)
 
 	for _, format := range formats {
 		pathname := path.Join("../../../test/raw_data", format.formatType)
@@ -216,5 +217,5 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 		}
 	}
 	t.Logf("Done with test for %s ", oh)
-	stopchan <- struct{}{}
+	controlchan <- syscall.SIGTERM
 }

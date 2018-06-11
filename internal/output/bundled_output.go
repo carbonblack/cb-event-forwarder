@@ -6,7 +6,6 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -224,22 +223,13 @@ func (o *BundledOutput) Statistics() interface{} {
 	}
 }
 
-func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
-
-		hup := make(chan os.Signal, 1)
-		signal.Notify(hup, syscall.SIGHUP)
-
-		term := make(chan os.Signal, 1)
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
 
 		defer refreshTicker.Stop()
 		defer o.tempFileOutput.closeFile()
 		defer o.tempFileOutput.flushOutput(true)
-		defer signal.Stop(hup)
-		defer signal.Stop(term)
 
 		for {
 			select {
@@ -287,24 +277,26 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, stopc
 					o.lastSuccessfulUpload = time.Now()
 					log.Infof("Successfully uploaded file %s to %s.", fileResult.FileName, o.Behavior.String())
 				}
-
-			case <-hup:
-				// flush to S3 immediately
-				log.Infof("Received SIGHUP, sending data to %s immediately.", o.Behavior.String())
-				if err := o.rollOver(); err != nil {
-					errorChan <- err
+			case cmsg := <-controlchan:
+				switch cmsg {
+				case syscall.SIGHUP:
+					// flush to S3 immediately
+					log.Infof("Received SIGHUP, sending data to %s immediately.", o.Behavior.String())
+					if err := o.rollOver(); err != nil {
+						errorChan <- err
+						return
+					}
+				case syscall.SIGTERM:
+					// handle exit gracefully
+					errorChan <- errors.New("SIGTERM received")
+					refreshTicker.Stop()
+					log.Info("Received SIGTERM. Exiting")
+					return
+				case syscall.SIGSTOP:
+					log.Info("Received stop request. Exiting")
+					refreshTicker.Stop()
 					return
 				}
-			case <-term:
-				// handle exit gracefully
-				errorChan <- errors.New("SIGTERM received")
-				refreshTicker.Stop()
-				log.Info("Received SIGTERM. Exiting")
-				return
-			case <-stopchan:
-				log.Info("Received stop request. Exiting")
-				refreshTicker.Stop()
-				return
 			}
 		}
 	}()

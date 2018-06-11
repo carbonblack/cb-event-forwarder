@@ -8,7 +8,6 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -120,7 +119,7 @@ func (o *KafkaOutput) Initialize(unused string, config *conf.Configuration) erro
 	return nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	stoppubchan := make(chan struct{}, 1)
 	go func() {
 		for {
@@ -146,18 +145,6 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopcha
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
 
-		hup := make(chan os.Signal, 1)
-
-		signal.Notify(hup, syscall.SIGHUP)
-
-		defer signal.Stop(hup)
-
-		term := make(chan os.Signal, 1)
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
-
-		defer signal.Stop(term)
-
 		for {
 			select {
 			case e := <-o.deliveryChannel:
@@ -171,14 +158,14 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, stopcha
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
-			case <-stopchan:
-				log.Infof("Plugin recvd stop request - exiting gracefully immediately")
-				stoppubchan <- struct{}{}
-				return
-			case <-term:
-				log.Info("Got terminate/interupt signal - exiting gracefully")
-				stoppubchan <- struct{}{}
-				return
+			case cmsg := <-controlchan:
+				switch cmsg {
+				case syscall.SIGTERM, syscall.SIGINT:
+					// handle exit gracefully
+					log.Info("Received SIGTERM. Exiting")
+					stoppubchan <- struct{}{}
+					return
+				}
 			}
 		}
 	}()

@@ -47,51 +47,51 @@ func Yaml(raw_input map[string]interface{}) (string, error) {
 }
 
 func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, error) {
-	var temp interface{}
-	log.Debugf("Lookup %s", lookup)
+	var temp interface{} = nil
+	log.Infof("Lookup %s in %s", lookup, m)
 	for index, key := range lookup {
 		if index == 0 {
-			iface, ok := m[key]
+			_, ok := m[key]
 			if !ok {
 				errStr := fmt.Sprintf("Couldn't find %s of %s in %s", key, lookup, m)
-				log.Debugf(errStr)
+				log.Infof(errStr)
 				return nil, errors.New(errStr)
 			} else {
-				log.Debugf("Found key %s of %s in %s value is %s", key, lookup, m, iface)
-				temp = iface
+				log.Infof("Found key %s of %s in %s value is %s", key, lookup, m, m[key])
+				temp = m[key]
 			}
 		} else {
 			if temp != nil {
-				tempmap, ok := temp.(map[string]interface{})
+				tempmap, ok := temp.(map[interface{}]interface{})
 				if ok {
 					iface, ok := tempmap[key]
 					if !ok {
 						errStr := fmt.Sprintf("Couldn't find %s in %s in %s within %s", key, lookup, tempmap, m)
-						log.Debugf(errStr)
+						log.Infof(errStr)
 						return iface, errors.New(errStr)
 					} else {
-						log.Debugf("Found key %s of %s in %s within %s value is %s", key, lookup, temp, iface, m)
+						log.Infof("Found key %s of %s in %s within %s value is %s", key, lookup, temp, iface, m)
 						temp = iface
 					}
 				} else {
 					errStr := "Type coercion failed"
 					switch t := temp.(type) {
 					default:
-						errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} %T", temp, t)
+						errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} it's really :  %T", temp, t)
 					}
 
-					log.Debugf(errStr)
+					log.Infof(errStr)
 					return nil, errors.New(errStr)
 
 				}
 			} else {
 				errStr := fmt.Sprintf("Couldn't find %s of %s in %s within %s [TEMP IFACE IS NIL]", key, lookup, temp, m)
-				log.Debugf(errStr)
+				log.Infof(errStr)
 				return nil, errors.New(errStr)
 			}
 		}
 	}
-	log.Debugf("Lookup returning %s for %s", temp, lookup)
+	log.Infof("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
 }
 

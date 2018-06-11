@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -160,7 +159,7 @@ func (o *NetOutput) output(m string) error {
 	return err
 }
 
-func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, stopchan <-chan struct{}) error {
+func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <-chan os.Signal) error {
 	if o.outputSocket == nil {
 		return errors.New("Output socket not open")
 	}
@@ -169,22 +168,12 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, stopchan 
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
 
-		hup := make(chan os.Signal, 1)
-		signal.Notify(hup, syscall.SIGHUP)
-		term := make(chan os.Signal, 1)
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
-
-		defer signal.Stop(hup)
-		defer signal.Stop(term)
-
 		for {
 			select {
 			case message := <-messages:
 				if err := o.output(message); err != nil {
 					errorChan <- err
 				}
-			case <-hup:
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
 					log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
@@ -194,14 +183,19 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, stopchan 
 						o.closeAndScheduleReconnection()
 					}
 				}
-			case <-term:
-				o.close()
-				log.Info("Got terminate signal, exiting gracefully")
-				return
-			case <-stopchan:
-				log.Info("Got stop request, exiting gracefully")
-				o.close()
-				return
+			case cmsg := <-conchan:
+				switch cmsg {
+				case syscall.SIGTERM:
+					o.close()
+					log.Info("Got terminate signal, exiting gracefully")
+					return
+				case syscall.SIGHUP:
+					log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
+					err := o.Initialize(o.netConn, o.Config)
+					if err != nil {
+						o.closeAndScheduleReconnection()
+					}
+				}
 			}
 		}
 
