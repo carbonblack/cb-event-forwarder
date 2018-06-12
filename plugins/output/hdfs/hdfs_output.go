@@ -16,9 +16,13 @@ import (
 	"time"
 )
 
+type WrappedHDFSClient interface {
+  	Create(name string) (* hdfs.FileWriter, error)
+}
+
 type HdfsOutput struct {
 	hdfsServer        string
-	hdfsClient        *hdfs.Client
+	HDFSClient        WrappedHDFSClient
 	hdfsPath          string
 	droppedEventCount int64
 	eventSentCount    int64
@@ -42,8 +46,8 @@ func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error
 	defer o.Unlock()
 
 	hdfsServer, err := config.GetString("plugin", "hdfs_server")
-	if err != nil {
-		log.Infof("Failed to create HDFS client : %s\n", err)
+	if err != nil && o.hdfsServer == "" {
+		log.Errorf("Failed to create HDFS client : %s\n", err)
 		return err
 	} else {
 		o.hdfsServer = hdfsServer
@@ -57,16 +61,16 @@ func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error
 	}
 
 	hdfsClient, err := hdfs.New(o.hdfsServer)
-	if err == nil {
-		o.hdfsClient = hdfsClient
-	} else {
+	if err == nil && o.HDFSClient == nil{
+		o.HDFSClient = hdfsClient
+	} else if o.HDFSClient == nil {
 		log.Infof("Failed to create HDFS client %v", err)
 		return err
 	}
 
 	o.deliveryChan = make(chan DeliveryMessage)
 
-	log.Infof("Created HDFS client %v\n", o.hdfsClient)
+	log.Infof("Created HDFS client %v\n", o.HDFSClient)
 
 	return nil
 }
@@ -143,8 +147,8 @@ func (o *HdfsOutput) Key() string {
 
 func (o *HdfsOutput) output(fn, m string) {
 	writeto := path.Join(o.hdfsPath, fn)
-	writer, err := o.hdfsClient.Create(path.Join(o.hdfsPath, fn))
-	if err == nil {
+	writer, err := o.HDFSClient.Create(path.Join(o.hdfsPath, fn))
+	if err == nil && writer != nil {
 		_, err := writer.Write([]byte(m))
 		if err == nil {
 			o.deliveryChan <- DeliveryMessage{Error: nil, SuccessMessage: fmt.Sprintf("Succesfully delivered to %s", writeto)}

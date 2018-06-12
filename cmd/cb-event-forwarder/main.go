@@ -40,6 +40,7 @@ import _ "net/http/pprof"
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
+	inputFile          = flag.String("inputfile", "", "Enter json file to read for input")
 )
 
 var version = "NOT FOR RELEASE"
@@ -63,16 +64,15 @@ type Status struct {
  */
 func init() {
 	flag.Parse()
-
 }
 
 /*
  * Types
  */
 type Consumer struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	tag     string
+	conn     *amqp.Connection
+	channel  *amqp.Channel
+	tag      string
 	stopchan chan struct{}
 }
 
@@ -87,8 +87,8 @@ type CbEventForwarder struct {
 	outputErrors chan error
 	results      chan string
 	wg           *sync.WaitGroup
-	Consumers [] * Consumer
-	controlchan chan os.Signal
+	Consumers    []*Consumer
+	controlchan  chan os.Signal
 }
 
 /*
@@ -295,6 +295,34 @@ func (cbef *CbEventForwarder) logFileProcessingLoop() <-chan error {
 	return errChan
 }
 
+func (cbef *CbEventForwarder) inputFileProcessingLoop(inputFile string) <-chan error {
+
+	errChan := make(chan error)
+
+	go func() {
+
+		log.Debugf("Opening input file : %s", inputFile)
+		_, deliveries, err := NewFileConsumer(inputFile)
+		if err != nil {
+			cbef.status.LastConnectError = err.Error()
+			cbef.status.ErrorTime = time.Now()
+			errChan <- err
+		}
+		for delivery := range deliveries {
+			log.Debug("Trying to deliver log message %s", delivery)
+			msgMap := make(map[string]interface{})
+			err := json.Unmarshal([]byte(delivery), &msgMap)
+			if err != nil {
+				cbef.status.LastConnectError = err.Error()
+				cbef.status.ErrorTime = time.Now()
+				errChan <- err
+			}
+			cbef.outputMessage(msgMap)
+		}
+	}()
+	return errChan
+}
+
 func (cbef *CbEventForwarder) startExpvarPublish() {
 	cbef.status.InputEventCount = expvar.NewInt("input_event_count")
 	cbef.status.OutputEventCount = expvar.NewInt("output_event_count")
@@ -326,16 +354,17 @@ func (cbef *CbEventForwarder) startExpvarPublish() {
 
 	cbef.status.StartTime = time.Now()
 }
-func (cbef * CbEventForwarder) terminateConsumers() {
-	for _,consumer := range cbef.Consumers {
+
+func (cbef *CbEventForwarder) terminateConsumers() {
+	for _, consumer := range cbef.Consumers {
 		consumer.stopchan <- struct{}{}
 	}
 }
 
 func (cbef *CbEventForwarder) launchConsumers(queueName string) {
 	cbef.startExpvarPublish()
-	for i := 0 ; i < cbef.numConsumers ; i++ {
-		go func (consumerNumber int) {
+	for i := 0; i < cbef.numConsumers; i++ {
+		go func(consumerNumber int) {
 			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, cbef.config.AMQPURL(), queueName)
 			for {
 				connectionError := make(chan *amqp.Error, 1)
@@ -347,7 +376,7 @@ func (cbef *CbEventForwarder) launchConsumers(queueName string) {
 					break
 				}
 
-				cbef.Consumers = append(cbef.Consumers,c)
+				cbef.Consumers = append(cbef.Consumers, c)
 
 				cbef.status.LastConnectTime = time.Now()
 				cbef.status.IsConnected = true
@@ -361,8 +390,8 @@ func (cbef *CbEventForwarder) launchConsumers(queueName string) {
 
 				for w := 0; w < numProcessors; w++ {
 					//inline worker goroutine
-					log.Infof("Launching AMQP working %d goroutine", w )
-					go func (cbef *CbEventForwarder, deliveries <-chan amqp.Delivery) {
+					log.Infof("Launching AMQP working %d goroutine", w)
+					go func(cbef *CbEventForwarder, deliveries <-chan amqp.Delivery) {
 						defer cbef.wg.Done()
 						for delivery := range deliveries {
 							cbef.processMessage(delivery.Body,
@@ -381,7 +410,7 @@ func (cbef *CbEventForwarder) launchConsumers(queueName string) {
 					case outputError := <-cbef.outputErrors:
 						log.Errorf("ERROR during output: %s", outputError.Error())
 
-					// hack to exit if the error happens while we are writing to a file
+						// hack to exit if the error happens while we are writing to a file
 						outputType := cbef.config.OutputType
 						if outputType == conf.FileOutputType || outputType == conf.SplunkOutputType || outputType == conf.HTTPOutputType {
 							log.Error("File output error; exiting immediately.")
@@ -551,7 +580,7 @@ func main() {
 		}
 	}
 
-	cbefs := make([]CbEventForwarder,1)
+	cbefs := make([]CbEventForwarder, 1)
 
 	for _, config := range configs {
 
@@ -623,6 +652,18 @@ func main() {
 			log.Info("Not starting file processing loop")
 		}
 
+		if *inputFile != "" {
+			go func() {
+				errChan := cbef.logFileProcessingLoop()
+				for {
+					select {
+					case err := <-errChan:
+						log.Infof("%v", err)
+					}
+				}
+			}()
+		}
+
 		if *debug {
 			http.HandleFunc(fmt.Sprintf("/debug/sendmessage/%", cbef.name), func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == "POST" {
@@ -663,7 +704,7 @@ func main() {
 		}
 
 		controlchans = append(controlchans, cbef.controlchan)
-		cbefs = append(cbefs,cbef)
+		cbefs = append(cbefs, cbef)
 	}
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", HTTPServerPort), nil)
@@ -674,22 +715,22 @@ func main() {
 		select {
 		case sig := <-sigs:
 			shouldret := false
-			switch 	sig {
-				case syscall.SIGTERM, syscall.SIGINT:
-					for _, cbef := range cbefs {
-						cbef.terminateConsumers()
-					}
-					shouldret = true
-					fallthrough
-				default:
-					log.Debugf("CbEF process got signal %s propogating it to forwarders",sig)
-					for _, cbef := range cbefs {
-						cbef.controlchan <- sig
-					}
-					if shouldret {
-						log.Debugf("CbEF process got exit signal")
-						return
-					}
+			switch sig {
+			case syscall.SIGTERM, syscall.SIGINT:
+				for _, cbef := range cbefs {
+					cbef.terminateConsumers()
+				}
+				shouldret = true
+				fallthrough
+			default:
+				log.Debugf("CbEF process got signal %s propogating it to forwarders", sig)
+				for _, cbef := range cbefs {
+					cbef.controlchan <- sig
+				}
+				if shouldret {
+					log.Debugf("CbEF process got exit signal")
+					return
+				}
 			}
 		}
 	}

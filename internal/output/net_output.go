@@ -1,8 +1,6 @@
 package output
 
 import (
-	"errors"
-	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -62,15 +60,6 @@ func (o *NetOutput) Initialize(netConn string, config *conf.Configuration) error
 	if strings.HasPrefix(o.protocolName, "tcp") {
 		o.addNewline = true
 	}
-
-	var err error
-	o.outputSocket, err = net.Dial(o.protocolName, o.remoteHostname)
-
-	if err != nil {
-		return fmt.Errorf("Error connecting to '%s': %s", netConn, err)
-	}
-
-	o.markConnected()
 
 	return nil
 }
@@ -159,46 +148,55 @@ func (o *NetOutput) output(m string) error {
 	return err
 }
 
-func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <-chan os.Signal) error {
-	if o.outputSocket == nil {
-		return errors.New("Output socket not open")
+func (o *NetOutput) Connect() error {
+	var err error
+	o.outputSocket, err = net.Dial(o.protocolName, o.remoteHostname)
+	if err != nil {
+		return err
 	}
+	o.markConnected()
+	return nil
+}
 
+func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <-chan os.Signal) error {
+
+	o.Connect()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
 		for {
-			select {
-			case message := <-messages:
-				if err := o.output(message); err != nil {
-					errorChan <- err
-				}
-			case <-refreshTicker.C:
-				if !o.connected && time.Now().After(o.reconnectTime) {
-					log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
-
-					err := o.Initialize(o.netConn, o.Config)
-					if err != nil {
-						o.closeAndScheduleReconnection()
+			if o.connected {
+				select {
+				case message := <-messages:
+					if err := o.output(message); err != nil {
+						errorChan <- err
 					}
-				}
-			case cmsg := <-conchan:
-				switch cmsg {
-				case syscall.SIGTERM:
-					o.close()
-					log.Info("Got terminate signal, exiting gracefully")
-					return
-				case syscall.SIGHUP:
-					log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
-					err := o.Initialize(o.netConn, o.Config)
-					if err != nil {
-						o.closeAndScheduleReconnection()
+				case <-refreshTicker.C:
+					if !o.connected && time.Now().After(o.reconnectTime) {
+						log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
+						o.Initialize(o.netConn, o.Config)
+						err := o.Connect()
+						if err != nil {
+							o.closeAndScheduleReconnection()
+						}
+					}
+				case cmsg := <-conchan:
+					switch cmsg {
+					case syscall.SIGTERM:
+						o.close()
+						log.Info("Got terminate signal, exiting gracefully")
+						return
+					case syscall.SIGHUP:
+						log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
+						o.Initialize(o.netConn, o.Config)
+						err := o.Connect()
+						if err != nil {
+							o.closeAndScheduleReconnection()
+						}
 					}
 				}
 			}
 		}
-
 	}()
 
 	return nil

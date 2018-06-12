@@ -374,7 +374,7 @@ func (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []b
 		if pb.Config.CbServerURL != "" {
 
 			outmsg["link_process"] = util.FastStringConcat(
-				pb.Config.CbServerURL, "#analyze/", processGUID, "/1")
+				pb.Config.CbServerURL, "#analyze/", processGUID, "/0")
 
 			outmsg["link_sensor"] = util.FastStringConcat(
 				pb.Config.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
@@ -435,7 +435,7 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if pb.Config.CbServerURL != "" {
-		kv["link_parent"] = fmt.Sprintf("%s#analyze/%s/1", pb.Config.CbServerURL, kv["parent_process_guid"])
+		kv["link_parent"] = fmt.Sprintf("%s#analyze/%s/0", pb.Config.CbServerURL, kv["parent_process_guid"])
 	}
 
 	if message.OriginalMessage.Process.Username != nil {
@@ -526,7 +526,7 @@ func (pb *PbMessageProcessor) WriteChildprocMessage(message *ConvertedCbMessage,
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if pb.Config.CbServerURL != "" {
-		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/1", pb.Config.CbServerURL, kv["child_process_guid"])
+		kv["link_child"] = fmt.Sprintf("%s#analyze/%s/0", pb.Config.CbServerURL, kv["child_process_guid"])
 	}
 
 	kv["path"] = om.Childproc.GetPath()
@@ -795,7 +795,7 @@ func (pb *PbMessageProcessor) WriteCrossProcMessage(message *ConvertedCbMessage,
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if pb.Config.CbServerURL != "" {
-		kv["link_target"] = fmt.Sprintf("%s#analyze/%s/1", pb.Config.CbServerURL, kv["target_process_guid"])
+		kv["link_target"] = fmt.Sprintf("%s#analyze/%s/0", pb.Config.CbServerURL, kv["target_process_guid"])
 	}
 }
 
@@ -881,7 +881,7 @@ func (pb *PbMessageProcessor) WriteProcessBlockedMsg(message *ConvertedCbMessage
 		kv["process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
 		// add link to process in the Cb UI if the Cb hostname is set
 		if pb.Config.CbServerURL != "" {
-			kv["link_target"] = fmt.Sprintf("%s#analyze/%s/1", pb.Config.CbServerURL, kv["target_process_guid"])
+			kv["link_target"] = fmt.Sprintf("%s#analyze/%s/0", pb.Config.CbServerURL, kv["target_process_guid"])
 		}
 	}
 

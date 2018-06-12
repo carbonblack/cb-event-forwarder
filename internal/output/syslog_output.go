@@ -1,7 +1,6 @@
 package output
 
 import (
-	"errors"
 	"fmt"
 	syslog "github.com/RackSec/srslog"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
@@ -57,15 +56,16 @@ func (o *SyslogOutput) Initialize(netConn string, config *conf.Configuration) er
 	o.protocol = connSpecification[0]
 	o.hostnamePort = connSpecification[1]
 
+	return nil
+}
+
+func (o *SyslogOutput) Connect() error {
 	var err error
-	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, config.TLSConfig)
-
+	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, o.config.TLSConfig)
 	if err != nil {
-		return fmt.Errorf("Error connecting to '%s': %s", netConn, err)
+		return err
 	}
-
 	o.markConnected()
-
 	return nil
 }
 
@@ -146,14 +146,10 @@ func (o *SyslogOutput) output(m string) error {
 }
 
 func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
-	if o.outputSocket == nil {
-		return errors.New("Output socket not open")
-	}
-
+	o.Connect()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
 		for {
 			select {
 			case message := <-messages:
@@ -162,7 +158,11 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, contro
 				}
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
-
+					o.Initialize(o.String(), o.config)
+					err := o.Connect()
+					if err != nil {
+						o.closeAndScheduleReconnection()
+					}
 				}
 			case cmsg := <-controlchan:
 				switch cmsg {
@@ -172,7 +172,8 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, contro
 					return
 				case syscall.SIGHUP:
 					log.Info("Received hup request. Reconnecting")
-					err := o.Initialize(o.String(), o.config)
+					o.Initialize(o.String(), o.config)
+					err := o.Connect()
 					if err != nil {
 						o.closeAndScheduleReconnection()
 					}
