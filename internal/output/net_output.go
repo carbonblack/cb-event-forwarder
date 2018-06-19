@@ -1,7 +1,6 @@
 package output
 
 import (
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
@@ -13,21 +12,18 @@ import (
 )
 
 type NetOutput struct {
-	netConn        string
-	remoteHostname string
-	protocolName   string
-	outputSocket   net.Conn
-	addNewline     bool
+	NetConn                     string
+	RemoteHostname              string
+	ProtocolName                string
+	outputSocket                net.Conn
+	AddNewline                  bool
 
 	connectTime                 time.Time
 	reconnectTime               time.Time
 	connected                   bool
 	droppedEventCount           int64
 	droppedEventSinceConnection int64
-
 	sync.RWMutex
-
-	Config *conf.Configuration
 }
 
 type NetStatistics struct {
@@ -41,32 +37,24 @@ type NetStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp:destination.server.example.com:512
-func (o *NetOutput) Initialize(netConn string, config *conf.Configuration) error {
-	o.Lock()
-	defer o.Unlock()
-
-	o.Config = config
-	if o.connected {
-		o.outputSocket.Close()
-	}
-
-	o.netConn = netConn
+func NewNetOutputHandler(netConn string) (NetOutput, error) {
+	temp := NetOutput{NetConn: netConn}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
 
-	o.protocolName = connSpecification[0]
-	o.remoteHostname = connSpecification[1]
+	temp.ProtocolName = connSpecification[0]
+	temp.RemoteHostname = connSpecification[1]
 
-	if strings.HasPrefix(o.protocolName, "tcp") {
-		o.addNewline = true
+	if strings.HasPrefix(temp.ProtocolName, "tcp") {
+		temp.AddNewline = true
 	}
 
-	return nil
+	return temp, nil
 }
 
 func (o *NetOutput) markConnected() {
 	o.connectTime = time.Now()
-	log.Infof("Connected to %s at %s.", o.netConn, o.connectTime)
+	log.Infof("Connected to %s at %s.", o.NetConn, o.connectTime)
 	o.connected = true
 	if o.droppedEventCount != o.droppedEventSinceConnection {
 		log.Infof("Dropped %d events since the last reconnection.",
@@ -76,6 +64,7 @@ func (o *NetOutput) markConnected() {
 }
 
 func (o *NetOutput) closeAndScheduleReconnection() {
+
 	o.Lock()
 	defer o.Unlock()
 
@@ -87,7 +76,7 @@ func (o *NetOutput) closeAndScheduleReconnection() {
 	// try reconnecting in 5 seconds
 	o.reconnectTime = time.Now().Add(time.Duration(5 * time.Second))
 
-	log.Infof("Lost connection to %s. Will try to reconnect at %s.", o.netConn, o.reconnectTime)
+	log.Infof("Lost connection to %s. Will try to reconnect at %s.", o.NetConn, o.reconnectTime)
 }
 
 func (o *NetOutput) close() {
@@ -99,21 +88,21 @@ func (o *NetOutput) close() {
 		o.connected = false
 	}
 
-	log.Infof("Lost connection to %s. Closing", o.netConn)
+	log.Infof("Lost connection to %s. Closing", o.NetConn)
 }
 
 func (o *NetOutput) Key() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return o.netConn
+	return o.NetConn
 }
 
 func (o *NetOutput) String() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return o.netConn
+	return o.NetConn
 }
 
 func (o *NetOutput) Statistics() interface{} {
@@ -122,15 +111,15 @@ func (o *NetOutput) Statistics() interface{} {
 
 	return NetStatistics{
 		LastOpenTime:      o.connectTime,
-		Protocol:          o.protocolName,
-		RemoteHostname:    o.remoteHostname,
+		Protocol:          o.ProtocolName,
+		RemoteHostname:    o.RemoteHostname,
 		DroppedEventCount: o.droppedEventCount,
 		Connected:         o.connected,
 	}
 }
 
 func (o *NetOutput) output(m string) error {
-	if o.addNewline {
+	if o.AddNewline {
 		m = m + "\r\n"
 	}
 
@@ -150,7 +139,7 @@ func (o *NetOutput) output(m string) error {
 
 func (o *NetOutput) Connect() error {
 	var err error
-	o.outputSocket, err = net.Dial(o.protocolName, o.remoteHostname)
+	o.outputSocket, err = net.Dial(o.ProtocolName, o.RemoteHostname)
 	if err != nil {
 		return err
 	}
@@ -174,7 +163,6 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <
 				case <-refreshTicker.C:
 					if !o.connected && time.Now().After(o.reconnectTime) {
 						log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
-						o.Initialize(o.netConn, o.Config)
 						err := o.Connect()
 						if err != nil {
 							o.closeAndScheduleReconnection()
@@ -186,13 +174,6 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <
 						o.close()
 						log.Info("Got terminate signal, exiting gracefully")
 						return
-					case syscall.SIGHUP:
-						log.Infof("close and reschedule due to not being connected and after reconenct time %T %s ", o.connected, o.reconnectTime)
-						o.Initialize(o.netConn, o.Config)
-						err := o.Connect()
-						if err != nil {
-							o.closeAndScheduleReconnection()
-						}
 					}
 				}
 			}

@@ -3,7 +3,6 @@ package output
 import (
 	"fmt"
 	syslog "github.com/RackSec/srslog"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"crypto/tls"
 )
 
 type SyslogOutput struct {
@@ -24,9 +24,9 @@ type SyslogOutput struct {
 	connected                   bool
 	droppedEventCount           int64
 	droppedEventSinceConnection int64
+	tls			* tls.Config
 
 	sync.RWMutex
-	config *conf.Configuration
 }
 
 type SyslogStatistics struct {
@@ -40,28 +40,20 @@ type SyslogStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp+tls:destination.server.example.com:512
-func (o *SyslogOutput) Initialize(netConn string, config *conf.Configuration) error {
-	o.Lock()
-	defer o.Unlock()
-
-	o.config = config
-
-	if o.connected {
-		o.outputSocket.Close()
-		o.connected = false
-	}
+func NewSyslogOutput(netConn string,tls * tls.Config) (SyslogOutput,  error) {
+	temp := SyslogOutput{tls:tls}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
 
-	o.protocol = connSpecification[0]
-	o.hostnamePort = connSpecification[1]
+	temp.protocol = connSpecification[0]
+	temp.hostnamePort = connSpecification[1]
 
-	return nil
+	return temp, nil
 }
 
 func (o *SyslogOutput) Connect() error {
 	var err error
-	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, o.config.TLSConfig)
+	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, o.tls)
 	if err != nil {
 		return err
 	}
@@ -158,7 +150,6 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, contro
 				}
 			case <-refreshTicker.C:
 				if !o.connected && time.Now().After(o.reconnectTime) {
-					o.Initialize(o.String(), o.config)
 					err := o.Connect()
 					if err != nil {
 						o.closeAndScheduleReconnection()
@@ -170,13 +161,6 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, contro
 					log.Info("Term signal received...exiting gracefully")
 					o.close()
 					return
-				case syscall.SIGHUP:
-					log.Info("Received hup request. Reconnecting")
-					o.Initialize(o.String(), o.config)
-					err := o.Connect()
-					if err != nil {
-						o.closeAndScheduleReconnection()
-					}
 				}
 			}
 		}

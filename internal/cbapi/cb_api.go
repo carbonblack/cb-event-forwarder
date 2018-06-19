@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 	"zvelo.io/ttlru"
+	"errors"
 )
 
 type ThreatReport struct {
@@ -54,20 +55,60 @@ type APIInfo struct {
 var FeedCache = ttlru.New(128, ttlru.WithTTL(5*time.Minute))
 
 type CbAPIHandler struct {
-	Config *conf.Configuration
+	Tls * tls.Config
+	CbAPIProxyURL string
+	CbServerURL string
+	CbAPIToken string
+}
+
+func CbAPIHandlerFromCfg(cfg map[interface{}] interface{}) (*CbAPIHandler , error ) {
+	 var tls  * tls.Config = nil
+	var err error
+	if postProcessing, ok  := cfg["post_process"]; ok && postProcessing.(bool){
+		if tlsCfgi, ok := cfg["tls"]; ok {
+			tlsCfg, ok := tlsCfgi.(map[interface{}]interface{})
+			if ok {
+				t, e := conf.GetTLSConfigFromCfg(tlsCfg)
+				if e != nil {
+					return nil, e
+				}
+				tls = t
+			}
+		}
+		api_proxy_url := ""
+		if t, ok := cfg["proxy_url"]; ok {
+			api_proxy_url = t.(string)
+		}
+		server_url := ""
+		if t, ok := cfg["cb_server_url"]; ok {
+			api_proxy_url = t.(string)
+		}
+		api_token := ""
+		if t, ok := cfg["api_token"]; ok {
+			api_token = t.(string)
+		} else {
+			err = errors.New("Must provide api_token to cbapi post processor")
+		}
+		return NewCbAPIHandler(server_url,api_token,api_proxy_url,tls), err
+	}
+	return nil, nil
+}
+
+func NewCbAPIHandler(cbServerURL,cbAPIToken, cbAPIProxyURL string , tls * tls.Config) *CbAPIHandler {
+	return &CbAPIHandler{Tls:tls , CbAPIProxyURL:cbAPIProxyURL, CbServerURL:cbServerURL, CbAPIToken :cbAPIToken}
 }
 
 func (cbapi *CbAPIHandler) GetCb(route string) ([]byte, error) {
 
 	var proxyRequest func(*http.Request) (*url.URL, error)
 
-	if cbapi.Config.CbAPIProxyURL == "" {
+	if cbapi.CbAPIProxyURL == "" {
 		/*
 		 * No Proxy was specified
 		 */
 		proxyRequest = nil
 	} else {
-		proxyURL, err := url.Parse(cbapi.Config.CbAPIProxyURL)
+		proxyURL, err := url.Parse(cbapi.CbAPIProxyURL)
 		if err != nil {
 			return nil, err
 		}
@@ -75,16 +116,16 @@ func (cbapi *CbAPIHandler) GetCb(route string) ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !cbapi.Config.CbAPIVerifySSL, MinVersion: tls.VersionTLS12},
+		TLSClientConfig: cbapi.Tls,
 		Proxy:           proxyRequest,
 	}
 
 	httpClient := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", cbapi.Config.CbServerURL, route), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", cbapi.CbServerURL, route), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("X-Auth-Token", cbapi.Config.CbAPIToken)
+	req.Header.Add("X-Auth-Token", cbapi.CbAPIToken)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

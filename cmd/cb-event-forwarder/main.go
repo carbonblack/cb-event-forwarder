@@ -10,15 +10,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/cbapi"
-	"github.com/carbonblack/cb-event-forwarder/internal/cef"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
-	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
-	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
-	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"
+	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -28,8 +26,6 @@ import (
 	"os/signal"
 	"path"
 	"plugin"
-	"runtime"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -69,35 +65,35 @@ func init() {
 /*
  * Types
  */
-type Consumer struct {
-	conn     *amqp.Connection
-	channel  *amqp.Channel
-	tag      string
-	stopchan chan struct{}
-}
+
+
 
 type CbEventForwarder struct {
-	config       conf.Configuration
-	jsmp         jsonmessageprocessor.JsonMessageProcessor
-	pbmp         pbmessageprocessor.PbMessageProcessor
-	cbapi        cbapi.CbAPIHandler
-	status       Status
+	config       map[string] interface{}
 	name         string
-	numConsumers int
+	AddToOutput	map[string] interface{}
+	RemoveFromOutput [] string
 	outputErrors chan error
-	results      chan string
-	wg           *sync.WaitGroup
+	results      []chan string
 	Consumers    []*Consumer
+	Outputs []output.OutputHandler
+	Encoder encoder.Encoder
+	Filter	*filter.Filter
 	controlchan  chan os.Signal
+	status Status
+	DebugFlag bool
+	DebugStore string
 }
+
+
 
 /*
  * worker
  */
 
 // TODO: change this into an error channel
-func (cbef *CbEventForwarder) reportError(d string, errmsg string, err error) {
-	cbef.status.ErrorCount.Add(1)
+func (c * Consumer) reportError(d string, errmsg string, err error) {
+	//c.status.ErrorCount.Add(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
@@ -131,8 +127,9 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table, deb
 	}
 }
 
-func (cbef *CbEventForwarder) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	cbef.status.InputEventCount.Add(1)
+func (c * Consumer) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
+	log.Infof("In process message!")
+	//c.status.InputEventCount.Add(1)
 
 	var err error
 	var msgs []map[string]interface{}
@@ -141,22 +138,21 @@ func (cbef *CbEventForwarder) processMessage(body []byte, routingKey, contentTyp
 	// Process message based on ContentType
 	//
 	if contentType == "application/zip" {
-		msgs, err = cbef.pbmp.ProcessRawZipBundle(routingKey, body, headers)
+		msgs, err = c.pbmp.ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
-			reportBundleDetails(routingKey, body, headers, cbef.config.DebugFlag, cbef.config.DebugStore)
-			cbef.reportError(routingKey, "Could not process raw zip bundle", err)
+			reportBundleDetails(routingKey, body, headers, c.DebugFlag, c.DebugStore)
 			return
 		}
 	} else if contentType == "application/protobuf" {
 		// if we receive a protobuf through the raw sensor exchange, it's actually a protobuf "bundle" and not a
 		// single protobuf
 		if exchangeName == "api.rawsensordata" {
-			msgs, err = cbef.pbmp.ProcessProtobufBundle(routingKey, body, headers)
+			msgs, err = c.pbmp.ProcessProtobufBundle(routingKey, body, headers)
 		} else {
-			msg, err := cbef.pbmp.ProcessProtobufMessage(routingKey, body, headers)
+			msg, err := c.pbmp.ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
-				reportBundleDetails(routingKey, body, headers, cbef.config.DebugFlag, cbef.config.DebugStore)
-				cbef.reportError(routingKey, "Could not process body", err)
+				reportBundleDetails(routingKey, body, headers, c.DebugFlag, c.DebugStore)
+				c.reportError(routingKey, "Could not process body", err)
 				return
 			} else if msg != nil {
 				msgs = make([]map[string]interface{}, 0, 1)
@@ -173,86 +169,76 @@ func (cbef *CbEventForwarder) processMessage(body []byte, routingKey, contentTyp
 		decoder.UseNumber()
 
 		if err := decoder.Decode(&msg); err != nil {
-			cbef.reportError(string(body), "Received error when unmarshaling JSON body", err)
+			c.reportError(string(body), "Received error when unmarshaling JSON body", err)
 			return
 		}
 
-		msgs, err = cbef.jsmp.ProcessJSONMessage(msg, routingKey)
+		msgs, err = c.jsmp.ProcessJSONMessage(msg, routingKey)
 	} else {
-		cbef.reportError(string(body), "Unknown content-type", errors.New(contentType))
+		c.reportError(string(body), "Unknown content-type", errors.New(contentType))
 		return
 	}
 
 	for _, msg := range msgs {
-		if cbef.config.PerformFeedPostprocessing {
+		msg["cb_server"] = c.CbServerName
+		if c.PerformFeedPostprocessing {
 			go func(msg map[string]interface{}) {
-				outputMsg := cbef.jsmp.PostprocessJSONMessage(msg)
-				cbef.outputMessage(outputMsg)
+				outputMsg := c.jsmp.PostprocessJSONMessage(msg)
+				c.OutputMessageFunc(outputMsg)
 			}(msg)
 		} else {
-			err = cbef.outputMessage(msg)
+			err = c.OutputMessageFunc(msg)
 			if err != nil {
-				cbef.reportError(string(body), "Error marshaling message", err)
+				c.reportError(string(body), "Error marshaling message", err)
 			}
 		}
 	}
 }
 
 func (cbef *CbEventForwarder) outputMessage(msg map[string]interface{}) error {
+
+	log.Infof("Cb event forardering processing message %s",msg)
 	var err error
 
 	//
 	// Marshal result into the correct output format
 	//
-	msg["cb_server"] = cbef.config.ServerName
+	//msg["cb_server"] = cbef.ServerName
 
 	// Add key=value pairs that has been configured to be added
-	for key, val := range cbef.config.AddToOutput {
+	for key, val := range cbef.AddToOutput {
 		msg[key] = val
 	}
 
 	// Remove keys that have been configured to be removed
-	for _, v := range cbef.config.RemoveFromOutput {
+	for _, v := range cbef.RemoveFromOutput {
 		delete(msg, v)
 	}
 
 	//Apply Event Filter if specified
 	keepEvent := true
-	if cbef.config.FilterEnabled && cbef.config.FilterTemplate != nil {
-		keepEvent = filter.FilterWithTemplate(msg, cbef.config.FilterTemplate)
+	if cbef.Filter != nil {
+		keepEvent = cbef.Filter.FilterEvent(msg)
 	}
 
 	if keepEvent {
-		var outmsg string
-
-		switch cbef.config.OutputFormat {
-		case conf.JSONOutputFormat:
-			var b []byte
-			b, err = json.Marshal(msg)
-			outmsg = string(b)
-		case conf.LEEFOutputFormat:
-			outmsg, err = leef.Encode(msg)
-		case conf.CEFOutputFormat:
-			outmsg, err = cef.EncodeWithSeverity(msg, cbef.config.CefEventSeverity)
-		case conf.TemplateOutputFormat:
-			outmsg, err = te.EncodeWithTemplate(msg, cbef.config.EncoderTemplate)
-		default:
-			panic("Impossible: invalid output_format, exiting immediately")
-		}
+		outmsg,_ := cbef.Encoder.Encode(msg)
 
 		if len(outmsg) > 0 && err == nil {
-			cbef.status.OutputEventCount.Add(1)
-			cbef.results <- string(outmsg)
+			//cbef.status.OutputEventCount.Add(1)
+			for _,r := range cbef.results {
+				r <- string(outmsg)
+			}
 		} else if err != nil {
 			return err
 		}
 	} else { //EventDropped due to filter
-		cbef.status.FilteredEventCount.Add(1)
+		//cbef.status.FilteredEventCount.Add(1)
 	}
-
+	log.Infof("Done outputing message")
 	return nil
 }
-
+/*
 func (cbef *CbEventForwarder) logFileProcessingLoop() <-chan error {
 
 	errChan := make(chan error)
@@ -277,7 +263,7 @@ func (cbef *CbEventForwarder) logFileProcessingLoop() <-chan error {
 			cbef.outputMessage(msgMap)
 		}
 
-	}
+	} */
 
 	/* maps audit log labels to event types
 	AUDIT_TYPES = {
@@ -287,13 +273,14 @@ func (cbef *CbEventForwarder) logFileProcessingLoop() <-chan error {
 	    "cb-audit-useractivity": Audit_Log_Useractivity
 	}
 	*/
-
+	/*
 	go spawnTailer("/var/log/cb/audit/live-response.log", "audit.log.liveresponse")
 	go spawnTailer("/var/log/cb/audit/banning.log", "audit.log.banning")
 	go spawnTailer("/var/log/cb/audit/isolation.log", "audit.log.isolation")
 	go spawnTailer("/var/log/cb/audit/useractivity.log", "audit.log.useractivity")
 	return errChan
-}
+}*/
+/*
 
 func (cbef *CbEventForwarder) inputFileProcessingLoop(inputFile string) <-chan error {
 
@@ -314,21 +301,21 @@ func (cbef *CbEventForwarder) inputFileProcessingLoop(inputFile string) <-chan e
 			err := json.Unmarshal([]byte(delivery), &msgMap)
 			if err != nil {
 				cbef.status.LastConnectError = err.Error()
-				cbef.status.ErrorTime = time.Now()
+				cbefs.status.ErrorTime = time.Now()
 				errChan <- err
 			}
 			cbef.outputMessage(msgMap)
 		}
 	}()
 	return errChan
-}
+}*/
 
-func (cbef *CbEventForwarder) startExpvarPublish() {
+func (cbef *Consumer) startExpvarPublish() {
 	cbef.status.InputEventCount = expvar.NewInt("input_event_count")
 	cbef.status.OutputEventCount = expvar.NewInt("output_event_count")
 	cbef.status.FilteredEventCount = expvar.NewInt("filtered_event_count")
 	cbef.status.ErrorCount = expvar.NewInt("error_count")
-
+	/*
 	expvar.Publish(fmt.Sprintf("connection_status_%s", cbef.name),
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
@@ -349,8 +336,8 @@ func (cbef *CbEventForwarder) startExpvarPublish() {
 		return time.Now().Sub(cbef.status.StartTime).Seconds()
 	}))
 	expvar.Publish(fmt.Sprintf("subscribed_events_%s", cbef.name), expvar.Func(func() interface{} {
-		return cbef.config.EventTypes
-	}))
+		return cbef.EventTypes
+	})) */
 
 	cbef.status.StartTime = time.Now()
 }
@@ -361,89 +348,11 @@ func (cbef *CbEventForwarder) terminateConsumers() {
 	}
 }
 
-func (cbef *CbEventForwarder) launchConsumers(queueName string) {
-	cbef.startExpvarPublish()
-	for i := 0; i < cbef.numConsumers; i++ {
-		go func(consumerNumber int) {
-			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, cbef.config.AMQPURL(), queueName)
-			for {
-				connectionError := make(chan *amqp.Error, 1)
-				consumerTag := fmt.Sprintf("go-event-consumer-%d", consumerNumber)
-				c, deliveries, err := NewConsumer(&cbef.config, cbef.config.AMQPURL(), queueName, consumerTag, cbef.config.UseRawSensorExchange, cbef.config.EventTypes)
-				if err != nil {
-					cbef.status.LastConnectError = err.Error()
-					cbef.status.ErrorTime = time.Now()
-					break
-				}
+func (cbef *CbEventForwarder) launchConsumers() {
+	//cbef.startExpvarPublish()
 
-				cbef.Consumers = append(cbef.Consumers, c)
-
-				cbef.status.LastConnectTime = time.Now()
-				cbef.status.IsConnected = true
-
-				c.conn.NotifyClose(connectionError)
-
-				numProcessors := runtime.NumCPU() * 2
-				log.Infof("Starting %d message processors\n", numProcessors)
-
-				cbef.wg.Add(numProcessors)
-
-				for w := 0; w < numProcessors; w++ {
-					//inline worker goroutine
-					log.Infof("Launching AMQP working %d goroutine", w)
-					go func(cbef *CbEventForwarder, deliveries <-chan amqp.Delivery) {
-						defer cbef.wg.Done()
-						for delivery := range deliveries {
-							cbef.processMessage(delivery.Body,
-								delivery.RoutingKey,
-								delivery.ContentType,
-								delivery.Headers,
-								delivery.Exchange)
-						}
-
-						log.Info("Worker exiting")
-					}(cbef, deliveries)
-				}
-
-				for {
-					select {
-					case outputError := <-cbef.outputErrors:
-						log.Errorf("ERROR during output: %s", outputError.Error())
-
-						// hack to exit if the error happens while we are writing to a file
-						outputType := cbef.config.OutputType
-						if outputType == conf.FileOutputType || outputType == conf.SplunkOutputType || outputType == conf.HTTPOutputType {
-							log.Error("File output error; exiting immediately.")
-							c.Shutdown()
-							cbef.wg.Wait()
-							os.Exit(1)
-						}
-						err = outputError
-					case closeError := <-connectionError:
-						cbef.status.IsConnected = false
-						cbef.status.LastConnectError = closeError.Error()
-						cbef.status.ErrorTime = time.Now()
-
-						log.Errorf("Connection closed: %s", closeError.Error())
-						log.Info("Waiting for all workers to exit")
-						cbef.wg.Wait()
-						log.Info("All workers have exited")
-						err = closeError
-					case <-c.stopchan:
-						log.Infof("Consumer told to stop")
-						cbef.wg.Wait()
-						log.Info("Consumer - all workers done - ")
-						return
-					}
-				}
-				//wait and reconnect
-				log.Infof("Loop exited for unknown reason %v", err)
-				c.Shutdown()
-				cbef.wg.Wait()
-				log.Infof("Loop exited - Will try again in 30 seconds %v ", err)
-				time.Sleep(30 * time.Second)
-			}
-		}(i)
+	for _, c  := range cbef.Consumers{
+		c.Consume()
 	}
 }
 
@@ -461,75 +370,35 @@ func loadOutputFromPlugin(pluginPath string, pluginName string) output.OutputHan
 }
 
 func (cbef *CbEventForwarder) startOutputs() error {
-	// Configure the specific output.
-	// Valid options are: 'udp', 'tcp', 'file', 's3', 'syslog' ,"http",'splunk'
-	var outputHandler output.OutputHandler
+	for i, outputHandler := range cbef.Outputs {
+		/*expvar.Publish(fmt.Sprint("output_status_%s", cbef.name), expvar.Func(func() interface{} {
+			ret := make(map[string]interface{})
+			ret[outputHandler.Key()] = outputHandler.Statistics()
+			ret["format"] = cbef.Encoder.String()
+			ret["type"] = outputHandler.String()
+			return ret
+		}))*/
 
-	parameters := cbef.config.OutputParameters
-
-	switch cbef.config.OutputType {
-	case conf.FileOutputType:
-		outputHandler = &output.FileOutput{}
-	case conf.TCPOutputType:
-		outputHandler = &output.NetOutput{}
-		parameters = "tcp:" + parameters
-	case conf.UDPOutputType:
-		outputHandler = &output.NetOutput{}
-		parameters = "udp:" + parameters
-	case conf.S3OutputType:
-		outputHandler = &output.BundledOutput{Behavior: &output.S3Behavior{}}
-	case conf.SyslogOutputType:
-		outputHandler = &output.SyslogOutput{}
-	case conf.HTTPOutputType:
-		outputHandler = &output.BundledOutput{Behavior: &output.HTTPBehavior{}}
-	case conf.SplunkOutputType:
-		outputHandler = &output.BundledOutput{Behavior: &output.SplunkBehavior{}}
-	case conf.PluginOutputType:
-		outputHandler = loadOutputFromPlugin(cbef.config.PluginPath, cbef.config.Plugin)
-	default:
-		return fmt.Errorf("No valid output handler found (%d)", cbef.config.OutputType)
-	}
-
-	err := outputHandler.Initialize(parameters, &cbef.config)
-	if err != nil {
-		return err
-	}
-
-	expvar.Publish(fmt.Sprint("output_status_%s", cbef.name), expvar.Func(func() interface{} {
-		ret := make(map[string]interface{})
-		ret[outputHandler.Key()] = outputHandler.Statistics()
-
-		switch cbef.config.OutputFormat {
-		case conf.CEFOutputFormat:
-			ret["format"] = "cef"
-		case conf.LEEFOutputFormat:
-			ret["format"] = "leef"
-		case conf.JSONOutputFormat:
-			ret["format"] = "json"
-		case conf.TemplateOutputFormat:
-			ret["format"] = "template"
+		log.Infof("Initialized output: %sb\n", outputHandler.String())
+		if err := outputHandler.Go(cbef.results[i], cbef.outputErrors, cbef.controlchan); err != nil {
+			return err
 		}
+		go func() {
+			select {
+			case outputError := <-cbef.outputErrors:
+				log.Errorf("ERROR during output: %s", outputError.Error())
+				os.Exit(1)
+			}
+		}()
+	}
+	return nil
+}
 
-		switch cbef.config.OutputType {
-		case conf.FileOutputType:
-			ret["type"] = "file"
-		case conf.UDPOutputType:
-			ret["type"] = "net"
-		case conf.TCPOutputType:
-			ret["type"] = "net"
-		case conf.S3OutputType:
-			ret["type"] = "s3"
-		case conf.HTTPOutputType:
-			ret["type"] = "http"
-		case conf.SplunkOutputType:
-			ret["type"] = "splunk"
-		}
-
-		return ret
-	}))
-
-	log.Infof("Initialized output: %sb\n", outputHandler.String())
-	return outputHandler.Go(cbef.results, cbef.outputErrors, cbef.controlchan)
+func conversionFailure(i interface{}) {
+	switch t := i.(type) {
+		default:
+			log.Infof("Failed to convert %T %s",t,t)
+	}
 }
 
 func main() {
@@ -582,25 +451,89 @@ func main() {
 
 	cbefs := make([]CbEventForwarder, 1)
 
+	debugFlag := false
+	if t, ok := global_variables["debug"]; ok {
+		debugFlag = t.(bool)
+	}
+
+	debugStore := "/tmp"
+	if t, ok := global_variables["debug_store"]; ok {
+		debugStore = t.(string)
+	}
+
 	for _, config := range configs {
-
-		cbapihandler := cbapi.CbAPIHandler{Config: &config}
-
-		myjsmp := jsonmessageprocessor.JsonMessageProcessor{Config: &config, CbAPI: &cbapihandler}
-		mypbmp := pbmessageprocessor.PbMessageProcessor{Config: &config}
-
+		log.Infof("Trying to load event forwarder for config: %s",config)
 		outputE := make(chan error)
-		res := make(chan string, 100)
 
-		cbef := CbEventForwarder{jsmp: myjsmp, pbmp: mypbmp, name: config.ServerName, outputErrors: outputE, results: res, numConsumers: 1, wg: &sync.WaitGroup{}, controlchan: make(chan os.Signal, 2), config: config, cbapi: cbapihandler}
+		var err error = nil
+		var myencoder encoder.Encoder
+		if t, ok := config["format"]; ok {
+			myencoder,err = encoder.GetEncoderFromCfg(t.(map[interface{}] interface{}))
+		} else if err != nil {
+			log.Panicf("Error instantiating Encoder: %v",err)
+		}
 
-		if config.PerformFeedPostprocessing {
-			apiVersion, err := cbapihandler.GetCbVersion()
-			if err != nil {
-				log.Fatal("Could not get cb version: " + err.Error())
-			} else {
-				log.Infof("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
-			}
+		var myfilter * filter.Filter
+		if t, ok := config["filter"]; ok {
+			myfilter, err = filter.GetFilterFromCfg(t.(map[interface{}] interface{}))
+		} else if err != nil {
+			log.Panicf("Error instantiating Filter: %v",err)
+		}
+
+		consumerconfigs := make(map[interface{}] interface{})
+		if t, ok  := config["input"]; ok {
+			consumerconfigs = t.(map [interface{}] interface{})
+		}
+
+		outputconfigs := make(map[interface{}] interface{})
+		if t, ok  := config["output"]; ok {
+			outputconfigs = t.(map [interface{}] interface{})
+		}
+		res := make([] chan string,len(outputconfigs))
+
+		outputs,err := output.GetOutputsFromCfg(outputconfigs)
+		if err != nil {
+			log.Panicf("ERROR PROCESSING OUTPUT CONFIGURATIONS %v",err)
+		}
+		i := 0
+		for ( i < len(outputconfigs) ) {
+			res[i] = make(chan string, 100)
+			i++
+		}
+
+		cbef := CbEventForwarder{ Outputs: outputs ,Encoder: myencoder, Filter: myfilter, outputErrors: outputE, results: res, controlchan: make(chan os.Signal, 2), config: config}
+
+		for cbServerNamei, consumerConf := range consumerconfigs {
+				log.Infof("%s , %s ", cbServerNamei, consumerConf)
+				consumerConfMap,ok := consumerConf.(map[interface{}] interface{})
+				if !ok {
+					conversionFailure(consumerConf)
+				}
+				cbServerName,ok := cbServerNamei.(string)
+				if !ok {
+					conversionFailure(cbServerNamei)
+
+				}
+				cbServerURL := ""
+				if t, ok := consumerConfMap["cb_server_url"]; ok {
+					cbServerURL = t.(string)
+				}
+				cbapihandler, err := cbapi.CbAPIHandlerFromCfg(consumerConfMap)
+				if err != nil {
+					log.Panicf("%v",err)
+
+				}
+				myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag:debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL}
+				mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL}
+				c, err := NewConsumerFromConf(cbef.outputMessage,cbServerName,cbServerName,consumerConfMap,debugFlag, debugStore)
+				if err != nil  {
+					log.Panicf("%v",err)
+				}
+				c.jsmp = myjsmp
+				c.pbmp = mypbmp
+				//c.status.LastConnectTime = time.Now()
+				//c.status.IsConnected = true
+			        cbef.Consumers = append(cbef.Consumers, c)
 		}
 
 		if *checkConfiguration {
@@ -624,19 +557,14 @@ func main() {
 			}
 		}
 
-		log.Infof("Configured to capture events: %v", config.EventTypes)
 		if err := cbef.startOutputs(); err != nil {
 			log.Fatalf("Could not startOutputs: %s", err)
 		}
 
-		queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
-		if config.AMQPQueueName != "" {
-			queueName = config.AMQPQueueName
-		}
 
-		cbef.launchConsumers(queueName)
-
+		cbef.launchConsumers()
+		/*
 		if cbef.config.AuditLog == true {
 			log.Info("starting log file processing loop")
 			go func() {
@@ -662,8 +590,8 @@ func main() {
 					}
 				}
 			}()
-		}
-
+		}*/
+		/*
 		if *debug {
 			http.HandleFunc(fmt.Sprintf("/debug/sendmessage/%", cbef.name), func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == "POST" {
@@ -701,7 +629,7 @@ func main() {
 				errMsg, _ := json.Marshal(map[string]string{"status": "success"})
 				_, _ = w.Write(errMsg)
 			})
-		}
+		}*/
 
 		controlchans = append(controlchans, cbef.controlchan)
 		cbefs = append(cbefs, cbef)
@@ -713,6 +641,7 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	for {
 		select {
+
 		case sig := <-sigs:
 			shouldret := false
 			switch sig {

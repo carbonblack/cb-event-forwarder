@@ -6,248 +6,15 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"path"
-	"plugin"
-	"strings"
-	"text/template"
-	"time"
 )
 
-const (
-	FileOutputType = iota
-	S3OutputType
-	TCPOutputType
-	UDPOutputType
-	SyslogOutputType
-	HTTPOutputType
-	SplunkOutputType
-	PluginOutputType
-)
-
-const (
-	LEEFOutputFormat = iota
-	JSONOutputFormat
-	CEFOutputFormat
-	TemplateOutputFormat
-)
-
-type Configuration struct {
-	ConfigMap            map[string]interface{}
-	ServerName           string
-	AMQPHostname         string
-	DebugFlag            bool
-	DebugStore           string
-	OutputType           int
-	OutputFormat         int
-	AMQPUsername         string
-	AMQPPassword         string
-	AMQPPort             int
-	AMQPTLSEnabled       bool
-	AMQPTLSClientKey     string
-	AMQPTLSClientCert    string
-	AMQPTLSCACert        string
-	AMQPQueueName        string
-	AMQPAutomaticAcking  bool
-	AMQPDurableQueues    bool
-	OutputParameters     string
-	EventTypes           []string
-	EventMap             map[string]bool
-	HTTPServerPort       int
-	CbServerURL          string
-	UseRawSensorExchange bool
-
-	// this is a hack for S3 specific configuration
-	S3ServerSideEncryption  string
-	S3CredentialProfileName string
-	S3ACLPolicy             string
-	S3ObjectPrefix          string
-
-	// SSL/TLS-specific configuration
-	TLSClientKey  string
-	TLSClientCert string
-	TLSCACert     string
-	TLSVerify     bool
-	TLSCName      string
-	TLS12Only     bool
-
-	// HTTP-specific configuration
-	HTTPAuthorizationToken string
-	HTTPPostTemplate       *template.Template
-	HTTPContentType        string
-
-	// configuration options common to bundled outputs (S3, HTTP)
-	UploadEmptyFiles    bool
-	CommaSeparateEvents bool
-	BundleSendTimeout   time.Duration
-	BundleSizeMax       int64
-
-	//CEF output Options
-	CefEventSeverity int
-
-	// Compress data on S3 or file output types
-	FileHandlerCompressData bool
-
-	TLSConfig *tls.Config
-
-	// optional post processing of feed hits to retrieve titles
-	PerformFeedPostprocessing bool
-	CbAPIToken                string
-	CbAPIVerifySSL            bool
-	CbAPIProxyURL             string
-
-	//Splunkd
-	SplunkToken *string
-
-	AddToOutput      map[string]string
-	RemoveFromOutput []string
-	AuditLog         bool
-
-	//Hack: Plugins
-	PluginPath string
-	Plugin     string
-
-	//TemplateEncoder support
-	EncoderTemplate *template.Template
-
-	//FilterTemplate support
-	FilterTemplate *template.Template
-	FilterEnabled  bool
-}
-
-func loadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
-	log.Infof("loadPluginFuncMap: Trying to load plugin funcmap provider %s at %s", pluginName, pluginPath)
-	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
-	if err != nil {
-		log.Panic(err)
-	}
-	pluginGetFuncMapRaw, err := plug.Lookup("GetFuncMap")
-	if err != nil {
-		log.Panicf("Failed to load encoder plugin %v", err)
-	}
-	return pluginGetFuncMapRaw.(func() template.FuncMap)()
-}
-
-func (c *Configuration) getByArray(lookup []string) (interface{}, error) {
-	return util.MapGetByArray(c.ConfigMap, lookup)
-}
-
-func (c *Configuration) Get(lookup ...string) (interface{}, error) {
-	return c.getByArray(lookup)
-}
-
-func (c *Configuration) GetWithDefault(d interface{}, lookup ...string) interface{} {
-	found, err := c.getByArray(lookup)
-	if err == nil {
-		return found
-	} else {
-		return d
-	}
-}
-
-func (c *Configuration) GetBool(lookup ...string) (bool, error) {
-	iFaceValue, err := c.getByArray(lookup)
-	if err != nil {
-		return false, err
-
-	} else {
-		bval, ok := iFaceValue.(bool)
-		if ok {
-			return bval, nil
-		} else {
-			return false, errors.New(fmt.Sprintf("Can't convert to bool : %s", iFaceValue))
-		}
-	}
-}
-
-func (c *Configuration) GetBoolWithDefault(def bool, lookup ...string) bool {
-	iFaceValue, err := c.getByArray(lookup)
-	if err != nil {
-		return def
-
-	} else {
-		bval, ok := iFaceValue.(bool)
-		if ok {
-			return bval
-		} else {
-			return def
-		}
-	}
-}
-
-func (c *Configuration) GetInt(lookup ...string) (int, error) {
-	iFaceValue, err := c.getByArray(lookup)
-	if err != nil {
-		return 0, err
-
-	} else {
-		ival, ok := iFaceValue.(int)
-		if ok {
-			return ival, nil
-		} else {
-			return 0, errors.New(fmt.Sprintf("Can't convert to bool %s", iFaceValue))
-		}
-	}
-}
-
-func (c *Configuration) GetString(lookup ...string) (string, error) {
-	iFaceValue, err := c.getByArray(lookup)
-	if err != nil {
-		return "", err
-	} else {
-		stringVal := ""
-		switch iFaceValue.(type) {
-		case string:
-			stringVal, _ = iFaceValue.(string)
-		case int:
-			stringVal = fmt.Sprintf("%d", iFaceValue)
-		case float32, float64:
-			stringVal = fmt.Sprintf("%f", iFaceValue)
-		case bool:
-			stringVal = fmt.Sprintf("%t", iFaceValue)
-		default:
-			stringVal = fmt.Sprintf("%v", iFaceValue)
-		}
-		return stringVal, nil
-	}
-}
-
-func (c *Configuration) GetStrings(lookup ...string) ([]string, error) {
-	iFaceValue, err := c.getByArray(lookup)
-	if err != nil {
-		return make([]string, 0), err
-	} else {
-		stringArray, ok := iFaceValue.([]string)
-		if ok {
-			return stringArray, nil
-		} else {
-			return make([]string, 0), errors.New(fmt.Sprintf("Can't convert %s to [] string", iFaceValue))
-		}
-	}
-}
-
-func (c *Configuration) GetMap(lookup ...string) (map[string]interface{}, error) {
-	iFaceValue, err := c.getByArray(lookup)
-	var temp_map map[string]interface{}
-	if err != nil {
-		return temp_map, err
-	} else {
-		stringArray, ok := iFaceValue.(map[string]interface{})
-		if ok {
-			return stringArray, nil
-		} else {
-			return temp_map, errors.New(fmt.Sprintf("Can't convert %s to map[string] interface{}", iFaceValue))
-		}
-	}
-}
-
-func LoadFile(filename string) (map[string]interface{}, []Configuration, error) {
+func LoadFile(filename string) (map[string]interface{}, [] map[string] interface{}, error) {
 	var globs map[string]interface{} = make(map[string]interface{})
-	var conf_array []Configuration
+	var conf_array [] map[string] interface{}
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return globs, conf_array, err
@@ -268,13 +35,16 @@ func LoadFile(filename string) (map[string]interface{}, []Configuration, error) 
 				for _, v2 := range v.([]interface{}) {
 					imapi, ok := v2.(map[interface{}]interface{})
 					if !ok {
-						log.Infof("Failed to convert in loadfile")
+						switch t := v2.(type) {
+							default:
+								log.Infof("Failed to convert in load file %T %s",t,t)
+						}
 					}
-					smapi := make(map[string]interface{})
-					for k, vi := range imapi {
-						smapi[k.(string)] = vi
+					smapi := make(map[string] interface{})
+					for ki,vi := range imapi {
+						smapi[ki.(string)] = vi
 					}
-					conf_array = append(conf_array, Configuration{ConfigMap: smapi})
+					conf_array = append(conf_array, smapi)
 				}
 			} else {
 				globs[k] = v
@@ -286,33 +56,6 @@ func LoadFile(filename string) (map[string]interface{}, []Configuration, error) 
 		return globs, conf_array, nil
 	}
 	return globs, conf_array, err
-}
-
-type ConfigurationError struct {
-	Errors []string
-	Empty  bool
-}
-
-func (c *Configuration) AMQPURL() string {
-	scheme := "amqp"
-	if c.AMQPTLSEnabled {
-		scheme = "amqps"
-	}
-	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, c.AMQPUsername, c.AMQPPassword, c.AMQPHostname, c.AMQPPort)
-}
-
-func (e ConfigurationError) Error() string {
-	return fmt.Sprintf("Configuration errors:\n %s", strings.Join(e.Errors, "\n "))
-}
-
-func (e *ConfigurationError) addErrorString(err string) {
-	e.Empty = false
-	e.Errors = append(e.Errors, err)
-}
-
-func (e *ConfigurationError) addError(err error) {
-	e.Empty = false
-	e.Errors = append(e.Errors, err.Error())
 }
 
 func parseCbConf() (username, password string, err error) {
@@ -329,96 +72,14 @@ func parseCbConf() (username, password string, err error) {
 	return
 }
 
-func (c *Configuration) parseEventTypes() {
-	eventTypes := [...]struct {
-		configKey string
-		eventList []string
-	}{
-		{"events_watchlist", []string{
-			"watchlist.#",
-		}},
-		{"events_feed", []string{
-			"feed.#",
-		}},
-		{"events_alert", []string{
-			"alert.#",
-		}},
-		{"events_raw_sensor", []string{
-			"ingress.event.process",
-			"ingress.event.procstart",
-			"ingress.event.netconn",
-			"ingress.event.procend",
-			"ingress.event.childproc",
-			"ingress.event.moduleload",
-			"ingress.event.module",
-			"ingress.event.filemod",
-			"ingress.event.regmod",
-			"ingress.event.tamper",
-			"ingress.event.crossprocopen",
-			"ingress.event.remotethread",
-			"ingress.event.processblock",
-			"ingress.event.emetmitigation",
-		}},
-		{"events_binary_observed", []string{
-			"binaryinfo.#",
-		}},
-		{"events_binary_upload", []string{
-			"binarystore.#",
-		}},
-		{"events_storage_partition", []string{
-			"events.partition.#",
-		}},
-	}
 
-	var eventTypesArray []string = make([]string, 24)
-
-	for _, eventType := range eventTypes {
-		val, err := c.GetString(eventType.configKey)
-		if err == nil {
-			val = strings.ToLower(val)
-			if val == "all" {
-				for _, routingKey := range eventType.eventList {
-					if len(routingKey) > 0 {
-						eventTypesArray = append(eventTypesArray, routingKey)
-					}
-				}
-			} else if val == "0" {
-				// nothing
-
-			} else {
-				for _, routingKey := range strings.Split(val, ",") {
-					if len(routingKey) > 0 {
-						eventTypesArray = append(eventTypesArray, routingKey)
-					}
-				}
-			}
-		} else {
-			log.Debugf("Error processing event types in config file %v", err)
-		}
-	}
-
-	var eventMap map[string]bool = make(map[string]bool)
-
-	log.Info("Raw Event Filtering Configuration:")
-	for _, eventName := range eventTypesArray {
-		eventMap[eventName] = true
-		if strings.HasPrefix(eventName, "ingress.event.") {
-			log.Infof("%s: %t", eventName, eventMap[eventName])
-		}
-	}
-
-	c.EventTypes = eventTypesArray
-	c.EventMap = eventMap
-}
-
-func ParseConfigs(fn string) (map[string]interface{}, []Configuration, error) {
-	errs := ConfigurationError{Empty: true}
-
+func ParseConfigs(fn string) (map[string]interface{}, []map[string]interface{}, error) {
+	//errs := ConfigurationError{Empty: true}
 	globs, configs, err := LoadFile(fn)
 	log.Infof("Globs = %s \n configs from load file = %s \n err = %s \n ", globs, configs, err)
-	if err != nil {
-		return globs, configs, err
-	}
+	return globs, configs, err
+}
+	/*
 	tempconfigs := make([]Configuration, len(configs))
 	for config_index, config := range configs {
 		log.Infof("config is key is %s %s", config_index, config.ConfigMap)
@@ -874,54 +535,7 @@ func ParseConfigs(fn string) (map[string]interface{}, []Configuration, error) {
 
 		}
 
-		//load encoder plugin if specified
-		if config.OutputFormat == TemplateOutputFormat {
-			encoder_template_string, err := config.GetString("encoder", "template")
-			if err == nil {
-				encoder_plugin_string, err := config.GetString("encoder", "plugin")
-				if err == nil && len(encoder_plugin_string) > 0 {
-					log.Warn("!!!LOADING ENCODER PLUGIN!!!")
-					tmpl, err := template.New("TemplateEncoder").Funcs(loadFuncMapFromPlugin(config.PluginPath, encoder_plugin_string)).Parse(encoder_template_string)
-					if err == nil {
-						config.EncoderTemplate = tmpl
-					} else {
-						log.Panicf("Error setting up template for encoder %s %s", encoder_template_string, err)
-					}
-				} else {
-					tmpl, err := template.New("TemplateEncoder").Funcs(util.GetUtilFuncMap()).Parse(encoder_template_string)
-					if err != nil {
-						log.Panicf("Error setting up template for encoder %s %s", encoder_template_string, err)
-					} else {
-						config.EncoderTemplate = tmpl
-					}
-				}
-			}
-		}
 
-		filter_events := config.GetBoolWithDefault(false, "filter", "enabled")
-		config.FilterEnabled = filter_events
-		if config.FilterEnabled {
-			log.Warn("!!!EVENT FILTERING ENALBED!!!")
-			filter_temp, err := config.GetString("filter", "template")
-			if err != nil {
-				errs.addErrorString("Filter enabled but no filter.template specified")
-			}
-			log.Infof("Filter temp = %s", filter_temp)
-			config.FilterTemplate = nil
-			filterTemplate, err := template.New("eventfilter").Parse(filter_temp)
-			if err != nil {
-				errs.addError(err)
-			} else {
-				config.FilterTemplate = filterTemplate
-			}
-			filter_plugin, err := config.GetString("filter", "plugin")
-			if err != nil {
-				log.Warn("!!!NO EVENT FILTERING PLUGIN LOADED!!!")
-			} else {
-				log.Warn("!!!EVENT FILTERING PLUGIN ENALBED!!!")
-				config.FilterTemplate = config.FilterTemplate.Funcs(loadFuncMapFromPlugin(config.PluginPath, filter_plugin))
-			}
-		}
 		tempconfigs[config_index] = config
 
 	}
@@ -930,46 +544,71 @@ func ParseConfigs(fn string) (map[string]interface{}, []Configuration, error) {
 		return globs, configs, errs
 	}
 
-	return globs, tempconfigs, nil
+	return globs, configs, nil
 
-}
+}*/
 
-func (config *Configuration) configureTLS() {
+
+
+func GetTLSConfigFromCfg(cfg map[interface{}] interface{}) (*tls.Config,error){
+
 	tlsConfig := &tls.Config{}
 
-	if config.TLSVerify == false {
-		log.Info("Disabling TLS verification for remote output")
+	if tlsverifyT, ok := cfg["tls_verify"]; ok {
+		tlsConfig.InsecureSkipVerify = !tlsverifyT.(bool)
+	} else {
+		log.Warn("!!!Disabling TLS verification!!!")
 		tlsConfig.InsecureSkipVerify = true
 	}
 
-	if config.TLSClientCert != "" && config.TLSClientKey != "" && len(config.TLSClientCert) > 0 &&
-		len(config.TLSClientKey) > 0 {
-		log.Infof("Loading client cert/key from %s & %s", config.TLSClientCert, config.TLSClientKey)
-		cert, err := tls.LoadX509KeyPair(config.TLSClientCert, config.TLSClientKey)
+	tlsClientCert := ""
+	if tlsClientCertTemp,ok := cfg["tls_client_cert"]; ok {
+		tlsClientCert = tlsClientCertTemp.(string)
+	}
+	tlsClientKey := ""
+	if tlsClientKeyTemp,ok := cfg["tls_client_key"]; ok {
+		tlsClientKey = tlsClientKeyTemp.(string)
+	}
+	tlsCACert := ""
+	if tlsCACertTemp,ok := cfg["tls_ca_cert"]; ok {
+		tlsCACert = tlsCACertTemp.(string)
+	}
+	tlsCName := ""
+	if tlsCNameTemp,ok := cfg["tls_cname"]; ok {
+		tlsCName = tlsCNameTemp.(string)
+	}
+	tls12Only := true
+	if tls12OnlyTemp, ok := cfg["tls_12_only"]; ok {
+		tls12Only = tls12OnlyTemp.(bool)
+	}
+
+	if tlsClientCert != "" && tlsClientKey != ""  {
+		log.Infof("Loading client cert/key from %s & %s", tlsClientCert, tlsClientKey)
+		cert, err := tls.LoadX509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
-			log.Fatal(err)
+			return nil,err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if config.TLSCACert != "" && len(config.TLSCACert) > 0 {
+	if tlsCACert != "" && len(tlsCACert) > 0 {
 		// Load CA cert
-		log.Infof("Loading valid CAs from file %s", config.TLSCACert)
-		caCert, err := ioutil.ReadFile(config.TLSCACert)
+		log.Infof("Loading valid CAs from file %s", tlsCACert)
+		caCert, err := ioutil.ReadFile(tlsCACert)
 		if err != nil {
-			log.Fatal(err)
+			return nil,err
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
 		tlsConfig.RootCAs = caCertPool
 	}
 
-	if config.TLSCName != "" && len(config.TLSCName) > 0 {
-		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", config.TLSCName)
-		tlsConfig.ServerName = config.TLSCName
+	if tlsCName != "" && len(tlsCName) > 0{
+		log.Infof("Forcing TLS Common Name check to use '%s' as the hostname", tlsCName)
+		tlsConfig.ServerName =  tlsCName
 	}
 
-	if config.TLS12Only == true {
+	if tls12Only == true {
 		log.Info("Enforcing minimum TLS version 1.2")
 		tlsConfig.MinVersion = tls.VersionTLS12
 	} else {
@@ -977,6 +616,5 @@ func (config *Configuration) configureTLS() {
 		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 
-	config.TLSConfig = tlsConfig
-
+	return tlsConfig, nil
 }

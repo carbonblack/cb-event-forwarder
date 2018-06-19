@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/cbapi"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
@@ -18,8 +17,11 @@ import (
 )
 
 type JsonMessageProcessor struct {
-	Config *conf.Configuration
-	CbAPI  *cbapi.CbAPIHandler
+	DebugFlag bool
+	DebugStore string
+	CbServerURL string
+	EventMap map[string] interface{}
+	CbAPI  * cbapi.CbAPIHandler
 }
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
@@ -176,8 +178,8 @@ func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string
 	}
 
 	// add deep links back into the Cb web UI if configured
-	if jsp.Config.CbServerURL != "" {
-		AddLinksToMessage(messageType, jsp.Config.CbServerURL, msg)
+	if jsp.CbServerURL != "" {
+		AddLinksToMessage(messageType, jsp.CbServerURL, msg)
 	}
 }
 

@@ -2,7 +2,6 @@ package output
 
 import (
 	"errors"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -40,7 +39,10 @@ type BundledOutput struct {
 
 	// TODO: make this thread-safe from the status page
 	sync.RWMutex
-	config *conf.Configuration
+
+	UploadEmptyFiles bool
+	DebugFlag 	 bool
+	DebugStore	string
 }
 
 type BundleStatistics struct {
@@ -51,7 +53,7 @@ type BundleStatistics struct {
 	LastSuccessfulUpload time.Time   `json:"last_successful_upload"`
 	HoldingArea          interface{} `json:"file_holding_area"`
 	StorageStatistics    interface{} `json:"storage_statistics"`
-	BundleSendTimeout    int64       `json:"bundle_send_timeout"`
+	BundleSendTimeout    int64     `json:"bundle_send_timeout"`
 	BundleSizeMax        int64       `json:"bundle_size_max"`
 	UploadEmptyFiles     bool        `json:"upload_empty_files"`
 }
@@ -60,7 +62,6 @@ type BundleStatistics struct {
 // initialize itself, and report back statistics.
 type BundleBehavior interface {
 	Upload(fileName string, fp *os.File) UploadStatus
-	Initialize(connString string, config *conf.Configuration) error
 	Statistics() interface{}
 	Key() string
 	String() string
@@ -79,7 +80,7 @@ func (o *BundledOutput) uploadOne(fileName string) {
 		fp.Close()
 		return
 	}
-	if fileInfo.Size() > 0 || o.config.UploadEmptyFiles {
+	if fileInfo.Size() > 0 || o.UploadEmptyFiles {
 		// only upload if the file size is greater than zero
 		uploadStatus := o.Behavior.Upload(fileName, fp)
 		err = uploadStatus.Result
@@ -124,49 +125,29 @@ func (o *BundledOutput) queueStragglers() {
 	}
 }
 
-func (o *BundledOutput) Initialize(connString string, config *conf.Configuration) error {
-	o.fileResultChan = make(chan UploadStatus)
-	o.filesToUpload = make([]string, 0)
 
-	o.config = config
+func NewBundledOutput(bundle_size_max,bundle_send_timeout int64, upload_empty_files,debug bool, debugstore string, behavior BundleBehavior)  (BundledOutput,  error) {
+	tempBundledOutput := BundledOutput{rollOverDuration:time.Duration(bundle_send_timeout)*time.Second,UploadEmptyFiles:upload_empty_files,maxFileSize:bundle_size_max, Behavior: behavior}
+	tempBundledOutput.fileResultChan = make(chan UploadStatus)
+	tempBundledOutput.filesToUpload = make([]string, 0)
 
-	// maximum file size before we trigger an upload is ~10MB.
-	o.maxFileSize = o.config.BundleSizeMax
-
-	// roll over duration defaults to five minutes
-	o.rollOverDuration = o.config.BundleSendTimeout
-
-	parts := strings.SplitN(connString, ":", 2)
-	if o.TempFileDirectory == "" && len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
-		o.TempFileDirectory = parts[0]
-		connString = parts[1]
-	} else if o.TempFileDirectory == "" {
-		// temporary file location
-		o.TempFileDirectory = "/var/cb/data/event-forwarder"
+	if tempBundledOutput.TempFileDirectory == "" {
+		tempBundledOutput.TempFileDirectory = "/var/cb/data/event-forwarder"
 	}
 
-	if o.Behavior == nil {
-		return errors.New("BundledOutput Initialize called without a behavior")
+
+	if err := os.MkdirAll(tempBundledOutput.TempFileDirectory, 0700); err != nil {
+		return tempBundledOutput, err
 	}
 
-	if err := o.Behavior.Initialize(connString, o.config); err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(o.TempFileDirectory, 0700); err != nil {
-		return err
-	}
-
-	currentPath := filepath.Join(o.TempFileDirectory, "event-forwarder")
-
-	o.tempFileOutput = &FileOutput{}
-	err := o.tempFileOutput.Initialize(currentPath, o.config)
-
+	currentPath := filepath.Join(tempBundledOutput.TempFileDirectory, "event-forwarder")
+	f := NewFileOutputHandler(currentPath)
+	tempBundledOutput.tempFileOutput = &f
 	// find files in the output directory that haven't been uploaded yet and add them to the list
 	// we ignore any errors that may occur during this process
-	o.queueStragglers()
+	tempBundledOutput.queueStragglers()
 
-	return err
+	return tempBundledOutput,nil
 }
 
 func (o *BundledOutput) output(message string) error {
@@ -183,7 +164,7 @@ func (o *BundledOutput) output(message string) error {
 }
 
 func (o *BundledOutput) rollOver() error {
-	if o.currentFileSize == 0 && !o.config.UploadEmptyFiles {
+	if o.currentFileSize == 0 && !o.UploadEmptyFiles {
 		// don't upload zero length files if UploadEmptyFiles is false
 		return nil
 	}
@@ -217,9 +198,9 @@ func (o *BundledOutput) Statistics() interface{} {
 		UploadErrors:         o.uploadErrors,
 		HoldingArea:          o.tempFileOutput.Statistics(),
 		StorageStatistics:    o.Behavior.Statistics(),
-		BundleSendTimeout:    int64(o.config.BundleSendTimeout / time.Second),
-		BundleSizeMax:        o.config.BundleSizeMax,
-		UploadEmptyFiles:     o.config.UploadEmptyFiles,
+		BundleSendTimeout:    int64(o.rollOverDuration / time.Second),
+		BundleSizeMax:        o.maxFileSize,
+		UploadEmptyFiles:     o.UploadEmptyFiles,
 	}
 }
 
@@ -240,8 +221,8 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, contr
 				}
 
 			case <-refreshTicker.C:
-				if time.Now().Sub(o.tempFileOutput.lastRolledOver) > o.rollOverDuration {
-					log.Infof("last rolled over = %s , duration = %s", o.tempFileOutput.lastRolledOver, o.rollOverDuration)
+				if time.Now().Sub(o.tempFileOutput.LastRolledOver) > o.rollOverDuration {
+					log.Infof("last rolled over = %s , duration = %s", o.tempFileOutput.LastRolledOver, o.rollOverDuration)
 					if err := o.rollOver(); err != nil {
 						errorChan <- err
 						return
@@ -268,7 +249,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, contr
 						//  due not to some transient issue on the server side (overloading, service not available, etc)
 						//  and instead an issue with the data we've sent. So move the file to the debug area and
 						//  don't try to upload it again.
-						util.MoveFileToDebug(o.config.DebugFlag, o.config.DebugStore, fileResult.FileName)
+						util.MoveFileToDebug(o.DebugFlag, o.DebugStore, fileResult.FileName)
 					}
 
 					log.Infof("Error uploading file %s: %s", fileResult.FileName, fileResult.Result)
@@ -291,10 +272,6 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, contr
 					errorChan <- errors.New("SIGTERM received")
 					refreshTicker.Stop()
 					log.Info("Received SIGTERM. Exiting")
-					return
-				case syscall.SIGSTOP:
-					log.Info("Received stop request. Exiting")
-					refreshTicker.Stop()
 					return
 				}
 			}

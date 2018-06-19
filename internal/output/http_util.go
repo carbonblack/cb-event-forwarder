@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -23,7 +22,7 @@ type UploadEvent struct {
 	EventText string
 }
 
-func convertFileIntoTemplate(config *conf.Configuration, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
+func convertFileIntoTemplate(commaSeparateEvents,debugFlag bool, debugStore string, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
 	defer close(events)
 
 	var fileReader io.ReadCloser
@@ -33,7 +32,7 @@ func convertFileIntoTemplate(config *conf.Configuration, fp *os.File, events cha
 		fileReader, err = gzip.NewReader(fp)
 		if err != nil {
 			log.Debugf("Error reading file: %s", err.Error())
-			util.MoveFileToDebug(config.DebugFlag, config.DebugStore, fp.Name())
+			util.MoveFileToDebug(debugFlag ,debugStore, fp.Name())
 			return
 		}
 		defer fileReader.Close()
@@ -54,7 +53,7 @@ func convertFileIntoTemplate(config *conf.Configuration, fp *os.File, events cha
 			continue
 		}
 
-		if config.CommaSeparateEvents {
+		if commaSeparateEvents {
 			if i == 0 {
 				err = firstEventTemplate.Execute(&b, eventText)
 			} else {

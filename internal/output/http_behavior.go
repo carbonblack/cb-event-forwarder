@@ -2,12 +2,13 @@ package output
 
 import (
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"crypto/tls"
 	"os"
 	"text/template"
+	"errors"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
@@ -20,40 +21,66 @@ type HTTPBehavior struct {
 	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
-
-	Config *conf.Configuration
+	DebugFlag	bool
+	CommaSeperateEvents bool
+	DebugStore	string
 }
 
 type HTTPStatistics struct {
 	Destination string `json:"destination"`
 }
 
+func HTTPBehaviorFromCfg(cfg map[interface{}] interface{}, debugFlag bool, debugStore string, tlsConfig * tls.Config) (*HTTPBehavior, error) {
+	http_post_template := ""
+	if temp, ok := cfg["http_post_template"]; ok {
+		http_post_template,_ = temp.(string)
+	}
+	dest := ""
+	if dtemp, ok := cfg["destination"]; ok {
+		dest, _ = dtemp.(string)
+	} else {
+		return nil , errors.New("No destination provided in HTTP section")
+	}
+	commaSeparate := false
+	if btemp, ok := cfg["comma_seperate_events"]; ok {
+		commaSeparate = btemp.(bool)
+	}
+	headers := make(map[string] string)
+	if headerTemp , ok := cfg["headers"]; ok {
+		headerTempMap, _ := headerTemp.(map[interface{}] interface{})
+		for k,v := range headerTempMap {
+			headers[k.(string)] = v.(string)
+		}
+	}
+	httpb, err := NewHTTPBehavior(http_post_template,dest,headers,commaSeparate,debugFlag,debugStore,tlsConfig)
+	return &httpb, err
+}
+
 /* Construct the HTTPBehavior object */
-func (this *HTTPBehavior) Initialize(dest string, Config *conf.Configuration) error {
-	this.Config = Config
-	if this.HTTPPostTemplate == nil {
-		this.HTTPPostTemplate = Config.HTTPPostTemplate
-	}
-	this.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
-	this.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
-
-	this.headers = make(map[string]string)
-
-	this.dest = dest
-
-	/* add authorization token, if applicable */
-	if Config.HTTPAuthorizationToken != "" {
-		this.headers["Authorization"] = Config.HTTPAuthorizationToken
-	}
-
-	this.headers["Content-Type"] = Config.HTTPContentType
+func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string] string, jsonFormat, debugFlag bool, debugStore string, tlsConfig * tls.Config) ( HTTPBehavior,  error ) {
+	temp := HTTPBehavior{DebugFlag:debugFlag , DebugStore: debugStore , headers : headers , dest:dest}
+	temp.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
+	temp.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
+	HTTPPostTemplate := template.New("http_post_output")
+				if httpPostTemplate != "" {
+					HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(httpPostTemplate))
+				} else {
+					if jsonFormat {
+						HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(
+							`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+					} else {
+						HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+					}
+				}
+	temp.HTTPPostTemplate = HTTPPostTemplate
 
 	transport := &http.Transport{
-		TLSClientConfig: Config.TLSConfig,
+		TLSClientConfig: tlsConfig,
 	}
-	this.client = &http.Client{Transport: transport}
 
-	return nil
+	temp.client = &http.Client{Transport: transport}
+
+	return temp, nil
 }
 
 func (this *HTTPBehavior) String() string {
@@ -92,7 +119,7 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(this.Config, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.CommaSeperateEvents,this.DebugFlag,this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
@@ -119,3 +146,5 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	}
 	return UploadStatus{FileName: fileName, Result: err, Status: 200}
 }
+
+

@@ -25,7 +25,7 @@ build-plugins: dep-ensure
 	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
-build: build-plugins 
+build: 
 	go get -u github.com/golang/protobuf/proto
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events

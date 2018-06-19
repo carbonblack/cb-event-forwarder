@@ -3,47 +3,35 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/cef"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/filetype.v1"
-	"gopkg.in/yaml.v2"
 	"net"
 	"os"
 	"path/filepath"
 	"text/template"
-	"time"
+	"plugin"
+	"path"
 )
 
 /*
  * conversion routines
  */
 
-func Leef(raw_input map[string]interface{}) (string, error) {
-	return leef.Encode(raw_input)
-}
 
-func Cef(raw_input map[string]interface{}, cef_severity int) (string, error) {
-	return cef.EncodeWithSeverity(raw_input, cef_severity)
-}
 
-func Json(raw_input map[string]interface{}) (string, error) {
-	ret, err := json.Marshal(raw_input)
+func LoadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
+	log.Infof("loadPluginFuncMap: Trying to load plugin funcmap provider %s at %s", pluginName, pluginPath)
+	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
 	if err != nil {
-		return "", err
+		log.Panic(err)
 	}
-	return fmt.Sprintf("%s", ret), nil
-}
-
-func Yaml(raw_input map[string]interface{}) (string, error) {
-	ret, err := yaml.Marshal(raw_input)
+	pluginGetFuncMapRaw, err := plug.Lookup("GetFuncMap")
 	if err != nil {
-		return "", err
+		log.Panicf("Failed to load encoder plugin %v", err)
 	}
-	return fmt.Sprintf("%s", ret), nil
+	return pluginGetFuncMapRaw.(func() template.FuncMap)()
 }
 
 func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, error) {
@@ -66,7 +54,7 @@ func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, erro
 				if ok {
 					iface, ok := tempmap[key]
 					if !ok {
-						errStr := fmt.Sprintf("Couldn't find %s in %s in %s within %s", key, lookup, tempmap, m)
+						errStr := fmt.Sprintf("Couldn't find %s in %s in %s withsin %s", key, lookup, tempmap, m)
 						log.Infof(errStr)
 						return iface, errors.New(errStr)
 					} else {
@@ -93,40 +81,6 @@ func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, erro
 	}
 	log.Infof("Lookup returning %s for %s", temp, lookup)
 	return temp, nil
-}
-
-func GetUtilFuncMap() template.FuncMap {
-	funcMap := template.FuncMap{"LeefFormat": Leef, "CefFormat": Cef, "JsonFormat": Json, "YamlFormat": Yaml, "GetCurrentTimeFormat": GetCurrentTimeFormat, "GetCurrentTimeRFC3339": GetCurrentTimeRFC3339, "GetCurrentTimeUnix": GetCurrentTimeUnix, "GetCurrentTimeUTC": GetCurrentTimeUTC, "ParseTime": ParseTime}
-	return funcMap
-}
-
-func GetCurrentTimeRFC3339() string {
-	t := time.Now()
-	return t.Format(time.RFC3339)
-}
-
-func GetCurrentTimeFormat(format string) string {
-	t := time.Now()
-	return t.Format(format)
-}
-
-func GetCurrentTimeUnix() string {
-	t := time.Now()
-	return fmt.Sprintf("%v", t.Unix())
-}
-
-func GetCurrentTimeUTC() string {
-	t := time.Now()
-	return fmt.Sprintf("%v", t.UTC())
-}
-
-func ParseTime(t string, format string) (string, error) {
-	parsed, err := time.Parse(format, t)
-	if err == nil {
-		return fmt.Sprintf("%v", parsed), nil
-	} else {
-		return "", err
-	}
 }
 
 func WindowsTimeToUnixTime(windowsTime int64) int64 {

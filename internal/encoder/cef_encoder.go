@@ -1,4 +1,4 @@
-package leef
+package encoder
 
 import (
 	"encoding/json"
@@ -10,23 +10,17 @@ import (
 	"strings"
 )
 
-var (
+type CEFEncoder struct {
 	productVendorName string
-	productName       string
-	productVersion    string
-	leefVersion       string
-	formatter         *strings.Replacer
-)
+	productName string
+	productVersion	string
+	cefVersion string
+	formatter * strings.Replacer
+	eventSeverity int
+}
 
-var jsonNumberType reflect.Type
-
-func init() {
-	productVendorName = "CB"
-	productName = "CB"
-	productVersion = "5.1"
-	leefVersion = "1.0"
-
-	formatter = strings.NewReplacer(
+func NewCEFEncoder(severity int) CEFEncoder {
+	myformatter := strings.NewReplacer(
 		"\\", "\\\\",
 		"\n", "\\n",
 		"\r", "\\r",
@@ -34,16 +28,17 @@ func init() {
 		"=", "\\=",
 	)
 
-	var t json.Number
-	jsonNumberType = reflect.ValueOf(t).Type()
+	temp := CEFEncoder{productVendorName:"CB",productName:"CB",productVersion:"5.1",cefVersion:"1.0",formatter:myformatter,eventSeverity:severity}
+	return temp
 }
 
-func generateHeader(cbVersion, eventType string) string {
-	return fmt.Sprintf("LEEF:%s|%s|%s|%s|%s|", leefVersion, productVendorName, productName, cbVersion,
-		eventType)
+func (c * CEFEncoder) generateHeader(cbVersion, eventType string) string {
+	// name | Severity | Extension
+	return fmt.Sprintf("CEF:%s|%s|%s|%s|%s|%s|%d|", c.cefVersion, c.productVendorName, c.productName, cbVersion,
+		eventType, eventType, c.eventSeverity)
 }
 
-func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
+func (c * CEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
 	outboundConnections := map[string]string{
 		"local_ip":    "src",
 		"remote_ip":   "dst",
@@ -73,7 +68,11 @@ func normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) 
 	}
 }
 
-func Encode(msg map[string]interface{}) (string, error) {
+func (e * CEFEncoder) String() string {
+	return "cef"
+}
+
+func (c * CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
 
@@ -142,7 +141,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 			//
 			// Add fields from temp into msg using QRadar normalized IP fields
 			//
-			normalizeAddToMap(msg, temp)
+			c.normalizeAddToMap(msg, temp)
 
 		} else if val.Kind() == reflect.Map {
 			//
@@ -152,7 +151,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 				//
 				// Add fields from kv into msg using QRadar normalized IP fields
 				//
-				normalizeAddToMap(msg, kv)
+				c.normalizeAddToMap(msg, kv)
 			}
 		}
 	}
@@ -162,7 +161,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 	//
 
 	if msg["type"] == "ingress.event.netconn" {
-		normalizeAddToMap(msg, msg)
+		c.normalizeAddToMap(msg, msg)
 	}
 
 	for key, _ := range msg {
@@ -172,7 +171,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 	// message type applied to messages without an explicit message type.
 	// the code below will promote the "type" to messageType in the LEEF header.
 	messageType := "unknown.event.type"
-	cbVersion := productVersion
+	cbVersion := c.productVersion
 
 	sort.Strings(keyNames)
 	for _, key := range keyNames {
@@ -229,7 +228,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 				} else if key == "cb_version" {
 					cbVersion = val_str
 				}
-				val = formatter.Replace(val_str)
+				val = c.formatter.Replace(val_str)
 
 			case string:
 				// make sure to format strings with the appropriate character escaping
@@ -239,14 +238,14 @@ func Encode(msg map[string]interface{}) (string, error) {
 				} else if key == "cb_version" {
 					cbVersion = typed_msg_val
 				}
-				val = formatter.Replace(typed_msg_val)
+				val = c.formatter.Replace(typed_msg_val)
 			case int, int32, int64, uint32, uint64, uint:
 				val = fmt.Sprintf("%d", typed_msg_val)
 			case bool:
 				val = fmt.Sprintf("%t", typed_msg_val)
 			default:
 				// simplify and use fmt.Sprintf to format the output
-				log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
+				log.Debugf("Default case for cef encode: type/kind  = %s/%s ", the_type, the_kind)
 				val = fmt.Sprintf("%v", typed_msg_val)
 			}
 			return val
@@ -265,9 +264,9 @@ func Encode(msg map[string]interface{}) (string, error) {
 
 	log.Debugf("kvPairs = %s", kvPairs)
 
-	joined_kv := strings.Join(kvPairs, "\t")
+	joined_kv := strings.Join(kvPairs, " ")
 
-	ret := fmt.Sprintf("%s%s", generateHeader(cbVersion, messageType), joined_kv)
+	ret := fmt.Sprintf("%s%s", c.generateHeader(cbVersion, messageType), joined_kv)
 
 	return ret, nil
 }
