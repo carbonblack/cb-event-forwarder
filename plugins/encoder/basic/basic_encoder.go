@@ -1,13 +1,11 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	"regexp"
 	"text/template"
 )
 
+/*
 func Mutate(value interface{}, cbmsg map[string]interface{}, keys ...string) error {
 	var ref map[string]interface{} = cbmsg
 	var tref interface{}
@@ -33,8 +31,8 @@ func Mutate(value interface{}, cbmsg map[string]interface{}, keys ...string) err
 	} else {
 		return err
 	}
-}
-
+}*/
+/*
 func Delete(cbmsg map[string]interface{}, keys ...string) error {
 	var ref map[string]interface{} = cbmsg
 	var tref interface{}
@@ -57,7 +55,7 @@ func Delete(cbmsg map[string]interface{}, keys ...string) error {
 	} else {
 		return err
 	}
-}
+} */
 
 func RegexMatch(s string, r string) bool {
 	_, err := regexp.MatchString(s, r)
@@ -65,6 +63,6 @@ func RegexMatch(s string, r string) bool {
 }
 
 func GetFuncMap() template.FuncMap {
-	funcMap := template.FuncMap{"RegexMatch": RegexMatch, "MapGetByArray": util.MapGetByArray, "Delete": Delete, "Mutate": Mutate, "LeefFormat": util.Leef, "CefFormat": util.Cef, "JsonFormat": util.Json, "YamlFormat": util.Yaml, "GetCurrentTimeFormat": util.GetCurrentTimeFormat, "GetCurrentTimeRFC3339": util.GetCurrentTimeRFC3339, "GetCurrentTimeUnix": util.GetCurrentTimeUnix, "GetCurrentTimeUTC": util.GetCurrentTimeUTC, "ParseTime": util.ParseTime}
+	funcMap := template.FuncMap{"RegexMatch": RegexMatch}
 	return funcMap
 }

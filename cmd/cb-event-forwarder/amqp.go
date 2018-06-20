@@ -12,6 +12,8 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"time"
 	"runtime"
+	"strings"
+	"expvar"
 )
 
 /*
@@ -130,6 +132,11 @@ func NewConsumerFromConf(outputMessageFunc func(map[string] interface{}) error, 
 			durableQueues = temp.(bool)
 	}
 
+	auditLogging := false
+	if temp, ok := consumerCfg["audit_log"]; ok {
+			auditLogging = temp.(bool)
+	}
+
 	automaticAcking := true
 	if temp, ok := consumerCfg["rabbit_mq_automatic_acking"]; ok {
 			automaticAcking = temp.(bool)
@@ -226,7 +233,7 @@ func NewConsumerFromConf(outputMessageFunc func(map[string] interface{}) error, 
 		}
 	}
 
-	return NewConsumer(outputMessageFunc,serverName,cbServerURL,consumerTlsCfg,durableQueues,automaticAcking,bindToRawExchange,amqpURI,ctag,eventNames,debugFlag, debugStore)
+	return NewConsumer(outputMessageFunc,serverName,cbServerURL,consumerTlsCfg,auditLogging,durableQueues,automaticAcking,bindToRawExchange,amqpURI,ctag,eventNames,debugFlag, debugStore)
 }
 
 type Consumer struct {
@@ -239,7 +246,7 @@ type Consumer struct {
 	PerformFeedPostprocessing	 bool
 	jsmp         jsonmessageprocessor.JsonMessageProcessor
 	pbmp         pbmessageprocessor.PbMessageProcessor
-	status   Status
+	status   ConsumerStatus
 	wg           sync.WaitGroup
 	OutputMessageFunc func(msg map[string]interface{}) error
 	deliveries  <-chan amqp.Delivery
@@ -252,9 +259,10 @@ type Consumer struct {
 	automaticAcking bool
 	bindToRawExchange bool
 	amqpURI string
+	AuditLogging bool
 }
 
-func NewConsumer(outputMessageFunc func(map [string] interface{}) error, serverName, serverURL string,tlsCfg * tls.Config, durableQueues, automaticAcking ,bindToRawExchange bool,amqpURI, ctag string, routingKeys [] string, debugFlag bool, debugStore string ) (*Consumer, error) {
+func NewConsumer(outputMessageFunc func(map [string] interface{}) error, serverName, serverURL string,tlsCfg * tls.Config,auditLogging, durableQueues, automaticAcking ,bindToRawExchange bool,amqpURI, ctag string, routingKeys [] string, debugFlag bool, debugStore string ) (*Consumer, error) {
 	c := &Consumer{
 		conn:    nil,
 		channel: nil,
@@ -271,6 +279,7 @@ func NewConsumer(outputMessageFunc func(map [string] interface{}) error, serverN
 		automaticAcking: automaticAcking,
 		bindToRawExchange: bindToRawExchange,
 		amqpURI: amqpURI,
+		AuditLogging: auditLogging,
 	}
 
 	return c, nil
@@ -362,4 +371,60 @@ func (c *Consumer) Shutdown() error {
 	defer log.Infof("AMQP shutdown OK")
 
 	return nil
+}
+
+
+func (c * Consumer) logFileProcessingLoop() <-chan error {
+
+	errChan := make(chan error)
+
+	spawnTailer := func(fName string, label string) {
+
+		log.Debugf("Spawn tailer: %s", fName)
+
+		_, deliveries, err := NewFileConsumer(fName)
+
+		if err != nil {
+			//cbef.status.LastConnectError = err.Error()
+			//cbef.status.ErrorTime = time.Now()
+			errChan <- err
+		}
+
+		for delivery := range deliveries {
+			log.Debug("Trying to deliver log message %s", delivery)
+			msgMap := make(map[string]interface{})
+			msgMap["message"] = strings.TrimSuffix(delivery, "\n")
+			msgMap["type"] = label
+			c.OutputMessageFunc(msgMap)
+		}
+
+	}
+
+	/* maps audit log labels to event types
+	AUDIT_TYPES = {
+	    "cb-audit-isolation": Audit_Log_Isolation,
+	    "cb-audit-banning": Audit_Log_Banning,
+	    "cb-audit-live-response": Audit_Log_Liveresponse,
+	    "cb-audit-useractivity": Audit_Log_Useractivity
+	}
+	*/
+
+	go spawnTailer("/var/log/cb/audit/live-response.log", "audit.log.liveresponse")
+	go spawnTailer("/var/log/cb/audit/banning.log", "audit.log.banning")
+	go spawnTailer("/var/log/cb/audit/isolation.log", "audit.log.isolation")
+	go spawnTailer("/var/log/cb/audit/useractivity.log", "audit.log.useractivity")
+	return errChan
+}
+
+
+func (c *Consumer) startExpvarPublish() {
+	c.status.InputEventCount = expvar.NewInt("input_event_count")
+	c.status.ErrorCount = expvar.NewInt("error_count")
+	c.status.StartTime = time.Now()
+	expvar.Publish(fmt.Sprintf("uptime_%s", c.CbServerName), expvar.Func(func() interface{} {
+		return time.Now().Sub(c.status.StartTime).Seconds()
+	}))
+	expvar.Publish(fmt.Sprintf("subscribed_events_%s", c.CbServerName), expvar.Func(func() interface{} {
+		return c.routingKeys
+	}))
 }

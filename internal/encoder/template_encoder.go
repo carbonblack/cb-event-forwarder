@@ -5,8 +5,6 @@ import (
 	"text/template"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
-	"plugin"
-	"path"
 	"fmt"
 	"encoding/json"
 	"gopkg.in/yaml.v2"
@@ -35,19 +33,6 @@ func (e * TemplateEncoder) Encode(msg map[string]interface{}) (string, error) {
 	} else {
 		return "", err
 	}
-}
-
-func loadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
-	log.Infof("loadPluginFuncMap: Trying to load plugin funcmap provider %s at %s", pluginName, pluginPath)
-	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
-	if err != nil {
-		log.Panic(err)
-	}
-	pluginGetFuncMapRaw, err := plug.Lookup("GetFuncMap")
-	if err != nil {
-		log.Panicf("Failed to load encoder plugin %v", err)
-	}
-	return pluginGetFuncMapRaw.(func() template.FuncMap)()
 }
 
 func NewTemplateEncoder(templateString, templatePlugin , pluginPath string) (TemplateEncoder, error) {

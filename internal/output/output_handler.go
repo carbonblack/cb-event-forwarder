@@ -5,6 +5,10 @@ import (
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"crypto/tls"
 	"errors"
+	"plugin"
+	log "github.com/sirupsen/logrus"
+	"path"
+
 )
 
 type OutputHandler interface {
@@ -14,6 +18,18 @@ type OutputHandler interface {
 	Key() string
 }
 
+func loadOutputFromPlugin(pluginPath string, pluginName string, cfg map[interface{}] interface{}) (OutputHandler, error) {
+	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginName, pluginPath)
+	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
+	if err != nil {
+		log.Panic(err)
+	}
+	pluginHandlerFuncRaw, err := plug.Lookup("GetOutputHandler")
+	if err != nil {
+		log.Panicf("Failed to load plugin %v", err)
+	}
+	return pluginHandlerFuncRaw.(func(cfg map[interface{}] interface{}) (OutputHandler,error))(cfg)
+}
 
 func GetOutputsFromCfg (cfg map [interface{}] interface{}) ([]OutputHandler , error) {
 		var temp [] OutputHandler = make([] OutputHandler, len (cfg))
@@ -102,7 +118,31 @@ func GetOutputsFromCfg (cfg map [interface{}] interface{}) ([]OutputHandler , er
 					tempOH = &bo
 				}
 			case	"plugin":
-				fallthrough
+				log.Infof("plugin outputmap = %s", outputMap)
+				path,ok := outputMap["path"].(string)
+				if  !ok {
+					return temp, errors.New("Couldn't find path in plugin output section")
+				}
+				name,ok := outputMap["name"].(string)
+				if  !ok {
+					return temp, errors.New("Couldn't find plugin name in plugin output section")
+				}
+
+				cfg := make(map[interface{}]interface{})
+				if cm,ok := outputMap["config"]; ok {
+					if c, ok := cm.(map[interface{}] interface{}); ok  {
+						cfg = c
+					} else {
+						log.Infof("failed to conver plugin config")
+						switch t := cm.(type) {
+							default:
+								log.Infof("real type is %T for %s",t,c)
+						}
+
+					}
+				}
+				ohp,_ := loadOutputFromPlugin(path,name,cfg)
+				tempOH = ohp
 			default:
 				return temp,nil
 			}

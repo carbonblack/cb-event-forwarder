@@ -60,6 +60,7 @@ func GetFilterFromCfg(cfg map[interface{}] interface{}) (*Filter, error) {
 			//default plugin path
 			return NewFilter(filter.(string),filterPlugin.(string),".")
 		}
+		return NewFilter(filter.(string),"",".")
 	}
 	return nil, nil //template section is optional
 }

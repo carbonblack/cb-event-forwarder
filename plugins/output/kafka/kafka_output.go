@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
@@ -54,69 +53,68 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string, config *conf.Configuration) error {
-	o.Lock()
-	defer o.Unlock()
+func NewKafkaOutputFromCfg( cfg map[interface{}] interface{}) (KafkaOutput, error) {
+	ko := KafkaOutput{}
 
-	var configMap map[string]interface{}
+	log.Infof("Trying to create kafka output with plugin section: %s", cfg)
 
-	configMap, err := config.GetMap("plugin", "kafkaconfig")
-	if err != nil {
-		log.Info("Error getting pluginconfig")
+
+	var configMap map[interface{}]interface{} = make(map[interface{}] interface{})
+
+	if configm, ok := cfg["producer"].(map[interface{}] interface{}); ok {
+		configMap = configm
 	}
 
-	log.Infof("Trying to create kafka output with plugin section: %s", configMap)
+	if topicsuffix, ok := cfg["topicSuffix"]; ok {
+		if topicsuffix, ok := topicsuffix.(string); ok {
+			ko.topicSuffix = topicsuffix
+		} else {
+			ko.brokers = ""
+		}
+	}
+
 
 	kafkaConfigMap := kafka.ConfigMap{}
 
 	for key, value := range configMap {
+		ks := key.(string)
 		switch value.(type) {
 		case string:
-			kafkaConfigMap[key] = value.(string)
+			kafkaConfigMap[ks] = value.(string)
 		case int:
-			kafkaConfigMap[key] = value.(int)
+			kafkaConfigMap[ks] = value.(int)
 		case float32:
-			kafkaConfigMap[key] = value.(float32)
+			kafkaConfigMap[ks] = value.(float32)
 		case float64:
-			kafkaConfigMap[key] = value.(float64)
+			kafkaConfigMap[ks] = value.(float64)
 		case bool:
-			kafkaConfigMap[key] = value.(bool)
+			kafkaConfigMap[ks] = value.(bool)
 		default:
-			kafkaConfigMap[key] = fmt.Sprintf("%s", value)
+			kafkaConfigMap[ks] = fmt.Sprintf("%s", value)
 		}
 	}
 
 	if brokers, ok := configMap["bootstrap.servers"]; ok {
 		if brokers, ok := brokers.(string); ok {
-			o.brokers = brokers
+			ko.brokers = brokers
 		} else {
-			o.brokers = "localhost:9092"
+			ko.brokers = "localhost:9092"
 		}
 	}
 
-	topicSuffix, err := config.GetString("plugin", "topicsuffix")
+	producer, err := kafka.NewProducer(&kafkaConfigMap)
 
-	if err == nil {
-		o.topicSuffix = topicSuffix
-	} else {
-		o.topicSuffix = ""
+	if err != nil {
+		log.Infof("Failed to create producer: %s\n", err)
+		return ko,err
 	}
 
-	if o.Producer == nil {
-		producer, err := kafka.NewProducer(&kafkaConfigMap)
+	log.Infof("Created Producer %v\n", producer)
 
-		if err != nil {
-			log.Infof("Failed to create producer: %s\n", err)
-			return err
-		}
+	ko.Producer = producer
 
-		log.Infof("Created Producer %v\n", producer)
-
-		o.Producer = producer
-	}
-
-	o.deliveryChannel = make(chan kafka.Event)
-	return nil
+	ko.deliveryChannel = make(chan kafka.Event)
+	return ko,nil
 }
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
@@ -201,6 +199,7 @@ func (o *KafkaOutput) output(topic string, m string) {
 	log.Infof("o.Producer.Produce returned")
 }
 
-func GetOutputHandler() output.OutputHandler {
-	return &KafkaOutput{}
+func GetOutputHandler(cfg map[interface{}] interface{}) (output.OutputHandler, error) {
+	ko, err := NewKafkaOutputFromCfg(cfg)
+	return &ko, err
 }

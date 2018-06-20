@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/colinmarc/hdfs"
 	log "github.com/sirupsen/logrus"
@@ -40,39 +39,38 @@ type DeliveryMessage struct {
 	SuccessMessage string
 }
 
-func (o *HdfsOutput) Initialize(unused string, config *conf.Configuration) error {
+func NewHDFSOutputFromCFg(cfg  map[interface{}] interface{}) (HdfsOutput , error) {
 
-	o.Lock()
-	defer o.Unlock()
+	ho := HdfsOutput{}
 
-	hdfsServer, err := config.GetString("plugin", "hdfs_server")
-	if err != nil && o.hdfsServer == "" {
-		log.Errorf("Failed to create HDFS client : %s\n", err)
-		return err
+	hdfsServer, ok := cfg["hdfs_server"].(string)
+	if !ok {
+		return ho,errors.New("Not hdsf_server speficied")
 	} else {
-		o.hdfsServer = hdfsServer
-	}
-	hdfsPath, err := config.GetString("plugin", "hdfs_path")
-	if err != nil {
-		log.Infof("Failed to get HDFS path : %v", err)
-		o.hdfsPath = "/"
-	} else {
-		o.hdfsPath = hdfsPath
+		ho.hdfsServer = hdfsServer
 	}
 
-	hdfsClient, err := hdfs.New(o.hdfsServer)
-	if err == nil && o.HDFSClient == nil{
-		o.HDFSClient = hdfsClient
-	} else if o.HDFSClient == nil {
+	hdfsPath, ok := cfg["hdfs_path"].(string)
+	if !ok {
+		log.Warnf("Failed to get HDFS path")
+		ho.hdfsPath = "/"
+	} else {
+		ho.hdfsPath = hdfsPath
+	}
+
+	hdfsClient, err := hdfs.New(ho.hdfsServer)
+	if err == nil {
+		ho.HDFSClient = hdfsClient
+	} else {
 		log.Infof("Failed to create HDFS client %v", err)
-		return err
+		return ho,err
 	}
 
-	o.deliveryChan = make(chan DeliveryMessage)
+	ho.deliveryChan = make(chan DeliveryMessage)
 
-	log.Infof("Created HDFS client %v\n", o.HDFSClient)
+	log.Infof("Created HDFS client %v\n", ho.HDFSClient)
 
-	return nil
+	return ho,nil
 }
 
 func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
@@ -162,6 +160,7 @@ func (o *HdfsOutput) output(fn, m string) {
 
 }
 
-func GetOutputHandler() output.OutputHandler {
-	return &HdfsOutput{}
+func GetOutputHandler(cfg map[interface{}] interface{}) (output.OutputHandler, error) {
+	ho,err := GetOutputHandler(cfg)
+	return ho,err
 }
