@@ -1,8 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
@@ -46,6 +46,7 @@ type KafkaOutput struct {
 	droppedEventCount int64
 	eventSentCount    int64
 	sync.RWMutex
+	Encoder encoder.Encoder
 }
 
 type KafkaStatistics struct {
@@ -53,15 +54,14 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func NewKafkaOutputFromCfg( cfg map[interface{}] interface{}) (KafkaOutput, error) {
+func NewKafkaOutputFromCfg(cfg map[interface{}]interface{}) (KafkaOutput, error) {
 	ko := KafkaOutput{}
 
 	log.Infof("Trying to create kafka output with plugin section: %s", cfg)
 
+	var configMap map[interface{}]interface{} = make(map[interface{}]interface{})
 
-	var configMap map[interface{}]interface{} = make(map[interface{}] interface{})
-
-	if configm, ok := cfg["producer"].(map[interface{}] interface{}); ok {
+	if configm, ok := cfg["producer"].(map[interface{}]interface{}); ok {
 		configMap = configm
 	}
 
@@ -72,7 +72,6 @@ func NewKafkaOutputFromCfg( cfg map[interface{}] interface{}) (KafkaOutput, erro
 			ko.brokers = ""
 		}
 	}
-
 
 	kafkaConfigMap := kafka.ConfigMap{}
 
@@ -106,7 +105,7 @@ func NewKafkaOutputFromCfg( cfg map[interface{}] interface{}) (KafkaOutput, erro
 
 	if err != nil {
 		log.Infof("Failed to create producer: %s\n", err)
-		return ko,err
+		return ko, err
 	}
 
 	log.Infof("Created Producer %v\n", producer)
@@ -114,24 +113,26 @@ func NewKafkaOutputFromCfg( cfg map[interface{}] interface{}) (KafkaOutput, erro
 	ko.Producer = producer
 
 	ko.deliveryChannel = make(chan kafka.Event)
-	return ko,nil
+	return ko, nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	stoppubchan := make(chan struct{}, 1)
 	go func() {
 		for {
 			select {
 			case message := <-messages:
-				var parsedMsg map[string]interface{}
-				json.Unmarshal([]byte(message), &parsedMsg)
-				topic := parsedMsg["type"]
-				if topicString, ok := topic.(string); ok {
-					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-					topicString += o.topicSuffix
-					o.output(topicString, message)
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					topic := message["type"]
+					if topicString, ok := topic.(string); ok {
+						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+						topicString += o.topicSuffix
+						o.output(topicString, encodedMsg)
+					} else {
+						log.Info("ERROR: Topic was not a string")
+					}
 				} else {
-					log.Info("ERROR: Topic was not a string")
+					errorChan <- err
 				}
 			case <-stoppubchan:
 				log.Info("stop request received ending publishing goroutine")
@@ -199,7 +200,7 @@ func (o *KafkaOutput) output(topic string, m string) {
 	log.Infof("o.Producer.Produce returned")
 }
 
-func GetOutputHandler(cfg map[interface{}] interface{}) (output.OutputHandler, error) {
+func GetOutputHandler(cfg map[interface{}]interface{}) (output.OutputHandler, error) {
 	ko, err := NewKafkaOutputFromCfg(cfg)
 	return &ko, err
 }

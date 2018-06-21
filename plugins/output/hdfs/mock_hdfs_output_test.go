@@ -24,8 +24,8 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
-	"github.com/stretchr/testify/mock"
 	"github.com/colinmarc/hdfs"
+	"github.com/stretchr/testify/mock"
 	"io/ioutil"
 	"os"
 	"path"
@@ -34,9 +34,9 @@ import (
 	"time"
 )
 
-var m map[string]interface{} = map[string] interface{} {"plugin": map[interface{}] interface{} {"hdfs_server":nil} }
+var m map[string]interface{} = map[string]interface{}{"plugin": map[interface{}]interface{}{"hdfs_server": nil}}
 
-var config conf.Configuration = conf.Configuration{UploadEmptyFiles: false, BundleSizeMax: 1024 * 1024 * 1024, BundleSendTimeout: time.Duration(30) * time.Second, CbServerURL: "https://cbtests/", DebugStore: ".", DebugFlag: true,ConfigMap:m, EventMap: make(map[string]bool)}
+var config conf.Configuration = conf.Configuration{UploadEmptyFiles: false, BundleSizeMax: 1024 * 1024 * 1024, BundleSendTimeout: time.Duration(30) * time.Second, CbServerURL: "https://cbtests/", DebugStore: ".", DebugFlag: true, ConfigMap: m, EventMap: make(map[string]bool)}
 
 var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{Config: &config}
 var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{Config: &config}
@@ -46,7 +46,7 @@ type MockedHDFSClient struct {
 	outdir string
 }
 
-func (mHDFS * MockedHDFSClient) Create(name string) (* hdfs.FileWriter, error) {
+func (mHDFS *MockedHDFSClient) Create(name string) (*hdfs.FileWriter, error) {
 	return nil, nil
 }
 

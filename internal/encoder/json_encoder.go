@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 )
 
-type  JSONEncoder struct {
-
+type JSONEncoder struct {
 }
 
-func (j * JSONEncoder) Encode(msg map[string]interface{}) (string, error) {
+func (j *JSONEncoder) Encode(msg map[string]interface{}) (string, error) {
 	b, err := json.Marshal(msg)
 	outmsg := string(b)
-	return outmsg,err
+	return outmsg, err
 }
 
 func NewJSONEncoder() JSONEncoder {
@@ -19,6 +18,6 @@ func NewJSONEncoder() JSONEncoder {
 	return temp
 }
 
-func (e * JSONEncoder) String() string {
+func (e *JSONEncoder) String() string {
 	return "json"
 }

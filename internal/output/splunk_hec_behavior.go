@@ -1,13 +1,13 @@
 package output
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"text/template"
-	"crypto/tls"
 )
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
@@ -20,9 +20,9 @@ type SplunkBehavior struct {
 	HTTPPostTemplate        *template.Template
 	firstEventTemplate      *template.Template
 	subsequentEventTemplate *template.Template
-	DebugFlag bool
-	CommaSeperateEvents bool
-	DebugStore	string
+	DebugFlag               bool
+	CommaSeperateEvents     bool
+	DebugStore              string
 }
 
 type SplunkStatistics struct {
@@ -30,31 +30,30 @@ type SplunkStatistics struct {
 }
 
 /* Construct the syslog_output.go object */
-func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string] string, jsonFormat, debugFlag bool, debugStore string, tlsConfig *tls.Config) (SplunkBehavior , error) {
-	newSplunkBehavior := SplunkBehavior{dest:dest, headers:headers, DebugStore:debugStore , DebugFlag:debugFlag }
+func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, debugFlag bool, debugStore string, tlsConfig *tls.Config) (SplunkBehavior, error) {
+	newSplunkBehavior := SplunkBehavior{dest: dest, headers: headers, DebugStore: debugStore, DebugFlag: debugFlag}
 	newSplunkBehavior.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
 	newSplunkBehavior.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	newSplunkBehavior.headers = headers
 	HTTPPostTemplate := template.New("http_post_output")
-				if httpPostTemplate != "" {
-					HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(httpPostTemplate))
-				} else {
-					if jsonFormat {
-						HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(
-							`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
-					} else {
-						HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
-					}
-				}
+	if httpPostTemplate != "" {
+		HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(httpPostTemplate))
+	} else {
+		if jsonFormat {
+			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(
+				`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+		} else {
+			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+		}
+	}
 	newSplunkBehavior.HTTPPostTemplate = HTTPPostTemplate
-
 
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
 	newSplunkBehavior.client = &http.Client{Transport: transport}
 
-	return newSplunkBehavior,nil
+	return newSplunkBehavior, nil
 }
 
 func (this *SplunkBehavior) String() string {
@@ -93,7 +92,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(this.CommaSeperateEvents,this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.CommaSeperateEvents, this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 

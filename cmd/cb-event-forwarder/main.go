@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/cbapi"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
-	"github.com/carbonblack/cb-event-forwarder/internal/filter"
 	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
-	"github.com/carbonblack/cb-event-forwarder/internal/output"
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
-	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/filter"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/output"
+	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -47,17 +47,17 @@ type Status struct {
 	IsConnected        bool
 	LastConnectTime    time.Time
 	StartTime          time.Time
-	LastConnectError string
-	ErrorTime        time.Time
+	LastConnectError   string
+	ErrorTime          time.Time
 	sync.RWMutex
 }
 
 type ConsumerStatus struct {
-	InputEventCount    *expvar.Int
-	ErrorCount         *expvar.Int
-	IsConnected        bool
-	LastConnectTime    time.Time
-	StartTime          time.Time
+	InputEventCount  *expvar.Int
+	ErrorCount       *expvar.Int
+	IsConnected      bool
+	LastConnectTime  time.Time
+	StartTime        time.Time
 	LastConnectError string
 	ErrorTime        time.Time
 	sync.RWMutex
@@ -75,20 +75,21 @@ func init() {
  */
 
 type CbEventForwarder struct {
-	config       map[string] interface{}
-	name         string
-	AddToOutput	map[string] interface{}
-	RemoveFromOutput [] string
-	outputErrors chan error
-	results      []chan string
-	Consumers    []*Consumer
-	Outputs []output.OutputHandler
-	Encoder encoder.Encoder
-	Filter	*filter.Filter
-	controlchan  chan os.Signal
-	status Status
-	DebugFlag bool
-	DebugStore string
+	config           map[string]interface{}
+	AddToOutput      map[string]interface{}
+	RemoveFromOutput []string
+	outputErrors     chan error
+	results          []chan map[string]interface{}
+	Consumers        []*Consumer
+	Outputs          []output.OutputHandler
+	Encoder          encoder.Encoder
+	Filter           *filter.Filter
+	controlchans     []*chan os.Signal ///controls output
+	status           Status
+	DebugFlag        bool
+	DebugStore       string
+	Name             string
+	controlchan      chan os.Signal
 }
 
 /*
@@ -96,7 +97,7 @@ type CbEventForwarder struct {
  */
 
 // TODO: change this into an error channel
-func (c * Consumer) reportError(d string, errmsg string, err error) {
+func (c *Consumer) reportError(d string, errmsg string, err error) {
 	//c.status.ErrorCount.Add(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
@@ -131,7 +132,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table, deb
 	}
 }
 
-func (c * Consumer) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
+func (c *Consumer) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	log.Infof("In process message!")
 	c.status.InputEventCount.Add(1)
 
@@ -200,7 +201,7 @@ func (c * Consumer) processMessage(body []byte, routingKey, contentType string, 
 
 func (cbef *CbEventForwarder) outputMessage(msg map[string]interface{}) error {
 
-	log.Infof("Cb event forardering processing message %s",msg)
+	log.Infof("Cb event forardering processing message %s", msg)
 	var err error
 
 	//
@@ -225,12 +226,11 @@ func (cbef *CbEventForwarder) outputMessage(msg map[string]interface{}) error {
 	}
 
 	if keepEvent {
-		outmsg,_ := cbef.Encoder.Encode(msg)
 
-		if len(outmsg) > 0 && err == nil {
+		if len(msg) > 0 && err == nil {
 			cbef.status.OutputEventCount.Add(1)
-			for _,r := range cbef.results {
-				r <- string(outmsg)
+			for _, r := range cbef.results {
+				r <- msg
 			}
 		} else if err != nil {
 			return err
@@ -268,10 +268,10 @@ func (cbef *CbEventForwarder) inputFileProcessingLoop(inputFile string) <-chan e
 	return errChan
 }
 
-func (cbef * CbEventForwarder) startExpvarPublish() {
+func (cbef *CbEventForwarder) startExpvarPublish() {
 	cbef.status.OutputEventCount = expvar.NewInt("output_event_count")
 	cbef.status.FilteredEventCount = expvar.NewInt("filtered_event_count")
-	expvar.Publish(fmt.Sprintf("connection_status_%s", cbef.name),
+	expvar.Publish(fmt.Sprintf("connection_status_%s", cbef.Name),
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
 			res["last_connect_time"] = cbef.status.LastConnectTime
@@ -289,39 +289,41 @@ func (cbef * CbEventForwarder) startExpvarPublish() {
 		}))
 }
 
-
 func (cbef *CbEventForwarder) terminateConsumers() {
+	log.Infof("CB event forwarder %s trying to stop consumers", cbef.Name)
 	for _, consumer := range cbef.Consumers {
+		log.Infof("Consumer = %s stopchan = %s", consumer.CbServerName, &consumer.stopchan)
 		consumer.stopchan <- struct{}{}
 	}
+	log.Infof("terminate consumers exiting")
 }
 
 func (cbef *CbEventForwarder) launchConsumers() {
 	cbef.startExpvarPublish()
 
-	for _, c  := range cbef.Consumers{
+	for _, c := range cbef.Consumers {
+		log.Infof("CBef: %s launching consumer %s", cbef.Name, c.CbServerName)
 		c.Consume()
 	}
 }
 
 func (cbef *CbEventForwarder) startOutputs() error {
 	for i, outputHandler := range cbef.Outputs {
-		expvar.Publish(fmt.Sprint("output_status_%s", cbef.name), expvar.Func(func() interface{} {
+		expvar.Publish(fmt.Sprint("output_status_%s", cbef.Name), expvar.Func(func() interface{} {
 			ret := make(map[string]interface{})
 			ret[outputHandler.Key()] = outputHandler.Statistics()
 			ret["format"] = cbef.Encoder.String()
 			ret["type"] = outputHandler.String()
 			return ret
 		}))
-		log.Infof("Initialized output: %sb\n", outputHandler.String())
-		if err := outputHandler.Go(cbef.results[i], cbef.outputErrors, cbef.controlchan); err != nil {
+		log.Infof("Initialized output: %s ", outputHandler.String())
+		if err := outputHandler.Go(cbef.results[i], cbef.outputErrors, *cbef.controlchans[i]); err != nil {
 			return err
 		}
 		go func() {
 			select {
 			case outputError := <-cbef.outputErrors:
 				log.Errorf("ERROR during output: %s", outputError.Error())
-				os.Exit(1)
 			}
 		}()
 	}
@@ -330,8 +332,8 @@ func (cbef *CbEventForwarder) startOutputs() error {
 
 func conversionFailure(i interface{}) {
 	switch t := i.(type) {
-		default:
-			log.Infof("Failed to convert %T %s",t,t)
+	default:
+		log.Infof("Failed to convert %T %s", t, t)
 	}
 }
 
@@ -346,13 +348,12 @@ func main() {
 		configLocation = flag.Arg(0)
 	}
 
-	var controlchans []chan os.Signal = make([]chan os.Signal, 2)
-	global_variables, configs, err := conf.ParseConfigs(configLocation)
+	config, err := conf.ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	HTTPServerPort, _ := global_variables["http_server_port"].(string)
+	HTTPServerPort, _ := config["http_server_port"].(string)
 
 	dirs := [...]string{
 		"/usr/share/cb/integrations/event-forwarder/content",
@@ -383,203 +384,215 @@ func main() {
 		}
 	}
 
-	cbefs := make([]CbEventForwarder, 1)
-
 	debugFlag := false
-	if t, ok := global_variables["debug"]; ok {
+	if t, ok := config["debug"]; ok {
 		debugFlag = t.(bool)
 	}
 
 	debugStore := "/tmp"
-	if t, ok := global_variables["debug_store"]; ok {
+	if t, ok := config["debug_store"]; ok {
 		debugStore = t.(string)
 	}
 
-	for _, config := range configs {
-		log.Infof("Trying to load event forwarder for config: %s",config)
-		outputE := make(chan error)
+	log.Infof("Trying to load event forwarder for config: %s", config)
+	outputE := make(chan error)
+	var myfilter *filter.Filter
+	if t, ok := config["filter"]; ok {
+		myfilter, err = filter.GetFilterFromCfg(t.(map[interface{}]interface{}))
+	} else if err != nil {
+		log.Panicf("Error instantiating Filter: %v", err)
+	}
 
-		var err error = nil
-		var myencoder encoder.Encoder
-		if t, ok := config["format"]; ok {
-			myencoder,err = encoder.GetEncoderFromCfg(t.(map[interface{}] interface{}))
-		} else if err != nil {
-			log.Panicf("Error instantiating Encoder: %v",err)
+	consumerconfigs := make(map[interface{}]interface{})
+	if t, ok := config["input"]; ok {
+		consumerconfigs = t.(map[interface{}]interface{})
+	}
+
+	outputconfigs := make(map[interface{}]interface{})
+	if t, ok := config["output"]; ok {
+		outputconfigs = t.(map[interface{}]interface{})
+	}
+
+	res := make([]chan map[string]interface{}, len(outputconfigs))
+	outputcontrolchannels := make([]*chan os.Signal, len(outputconfigs))
+	i := 0
+	for i < len(outputconfigs) {
+		res[i] = make(chan map[string]interface{}, 100)
+		controlchan := make(chan os.Signal, 2)
+		outputcontrolchannels[i] = &controlchan
+		i++
+	}
+
+	outputs, err := output.GetOutputsFromCfg(outputconfigs)
+	if err != nil {
+		log.Panicf("ERROR PROCESSING OUTPUT CONFIGURATIONS %v", err)
+	}
+
+	addToOutput := make(map[string]interface{})
+	if toadd, ok := config["addToOutput"]; ok {
+		addToOutputI := toadd.(map[interface{}]interface{})
+		for k, v := range addToOutputI {
+			addToOutput[k.(string)] = v
 		}
+	}
 
-		var myfilter * filter.Filter
-		if t, ok := config["filter"]; ok {
-			myfilter, err = filter.GetFilterFromCfg(t.(map[interface{}] interface{}))
-		} else if err != nil {
-			log.Panicf("Error instantiating Filter: %v",err)
+	removeFromOutput := make([]string, 0)
+	if remove, ok := config["removeFromOutput"]; ok {
+		rai := remove.([]interface{})
+		removeFromOutput = make([]string, len(rai))
+		for i, r := range rai {
+			removeFromOutput[i] = r.(string)
 		}
+	}
 
-		consumerconfigs := make(map[interface{}] interface{})
-		if t, ok  := config["input"]; ok {
-			consumerconfigs = t.(map [interface{}] interface{})
+	name := ""
+	if n, ok := config["name"]; ok {
+		name = n.(string)
+	} else {
+		log.Panicf("Must provide a name for each event-forwarder in configuration file")
+
+	}
+
+	cbef := CbEventForwarder{controlchans: outputcontrolchannels, AddToOutput: addToOutput, RemoveFromOutput: removeFromOutput, Name: name, Outputs: outputs, Filter: myfilter, outputErrors: outputE, results: res, config: config}
+
+	log.Infof("Starting Cb Event Forwarder %s", cbef.Name)
+	log.Infof("Configured to remove keys: %s", cbef.RemoveFromOutput)
+	log.Infof("Configured to add k-vs to output: %s", cbef.AddToOutput)
+
+	for cbServerNamei, consumerConf := range consumerconfigs {
+		log.Infof("%s , %s ", cbServerNamei, consumerConf)
+		consumerConfMap, ok := consumerConf.(map[interface{}]interface{})
+		if !ok {
+			conversionFailure(consumerConf)
 		}
+		cbServerName, ok := cbServerNamei.(string)
+		if !ok {
+			conversionFailure(cbServerNamei)
 
-		outputconfigs := make(map[interface{}] interface{})
-		if t, ok  := config["output"]; ok {
-			outputconfigs = t.(map [interface{}] interface{})
 		}
-		res := make([] chan string,len(outputconfigs))
-
-		outputs,err := output.GetOutputsFromCfg(outputconfigs)
+		cbServerURL := ""
+		if t, ok := consumerConfMap["cb_server_url"]; ok {
+			cbServerURL = t.(string)
+		}
+		cbapihandler, err := cbapi.CbAPIHandlerFromCfg(consumerConfMap)
 		if err != nil {
-			log.Panicf("ERROR PROCESSING OUTPUT CONFIGURATIONS %v",err)
+			log.Panicf("%v", err)
+
 		}
-		i := 0
-		for ( i < len(outputconfigs) ) {
-			res[i] = make(chan string, 100)
-			i++
-		}
-
-		cbef := CbEventForwarder{ Outputs: outputs ,Encoder: myencoder, Filter: myfilter, outputErrors: outputE, results: res, controlchan: make(chan os.Signal, 2), config: config}
-
-		for cbServerNamei, consumerConf := range consumerconfigs {
-				log.Infof("%s , %s ", cbServerNamei, consumerConf)
-				consumerConfMap,ok := consumerConf.(map[interface{}] interface{})
-				if !ok {
-					conversionFailure(consumerConf)
-				}
-				cbServerName,ok := cbServerNamei.(string)
-				if !ok {
-					conversionFailure(cbServerNamei)
-
-				}
-				cbServerURL := ""
-				if t, ok := consumerConfMap["cb_server_url"]; ok {
-					cbServerURL = t.(string)
-				}
-				cbapihandler, err := cbapi.CbAPIHandlerFromCfg(consumerConfMap)
-				if err != nil {
-					log.Panicf("%v",err)
-
-				}
-				myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag:debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL}
-				mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL}
-				c, err := NewConsumerFromConf(cbef.outputMessage,cbServerName,cbServerName,consumerConfMap,debugFlag, debugStore)
-				if err != nil  {
-					log.Panicf("%v",err)
-				}
-				c.jsmp = myjsmp
-				c.pbmp = mypbmp
-				//c.status.LastConnectTime = time.Now()
-				//c.status.IsConnected = true
-			        cbef.Consumers = append(cbef.Consumers, c)
-		}
-
-		if *checkConfiguration {
-			if err := cbef.startOutputs(); err != nil {
-				log.Fatal(err)
-			}
-			os.Exit(0)
-		}
-
-		addrs, err := net.InterfaceAddrs()
-
+		myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL}
+		mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL}
+		c, err := NewConsumerFromConf(cbef.outputMessage, cbServerName, cbServerName, consumerConfMap, debugFlag, debugStore)
 		if err != nil {
-			log.Fatal("Could not get IP addresses")
+			log.Panicf("%v", err)
 		}
+		c.jsmp = myjsmp
+		c.pbmp = mypbmp
+		cbef.Consumers = append(cbef.Consumers, c)
+	}
 
-		log.Infof("cb-event-forwarder version %s starting", version)
-
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-				log.Infof("Interface address %s", ipnet.IP.String())
-			}
-		}
-
+	if *checkConfiguration {
 		if err := cbef.startOutputs(); err != nil {
-			log.Fatalf("Could not startOutputs: %s", err)
+			log.Fatal(err)
 		}
+		os.Exit(0)
+	}
 
+	addrs, err := net.InterfaceAddrs()
 
+	if err != nil {
+		log.Fatal("Could not get IP addresses")
+	}
 
-		cbef.launchConsumers()
+	log.Infof("cb-event-forwarder version %s starting", version)
 
-		if *inputFile != "" {
-			go func() {
-				errChan := cbef.inputFileProcessingLoop(*inputFile)
-				for {
-					select {
-					case err := <-errChan:
-						log.Infof("%v", err)
-					}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			log.Infof("Interface address %s", ipnet.IP.String())
+		}
+	}
+
+	if err := cbef.startOutputs(); err != nil {
+		log.Fatalf("Could not startOutputs: %s", err)
+	}
+
+	cbef.launchConsumers()
+
+	if *inputFile != "" {
+		go func() {
+			errChan := cbef.inputFileProcessingLoop(*inputFile)
+			for {
+				select {
+				case err := <-errChan:
+					log.Infof("%v", err)
 				}
-			}()
-		}
+			}
+		}()
+	}
 
-		/*if *debug {
-			http.HandleFunc(fmt.Sprintf("/debug/sendmessage/%", cbef.name), func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == "POST" {
-					msg := make([]byte, r.ContentLength)
-					_, err := r.Body.Read(msg)
-					var parsedMsg map[string]interface{}
-					err = json.Unmarshal(msg, &parsedMsg)
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-
-					err = cbef.outputMessage(parsedMsg)
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-					log.Errorf("Sent test message: %s\n", string(msg))
-				} else {
-					err = cbef.outputMessage(map[string]interface{}{
-						"type":    "debug.message",
-						"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
-					})
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-					log.Info("Sent test debugging message")
+	if *debug {
+		http.HandleFunc(fmt.Sprintf("/debug/sendmessage/%", cbef.Name), func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				msg := make([]byte, r.ContentLength)
+				_, err := r.Body.Read(msg)
+				var parsedMsg map[string]interface{}
+				err = json.Unmarshal(msg, &parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
 				}
 
-				errMsg, _ := json.Marshal(map[string]string{"status": "success"})
-				_, _ = w.Write(errMsg)
-			})
-		} */
+				err = cbef.outputMessage(parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+				log.Errorf("Sent test message: %s\n", string(msg))
+			} else {
+				err = cbef.outputMessage(map[string]interface{}{
+					"type":    "debug.message",
+					"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
+				})
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+				log.Info("Sent test debugging message")
+			}
 
-		controlchans = append(controlchans, cbef.controlchan)
-		cbefs = append(cbefs, cbef)
+			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
+			_, _ = w.Write(errMsg)
+		})
 	}
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", HTTPServerPort), nil)
-	log.Info("cb-event forwarder running...")
-	sigs := make(chan os.Signal, 5)
+	sigs := make(chan os.Signal)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	for {
+		log.Info("cb-event forwarder running...")
 		select {
-
 		case sig := <-sigs:
-			shouldret := false
+			log.Infof("Signal handler got Signal %s ", sig)
 			switch sig {
 			case syscall.SIGTERM, syscall.SIGINT:
-				for _, cbef := range cbefs {
-					cbef.terminateConsumers()
+				//termiante consumers, then outputs
+				cbef.terminateConsumers()
+				for _, controlchan := range cbef.controlchans {
+					log.Infof("trying to send signal to control channel %s", controlchan)
+					*controlchan <- sig
+					log.Infof("sent signal to control channel")
+					log.Infof("EXITING HARD")
 				}
-				shouldret = true
-				fallthrough
-			default:
-				log.Debugf("CbEF process got signal %s propogating it to forwarders", sig)
-				for _, cbef := range cbefs {
-					cbef.controlchan <- sig
-				}
-				if shouldret {
-					log.Debugf("CbEF process got exit signal")
-					return
+				return
+			case syscall.SIGHUP: //propgate signals down to the outputs (HUP)
+				for _, controlchan := range cbef.controlchans {
+					log.Infof("trying to send signal to control channel %s", controlchan)
+					*controlchan <- sig
 				}
 			}
 		}
 	}
-	log.Info("cb-event-forwarder exiting")
+	log.Info("cb-event-forwarder service exiting")
 }

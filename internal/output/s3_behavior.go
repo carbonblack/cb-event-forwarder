@@ -18,13 +18,13 @@ type WrappedS3 interface {
 }
 
 type S3Behavior struct {
-	bucketName string
-	Out        WrappedS3
-	region     string
-	S3ServerSideEncryption string
+	bucketName              string
+	Out                     WrappedS3
+	region                  string
+	S3ServerSideEncryption  string
 	S3CredentialProfileName string
-	S3ACLPolicy	string
-	S3ObjectPrefix string
+	S3ACLPolicy             string
+	S3ObjectPrefix          string
 }
 
 type S3Statistics struct {
@@ -60,8 +60,8 @@ func (o *S3Behavior) Upload(fileName string, fp *os.File) UploadStatus {
 	return UploadStatus{FileName: fileName, Result: err}
 }
 
-func S3BehaviorFromCfg(cfg map[interface{}] interface{}) (S3Behavior, error) {
-	var bucketName, region,credential_profile_name, server_side_encryption,acl_policy,object_prefix string
+func S3BehaviorFromCfg(cfg map[interface{}]interface{}) (S3Behavior, error) {
+	var bucketName, region, credential_profile_name, server_side_encryption, acl_policy, object_prefix string
 	if t, ok := cfg["bucket_name"]; ok {
 		bucketName = t.(string)
 	}
@@ -80,15 +80,15 @@ func S3BehaviorFromCfg(cfg map[interface{}] interface{}) (S3Behavior, error) {
 	if t, ok := cfg["object_prefix"]; ok {
 		object_prefix = t.(string)
 	}
-	return NewS3Behavior(bucketName,region,credential_profile_name,server_side_encryption,acl_policy,object_prefix)
+	return NewS3Behavior(bucketName, region, credential_profile_name, server_side_encryption, acl_policy, object_prefix)
 }
 
-func NewS3Behavior(bucketName,region,s3CredentialProfileName ,s3ServerSideEncryption , s3ACLPolicy, s3ObjectPrefix string) (S3Behavior, error) {
+func NewS3Behavior(bucketName, region, s3CredentialProfileName, s3ServerSideEncryption, s3ACLPolicy, s3ObjectPrefix string) (S3Behavior, error) {
 	// bucketName can either be a single value (just the bucket name itself, defaulting to "/var/cb/data/event-forwarder" as the
 	// temporary file directory and "us-east-1" for the AWS region), or:
 	//
 	// if bucketName contains two colons, treat it as follows: (temp-file-directory):(region):(bucket-name)
-	temp := S3Behavior{bucketName:bucketName, region:region ,S3CredentialProfileName:s3CredentialProfileName, S3ServerSideEncryption:s3ServerSideEncryption, S3ACLPolicy:s3ACLPolicy, S3ObjectPrefix: s3ObjectPrefix}
+	temp := S3Behavior{bucketName: bucketName, region: region, S3CredentialProfileName: s3CredentialProfileName, S3ServerSideEncryption: s3ServerSideEncryption, S3ACLPolicy: s3ACLPolicy, S3ObjectPrefix: s3ObjectPrefix}
 
 	err := temp.NewSession()
 

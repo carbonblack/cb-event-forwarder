@@ -17,11 +17,11 @@ import (
 )
 
 type JsonMessageProcessor struct {
-	DebugFlag bool
-	DebugStore string
+	DebugFlag   bool
+	DebugStore  string
 	CbServerURL string
-	EventMap map[string] interface{}
-	CbAPI  * cbapi.CbAPIHandler
+	EventMap    map[string]interface{}
+	CbAPI       *cbapi.CbAPIHandler
 }
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)

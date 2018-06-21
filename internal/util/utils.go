@@ -9,17 +9,15 @@ import (
 	"gopkg.in/h2non/filetype.v1"
 	"net"
 	"os"
-	"path/filepath"
-	"text/template"
-	"plugin"
 	"path"
+	"path/filepath"
+	"plugin"
+	"text/template"
 )
 
 /*
  * conversion routines
  */
-
-
 
 func LoadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMap {
 	log.Infof("loadPluginFuncMap: Trying to load plugin funcmap provider %s at %s", pluginName, pluginPath)

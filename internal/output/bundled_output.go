@@ -2,6 +2,7 @@ package output
 
 import (
 	"errors"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -41,8 +42,10 @@ type BundledOutput struct {
 	sync.RWMutex
 
 	UploadEmptyFiles bool
-	DebugFlag 	 bool
-	DebugStore	string
+	DebugFlag        bool
+	DebugStore       string
+
+	Encoder encoder.Encoder
 }
 
 type BundleStatistics struct {
@@ -53,7 +56,7 @@ type BundleStatistics struct {
 	LastSuccessfulUpload time.Time   `json:"last_successful_upload"`
 	HoldingArea          interface{} `json:"file_holding_area"`
 	StorageStatistics    interface{} `json:"storage_statistics"`
-	BundleSendTimeout    int64     `json:"bundle_send_timeout"`
+	BundleSendTimeout    int64       `json:"bundle_send_timeout"`
 	BundleSizeMax        int64       `json:"bundle_size_max"`
 	UploadEmptyFiles     bool        `json:"upload_empty_files"`
 }
@@ -125,9 +128,8 @@ func (o *BundledOutput) queueStragglers() {
 	}
 }
 
-
-func NewBundledOutput(bundle_size_max,bundle_send_timeout int64, upload_empty_files,debug bool, debugstore string, behavior BundleBehavior)  (BundledOutput,  error) {
-	tempBundledOutput := BundledOutput{rollOverDuration:time.Duration(bundle_send_timeout)*time.Second,UploadEmptyFiles:upload_empty_files,maxFileSize:bundle_size_max, Behavior: behavior}
+func NewBundledOutput(bundle_size_max, bundle_send_timeout int64, upload_empty_files, debug bool, debugstore string, behavior BundleBehavior, encoder encoder.Encoder) (BundledOutput, error) {
+	tempBundledOutput := BundledOutput{rollOverDuration: time.Duration(bundle_send_timeout) * time.Second, UploadEmptyFiles: upload_empty_files, maxFileSize: bundle_size_max, Behavior: behavior, Encoder: encoder}
 	tempBundledOutput.fileResultChan = make(chan UploadStatus)
 	tempBundledOutput.filesToUpload = make([]string, 0)
 
@@ -135,19 +137,18 @@ func NewBundledOutput(bundle_size_max,bundle_send_timeout int64, upload_empty_fi
 		tempBundledOutput.TempFileDirectory = "/var/cb/data/event-forwarder"
 	}
 
-
 	if err := os.MkdirAll(tempBundledOutput.TempFileDirectory, 0700); err != nil {
 		return tempBundledOutput, err
 	}
 
 	currentPath := filepath.Join(tempBundledOutput.TempFileDirectory, "event-forwarder")
-	f := NewFileOutputHandler(currentPath)
+	f := NewFileOutputHandler(currentPath, encoder)
 	tempBundledOutput.tempFileOutput = &f
 	// find files in the output directory that haven't been uploaded yet and add them to the list
 	// we ignore any errors that may occur during this process
 	tempBundledOutput.queueStragglers()
 
-	return tempBundledOutput,nil
+	return tempBundledOutput, nil
 }
 
 func (o *BundledOutput) output(message string) error {
@@ -204,7 +205,7 @@ func (o *BundledOutput) Statistics() interface{} {
 	}
 }
 
-func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *BundledOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
@@ -215,9 +216,13 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, contr
 		for {
 			select {
 			case message := <-messages:
-				if err := o.output(message); err != nil {
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					if err := o.output(encodedMsg); err != nil {
+						errorChan <- err
+						return
+					}
+				} else {
 					errorChan <- err
-					return
 				}
 
 			case <-refreshTicker.C:

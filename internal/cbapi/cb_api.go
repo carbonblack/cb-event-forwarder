@@ -3,6 +3,7 @@ package cbapi
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"time"
 	"zvelo.io/ttlru"
-	"errors"
 )
 
 type ThreatReport struct {
@@ -55,16 +55,16 @@ type APIInfo struct {
 var FeedCache = ttlru.New(128, ttlru.WithTTL(5*time.Minute))
 
 type CbAPIHandler struct {
-	Tls * tls.Config
+	Tls           *tls.Config
 	CbAPIProxyURL string
-	CbServerURL string
-	CbAPIToken string
+	CbServerURL   string
+	CbAPIToken    string
 }
 
-func CbAPIHandlerFromCfg(cfg map[interface{}] interface{}) (*CbAPIHandler , error ) {
-	 var tls  * tls.Config = nil
+func CbAPIHandlerFromCfg(cfg map[interface{}]interface{}) (*CbAPIHandler, error) {
+	var tls *tls.Config = nil
 	var err error
-	if postProcessing, ok  := cfg["post_process"]; ok && postProcessing.(bool){
+	if postProcessing, ok := cfg["post_process"]; ok && postProcessing.(bool) {
 		if tlsCfgi, ok := cfg["tls"]; ok {
 			tlsCfg, ok := tlsCfgi.(map[interface{}]interface{})
 			if ok {
@@ -89,13 +89,13 @@ func CbAPIHandlerFromCfg(cfg map[interface{}] interface{}) (*CbAPIHandler , erro
 		} else {
 			err = errors.New("Must provide api_token to cbapi post processor")
 		}
-		return NewCbAPIHandler(server_url,api_token,api_proxy_url,tls), err
+		return NewCbAPIHandler(server_url, api_token, api_proxy_url, tls), err
 	}
 	return nil, nil
 }
 
-func NewCbAPIHandler(cbServerURL,cbAPIToken, cbAPIProxyURL string , tls * tls.Config) *CbAPIHandler {
-	return &CbAPIHandler{Tls:tls , CbAPIProxyURL:cbAPIProxyURL, CbServerURL:cbServerURL, CbAPIToken :cbAPIToken}
+func NewCbAPIHandler(cbServerURL, cbAPIToken, cbAPIProxyURL string, tls *tls.Config) *CbAPIHandler {
+	return &CbAPIHandler{Tls: tls, CbAPIProxyURL: cbAPIProxyURL, CbServerURL: cbServerURL, CbAPIToken: cbAPIToken}
 }
 
 func (cbapi *CbAPIHandler) GetCb(route string) ([]byte, error) {

@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -20,18 +21,19 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
-	OutputFileName      string
-	OutputFile          io.WriteCloser
-	OutputFileGzWriter * gzip.Writer
-	FileOpenedAt        time.Time
-	LastRolledOver      time.Time
-	BufferOutput        BufferOutput
-	CompressData        bool
+	OutputFileName     string
+	OutputFile         io.WriteCloser
+	OutputFileGzWriter *gzip.Writer
+	FileOpenedAt       time.Time
+	LastRolledOver     time.Time
+	BufferOutput       BufferOutput
+	CompressData       bool
 	sync.RWMutex
+	Encoder encoder.Encoder
 }
 
-func NewFileOutputHandler(outputFileName string) FileOutput {
-	f := FileOutput{CompressData:strings.HasSuffix(outputFileName,".gz"), OutputFileName:outputFileName}
+func NewFileOutputHandler(outputFileName string, e encoder.Encoder) FileOutput {
+	f := FileOutput{Encoder: e, CompressData: strings.HasSuffix(outputFileName, ".gz"), OutputFileName: outputFileName}
 	f.OpenFileForWriting()
 	return f
 }
@@ -54,7 +56,6 @@ func (o *FileOutput) Key() string {
 
 	return fmt.Sprintf("file:%s", o.OutputFileName)
 }
-
 
 func (o *FileOutput) OpenFileForWriting() error {
 	o.Lock()
@@ -96,7 +97,7 @@ func (o *FileOutput) OpenFileForWriting() error {
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	if o.OutputFile == nil {
 		return errors.New("No output file specified")
 	}
@@ -109,12 +110,16 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, controlc
 		defer o.flushOutput(true)
 
 		for {
-
+			log.Infof("FILE HANDLER SELECT LOOP has control chan %s!", controlchan)
 			select {
 			case message := <-messages:
-				if err := o.output(message); err != nil {
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					if err := o.output(encodedMsg); err != nil {
+						errorChan <- err
+						return
+					}
+				} else {
 					errorChan <- err
-					return
 				}
 
 			case <-refreshTicker.C:
@@ -127,6 +132,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, controlc
 				o.flushOutput(false)
 
 			case cmsg := <-controlchan:
+				log.Infof("Fileoutput got %s over controlchan", cmsg)
 				switch cmsg {
 				case syscall.SIGHUP:
 					// reopen file

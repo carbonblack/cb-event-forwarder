@@ -2,30 +2,30 @@ package encoder
 
 import (
 	"bytes"
-	"text/template"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
-	"fmt"
-	"encoding/json"
 	"gopkg.in/yaml.v2"
+	"text/template"
 	"time"
-	"errors"
 )
 
 type Encoder interface {
-	Encode(msg map[string] interface{}) (string, error)
+	Encode(msg map[string]interface{}) (string, error)
 	String() string
 }
 
-type TemplateEncoder struct{
-	EncoderTemplate * template.Template
+type TemplateEncoder struct {
+	EncoderTemplate *template.Template
 }
 
-func (e * TemplateEncoder) String() string {
+func (e *TemplateEncoder) String() string {
 	return "template"
 }
 
-func (e * TemplateEncoder) Encode(msg map[string]interface{}) (string, error) {
+func (e *TemplateEncoder) Encode(msg map[string]interface{}) (string, error) {
 	var doc bytes.Buffer
 	err := e.EncoderTemplate.Execute(&doc, msg)
 	if err == nil {
@@ -35,8 +35,8 @@ func (e * TemplateEncoder) Encode(msg map[string]interface{}) (string, error) {
 	}
 }
 
-func NewTemplateEncoder(templateString, templatePlugin , pluginPath string) (TemplateEncoder, error) {
-	var encoderTemplate * template.Template = nil
+func NewTemplateEncoder(templateString, templatePlugin, pluginPath string) (TemplateEncoder, error) {
+	var encoderTemplate *template.Template = nil
 	var err error = nil
 	if templatePlugin != "" {
 		log.Info("!!!LOADING ENCODER PLUGIN!!!")
@@ -48,7 +48,7 @@ func NewTemplateEncoder(templateString, templatePlugin , pluginPath string) (Tem
 		encoderTemplate = tmpl
 		err = e
 	}
-	temp := TemplateEncoder{EncoderTemplate:encoderTemplate}
+	temp := TemplateEncoder{EncoderTemplate: encoderTemplate}
 	return temp, err
 }
 
@@ -57,7 +57,7 @@ func Leef(raw_input map[string]interface{}) (string, error) {
 }
 
 func Cef(raw_input map[string]interface{}, cef_severity int) (string, error) {
-	return (&CEFEncoder{eventSeverity:cef_severity}).Encode(raw_input)
+	return (&CEFEncoder{eventSeverity: cef_severity}).Encode(raw_input)
 }
 
 func Json(raw_input map[string]interface{}) (string, error) {
@@ -109,40 +109,39 @@ func ParseTime(t string, format string) (string, error) {
 	}
 }
 
-func GetEncoderFromCfg(cfg map[interface{}] interface{}) (Encoder , error) {
-		log.Info("GetEncoder from CFG ")
-		if t, ok := cfg["type"]; ok {
-			switch t.(string) {
-			case "leef":
-				le := NewLEEFEncoder()
-				return &le,nil
-			case "cef":
-				ce := NewCEFEncoder(cfg["severity"].(int))
-				return &ce,nil
-			case "json":
-				je := NewJSONEncoder()
-				return &je,nil
-			case "template":
-				if encoderTemplate, ok := cfg["template"]; ok {
-					if encoderPlugin, ok := cfg["plugin"]; ok {
-						if pluginPath, ok := cfg["plugin_path"]; ok {
-							te, err := NewTemplateEncoder(encoderTemplate.(string), encoderPlugin.(string), pluginPath.(string))
-							return &te, err
-						}
-						//use default plugin path '.'
-						te, err :=  NewTemplateEncoder(encoderTemplate.(string), encoderPlugin.(string), ".")
+func GetEncoderFromCfg(cfg map[interface{}]interface{}) (Encoder, error) {
+	log.Info("GetEncoder from CFG ")
+	if t, ok := cfg["type"]; ok {
+		switch t.(string) {
+		case "leef":
+			le := NewLEEFEncoder()
+			return &le, nil
+		case "cef":
+			ce := NewCEFEncoder(cfg["severity"].(int))
+			return &ce, nil
+		case "json":
+			je := NewJSONEncoder()
+			return &je, nil
+		case "template":
+			if encoderTemplate, ok := cfg["template"]; ok {
+				if encoderPlugin, ok := cfg["plugin"]; ok {
+					if pluginPath, ok := cfg["plugin_path"]; ok {
+						te, err := NewTemplateEncoder(encoderTemplate.(string), encoderPlugin.(string), pluginPath.(string))
 						return &te, err
-					} //no plugin specified
+					}
+					//use default plugin path '.'
+					te, err := NewTemplateEncoder(encoderTemplate.(string), encoderPlugin.(string), ".")
+					return &te, err
+				} //no plugin specified
 
-					te, err := NewTemplateEncoder(encoderTemplate.(string), "", "")
-					return &te,err
-				} else {
-					return nil, errors.New("Enter a valid template")
-				}
-			default:
-				return nil, errors.New("Enter a valid encoder.format format: leef,cef,json or template")
+				te, err := NewTemplateEncoder(encoderTemplate.(string), "", "")
+				return &te, err
+			} else {
+				return nil, errors.New("Enter a valid template")
 			}
+		default:
+			return nil, errors.New("Enter a valid encoder.format format: leef,cef,json or template")
 		}
-		return nil, errors.New("enter a valid encoder format: leef,cef,json, or template ")
+	}
+	return nil, errors.New("enter a valid encoder format: leef,cef,json, or template ")
 }
-

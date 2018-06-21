@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/colinmarc/hdfs"
 	log "github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ import (
 )
 
 type WrappedHDFSClient interface {
-  	Create(name string) (* hdfs.FileWriter, error)
+	Create(name string) (*hdfs.FileWriter, error)
 }
 
 type HdfsOutput struct {
@@ -27,6 +27,7 @@ type HdfsOutput struct {
 	eventSentCount    int64
 	deliveryChan      chan DeliveryMessage
 	sync.RWMutex
+	Encoder encoder.Encoder
 }
 
 type HdfsStatistics struct {
@@ -39,13 +40,13 @@ type DeliveryMessage struct {
 	SuccessMessage string
 }
 
-func NewHDFSOutputFromCFg(cfg  map[interface{}] interface{}) (HdfsOutput , error) {
+func NewHDFSOutputFromCFg(cfg map[interface{}]interface{}, e encoder.Encoder) (HdfsOutput, error) {
 
-	ho := HdfsOutput{}
+	ho := HdfsOutput{Encoder: e}
 
 	hdfsServer, ok := cfg["hdfs_server"].(string)
 	if !ok {
-		return ho,errors.New("Not hdsf_server speficied")
+		return ho, errors.New("Not hdsf_server speficied")
 	} else {
 		ho.hdfsServer = hdfsServer
 	}
@@ -63,29 +64,34 @@ func NewHDFSOutputFromCFg(cfg  map[interface{}] interface{}) (HdfsOutput , error
 		ho.HDFSClient = hdfsClient
 	} else {
 		log.Infof("Failed to create HDFS client %v", err)
-		return ho,err
+		return ho, err
 	}
 
 	ho.deliveryChan = make(chan DeliveryMessage)
 
 	log.Infof("Created HDFS client %v\n", ho.HDFSClient)
 
-	return ho,nil
+	return ho, nil
 }
 
-func (o *HdfsOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *HdfsOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	stoppubchan := make(chan struct{}, 1)
 	go func() {
 
 		for {
 			select {
 			case message := <-messages:
-				var parsedMsg map[string]interface{}
-				json.Unmarshal([]byte(message), &parsedMsg)
-				t := parsedMsg["type"]
-				if typeString, ok := t.(string); ok {
-					o.output(typeString, message)
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					t := message["type"]
+					if typeString, ok := t.(string); ok {
+						o.output(typeString, encodedMsg)
+					} else {
+						log.Info("ERROR: No TYPE PROVIDED IN MSG")
+					}
+				} else {
+					errorChan <- err
 				}
+
 			case <-stoppubchan:
 				log.Infof("Got stop message, exiting hdfs output goroutine")
 				return
@@ -160,7 +166,7 @@ func (o *HdfsOutput) output(fn, m string) {
 
 }
 
-func GetOutputHandler(cfg map[interface{}] interface{}) (output.OutputHandler, error) {
-	ho,err := GetOutputHandler(cfg)
-	return ho,err
+func GetOutputHandler(cfg map[interface{}]interface{}, e encoder.Encoder) (output.OutputHandler, error) {
+	ho, err := GetOutputHandler(cfg, e)
+	return ho, err
 }

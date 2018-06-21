@@ -21,10 +21,10 @@ import (
 )
 
 type PbMessageProcessor struct {
-	DebugFlag bool
-	DebugStore string
+	DebugFlag   bool
+	DebugStore  string
 	CbServerURL string
-	EventMap map[string] interface{}
+	EventMap    map[string]interface{}
 }
 
 func GetProcessGUID(m *sensor_events.CbEventMsg) string {

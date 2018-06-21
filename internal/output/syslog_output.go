@@ -1,8 +1,10 @@
 package output
 
 import (
+	"crypto/tls"
 	"fmt"
 	syslog "github.com/RackSec/srslog"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -10,7 +12,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"crypto/tls"
 )
 
 type SyslogOutput struct {
@@ -24,7 +25,9 @@ type SyslogOutput struct {
 	connected                   bool
 	droppedEventCount           int64
 	droppedEventSinceConnection int64
-	tls			* tls.Config
+	tls                         *tls.Config
+
+	Encoder encoder.Encoder
 
 	sync.RWMutex
 }
@@ -40,8 +43,8 @@ type SyslogStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp+tls:destination.server.example.com:512
-func NewSyslogOutput(netConn string,tls * tls.Config) (SyslogOutput,  error) {
-	temp := SyslogOutput{tls:tls}
+func NewSyslogOutput(netConn string, tls *tls.Config, e encoder.Encoder) (SyslogOutput, error) {
+	temp := SyslogOutput{tls: tls, Encoder: e}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
 
@@ -137,7 +140,7 @@ func (o *SyslogOutput) output(m string) error {
 	return err
 }
 
-func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *SyslogOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
 	o.Connect()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
@@ -145,7 +148,12 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, contro
 		for {
 			select {
 			case message := <-messages:
-				if err := o.output(message); err != nil {
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					if err := o.output(encodedMsg); err != nil {
+						errorChan <- err
+						return
+					}
+				} else {
 					errorChan <- err
 				}
 			case <-refreshTicker.C:

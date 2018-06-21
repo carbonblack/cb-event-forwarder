@@ -12,10 +12,10 @@ import (
 
 type LEEFEncoder struct {
 	productVendorName string
-	productName string
-	productVersion	string
-	leefVersion string
-	formatter * strings.Replacer
+	productName       string
+	productVersion    string
+	leefVersion       string
+	formatter         *strings.Replacer
 }
 
 func NewLEEFEncoder() LEEFEncoder {
@@ -27,17 +27,16 @@ func NewLEEFEncoder() LEEFEncoder {
 		"=", "\\=",
 	)
 
-	temp := LEEFEncoder{productVendorName:"CB",productName:"CB",productVersion:"5.1",leefVersion:"1.0",formatter:myformatter}
+	temp := LEEFEncoder{productVendorName: "CB", productName: "CB", productVersion: "5.1", leefVersion: "1.0", formatter: myformatter}
 	return temp
 }
 
-
-func (l * LEEFEncoder) generateHeader(cbVersion, eventType string) string {
+func (l *LEEFEncoder) generateHeader(cbVersion, eventType string) string {
 	return fmt.Sprintf("LEEF:%s|%s|%s|%s|%s|", l.leefVersion, l.productVendorName, l.productName, cbVersion,
 		eventType)
 }
 
-func (l * LEEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
+func (l *LEEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
 	outboundConnections := map[string]string{
 		"local_ip":    "src",
 		"remote_ip":   "dst",
@@ -67,9 +66,7 @@ func (l * LEEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[st
 	}
 }
 
-
-
-func (l * LEEFEncoder ) Encode(msg map[string]interface{}) (string, error) {
+func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
 
@@ -268,6 +265,6 @@ func (l * LEEFEncoder ) Encode(msg map[string]interface{}) (string, error) {
 	return ret, nil
 }
 
-func (e * LEEFEncoder) String() string {
+func (e *LEEFEncoder) String() string {
 	return "leef"
 }

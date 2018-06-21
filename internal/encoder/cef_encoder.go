@@ -12,11 +12,11 @@ import (
 
 type CEFEncoder struct {
 	productVendorName string
-	productName string
-	productVersion	string
-	cefVersion string
-	formatter * strings.Replacer
-	eventSeverity int
+	productName       string
+	productVersion    string
+	cefVersion        string
+	formatter         *strings.Replacer
+	eventSeverity     int
 }
 
 func NewCEFEncoder(severity int) CEFEncoder {
@@ -28,17 +28,17 @@ func NewCEFEncoder(severity int) CEFEncoder {
 		"=", "\\=",
 	)
 
-	temp := CEFEncoder{productVendorName:"CB",productName:"CB",productVersion:"5.1",cefVersion:"1.0",formatter:myformatter,eventSeverity:severity}
+	temp := CEFEncoder{productVendorName: "CB", productName: "CB", productVersion: "5.1", cefVersion: "1.0", formatter: myformatter, eventSeverity: severity}
 	return temp
 }
 
-func (c * CEFEncoder) generateHeader(cbVersion, eventType string) string {
+func (c *CEFEncoder) generateHeader(cbVersion, eventType string) string {
 	// name | Severity | Extension
 	return fmt.Sprintf("CEF:%s|%s|%s|%s|%s|%s|%d|", c.cefVersion, c.productVendorName, c.productName, cbVersion,
 		eventType, eventType, c.eventSeverity)
 }
 
-func (c * CEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
+func (c *CEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[string]interface{}) {
 	outboundConnections := map[string]string{
 		"local_ip":    "src",
 		"remote_ip":   "dst",
@@ -68,11 +68,11 @@ func (c * CEFEncoder) normalizeAddToMap(msg map[string]interface{}, temp map[str
 	}
 }
 
-func (e * CEFEncoder) String() string {
+func (e *CEFEncoder) String() string {
 	return "cef"
 }
 
-func (c * CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
+func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
 

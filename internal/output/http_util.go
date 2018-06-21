@@ -22,7 +22,7 @@ type UploadEvent struct {
 	EventText string
 }
 
-func convertFileIntoTemplate(commaSeparateEvents,debugFlag bool, debugStore string, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
+func convertFileIntoTemplate(commaSeparateEvents, debugFlag bool, debugStore string, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
 	defer close(events)
 
 	var fileReader io.ReadCloser
@@ -32,7 +32,7 @@ func convertFileIntoTemplate(commaSeparateEvents,debugFlag bool, debugStore stri
 		fileReader, err = gzip.NewReader(fp)
 		if err != nil {
 			log.Debugf("Error reading file: %s", err.Error())
-			util.MoveFileToDebug(debugFlag ,debugStore, fp.Name())
+			util.MoveFileToDebug(debugFlag, debugStore, fp.Name())
 			return
 		}
 		defer fileReader.Close()

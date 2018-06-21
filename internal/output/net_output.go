@@ -1,6 +1,7 @@
 package output
 
 import (
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
@@ -12,11 +13,11 @@ import (
 )
 
 type NetOutput struct {
-	NetConn                     string
-	RemoteHostname              string
-	ProtocolName                string
-	outputSocket                net.Conn
-	AddNewline                  bool
+	NetConn        string
+	RemoteHostname string
+	ProtocolName   string
+	outputSocket   net.Conn
+	AddNewline     bool
 
 	connectTime                 time.Time
 	reconnectTime               time.Time
@@ -24,6 +25,7 @@ type NetOutput struct {
 	droppedEventCount           int64
 	droppedEventSinceConnection int64
 	sync.RWMutex
+	Encoder encoder.Encoder
 }
 
 type NetStatistics struct {
@@ -37,8 +39,8 @@ type NetStatistics struct {
 // Initialize() expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp:destination.server.example.com:512
-func NewNetOutputHandler(netConn string) (NetOutput, error) {
-	temp := NetOutput{NetConn: netConn}
+func NewNetOutputHandler(netConn string, e encoder.Encoder) (NetOutput, error) {
+	temp := NetOutput{Encoder: e, NetConn: netConn}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
 
@@ -147,7 +149,7 @@ func (o *NetOutput) Connect() error {
 	return nil
 }
 
-func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <-chan os.Signal) error {
+func (o *NetOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, conchan <-chan os.Signal) error {
 
 	o.Connect()
 	go func() {
@@ -157,7 +159,12 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, conchan <
 			if o.connected {
 				select {
 				case message := <-messages:
-					if err := o.output(message); err != nil {
+					if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+						if err := o.output(encodedMsg); err != nil {
+							errorChan <- err
+							return
+						}
+					} else {
 						errorChan <- err
 					}
 				case <-refreshTicker.C:
