@@ -1,4 +1,4 @@
-package main
+package consumer
 
 import (
 	"github.com/hpcloud/tail"

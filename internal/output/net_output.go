@@ -149,12 +149,13 @@ func (o *NetOutput) Connect() error {
 	return nil
 }
 
-func (o *NetOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, conchan <-chan os.Signal) error {
+func (o *NetOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, conchan <-chan os.Signal, wg sync.WaitGroup) error {
 
 	o.Connect()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
+		defer wg.Done()
 		for {
 			if o.connected {
 				select {

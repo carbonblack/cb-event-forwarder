@@ -1,15 +1,23 @@
-package main
+package consumer
 
 import (
+	"bytes"
+	"crypto/md5"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"expvar"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/vaughan0/go-ini"
 	"io/ioutil"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,8 +28,45 @@ import (
  * AMQP bookkeeping
  */
 
+// TODO: change this into an error channel
+func (c *Consumer) reportError(d string, errmsg string, err error) {
+	//c.status.ErrorCount.Add(1)
+	log.Errorf("%s when processing %s: %s", errmsg, d, err)
+}
+
+func reportBundleDetails(routingKey string, body []byte, headers amqp.Table, debugFlag bool, debugStore string) {
+	log.Errorf("Error while processing message through routing key %s:", routingKey)
+
+	var env *sensor_events.CbEnvironmentMsg
+	env, err := pbmessageprocessor.CreateEnvMessage(headers)
+	if err != nil {
+		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
+			env.Endpoint.GetSensorHostName())
+	}
+
+	if len(body) < 4 {
+		log.Info("  Message is less than 4 bytes long; malformed")
+	} else {
+		log.Info("  First four bytes of message were:")
+		log.Errorf("  %s", hex.Dump(body[0:4]))
+	}
+
+	/*
+	 * We are going to store this bundle in the DebugStore
+	 */
+	if debugFlag {
+		h := md5.New()
+		h.Write(body)
+		var fullFilePath string
+		fullFilePath = path.Join(debugStore, fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
+		log.Debugf("Writing Bundle to disk: %s", fullFilePath)
+		ioutil.WriteFile(fullFilePath, body, 0444)
+	}
+}
+
 func (c *Consumer) Consume() {
 	c.startExpvarPublish()
+	c.wg.Add(1)
 	go func() {
 		for {
 			log.Infof("Starting AMQP loop for %s on queue %s ", c.CbServerName, c.amqpURI)
@@ -39,25 +84,15 @@ func (c *Consumer) Consume() {
 			numProcessors := runtime.NumCPU() * 2
 			numProcessors = 1
 			log.Infof("Starting %d message processors\n", numProcessors)
-			c.wg.Add(numProcessors)
+			var wg sync.WaitGroup
+			wg.Add(numProcessors)
 			workersstopchans := make([]chan struct{}, numProcessors)
 			for w := 0; w < numProcessors; w++ {
-
 				stopchan := make(chan struct{})
 				workersstopchans[w] = stopchan
-				//inline worker goroutine
 				log.Infof("Launching AMQP message processor %d goroutine w/ deliveries = %s", w, c.deliveries)
 				go func() {
-					defer c.wg.Done()
-					/*
-						for delivery := range c.deliveries {
-							log.Infof("AMQP WORKING PROCESSING DELIVERY")
-							c.processMessage(delivery.Body,
-								delivery.RoutingKey,
-								delivery.ContentType,
-								delivery.Headers,
-								delivery.Exchange)
-						}*/
+					defer wg.Done()
 					for {
 						select {
 						case d := <-c.deliveries:
@@ -68,14 +103,14 @@ func (c *Consumer) Consume() {
 								d.Headers,
 								d.Exchange)
 						case <-stopchan:
+							log.Info("AMQP Worker exiting")
 							return
 						}
 					}
-					log.Info("Worker exiting")
 				}()
 			}
 
-			log.Infof("AMQP LOOP GOING TO SELECT stopchan is %s", &c.stopchan)
+			log.Infof("AMQP LOOP GOING TO SELECT stopchan is %s", &c.Stopchan)
 
 			for {
 				select {
@@ -85,22 +120,25 @@ func (c *Consumer) Consume() {
 					c.status.ErrorTime = time.Now()
 					log.Errorf("Connection closed: %s", closeError.Error())
 					log.Info("Waiting for all workers to exit")
-					c.wg.Wait()
+					wg.Wait()
 					log.Info("All workers have exited")
-				case <-c.stopchan:
+				case <-c.Stopchan:
 					log.Infof("Consumer told to stop - stopping workers")
 					for _, workerstopchan := range workersstopchans {
 						workerstopchan <- struct{}{}
 					}
-					c.wg.Wait()
-					log.Info("Consumer - all workers done - ")
+					c.Shutdown()
+					log.Info("Consumer - Waiting for workers to complete - ")
+					wg.Wait()
+					log.Info("Consumer - all workers done -  Signalling cbef waitgroup done")
+					c.wg.Done()
 					return
 				}
 			}
 			//wait and reconnect
 			log.Infof("Loop exited for unknown reason")
 			c.Shutdown()
-			c.wg.Wait()
+			wg.Wait()
 			log.Infof("Loop exited - Will try again in 30 seconds")
 			time.Sleep(30 * time.Second)
 		}
@@ -126,7 +164,7 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 	return cfg, nil
 }
 
-func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string) (*Consumer, error) {
+func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string, wg sync.WaitGroup) (*Consumer, error) {
 	var consumerTlsCfg *tls.Config = nil
 	if temp, ok := consumerCfg["tls"]; ok {
 		tlsCfg := temp.(map[string]interface{})
@@ -173,15 +211,17 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 	if temp, ok := consumerCfg["rabbit_mq_consumer_tag"]; ok {
 		ctag = temp.(string)
 	}
-
+	amqpUsername := "cb"
 	amqpPassword := ""
 	if temp, ok := consumerCfg["rabbit_mq_password"]; ok {
 		amqpPassword = temp.(string)
-	}
-
-	cbServerURL := ""
-	if temp, ok := consumerCfg["cb_server_url"]; ok {
-		cbServerURL = temp.(string)
+	} else { //load rabbit creds from disk
+		var err error = nil
+		amqpUsername, amqpUsername, err = GetLocalRabbitMQCredentials()
+		if err != nil {
+			log.Errorf("Couldn't get rabbit mq credentials from /etc/cb.conf")
+			log.Panic("%v", err)
+		}
 	}
 
 	amqpHostname := "localhost"
@@ -189,13 +229,17 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		amqpHostname = temp.(string)
 	}
 
-	amqpUsername := "cb"
 	if temp, ok := consumerCfg["rabbit_mq_username"]; ok {
 		amqpUsername = temp.(string)
 	}
 	amqpPort := 5004
 	if temp, ok := consumerCfg["rabbit_mq_port"]; ok {
 		amqpPort = temp.(int)
+	}
+
+	cbServerURL := ""
+	if temp, ok := consumerCfg["cb_server_url"]; ok {
+		cbServerURL = temp.(string)
 	}
 
 	scheme := "amqp"
@@ -256,19 +300,30 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		}
 	}
 
-	return NewConsumer(outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore)
+	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore)
+}
+
+type ConsumerStatus struct {
+	InputEventCount  *expvar.Int
+	ErrorCount       *expvar.Int
+	IsConnected      bool
+	LastConnectTime  time.Time
+	StartTime        time.Time
+	LastConnectError string
+	ErrorTime        time.Time
+	sync.RWMutex
 }
 
 type Consumer struct {
-	conn                      *amqp.Connection
-	channel                   *amqp.Channel
-	tag                       string
-	stopchan                  chan struct{}
+	Conn                      *amqp.Connection
+	Channel                   *amqp.Channel
+	Tag                       string
+	Stopchan                  chan struct{}
 	CbServerName              string
 	CbServerURL               string
 	PerformFeedPostprocessing bool
-	jsmp                      jsonmessageprocessor.JsonMessageProcessor
-	pbmp                      pbmessageprocessor.PbMessageProcessor
+	Jsmp                      jsonmessageprocessor.JsonMessageProcessor
+	Pbmp                      pbmessageprocessor.PbMessageProcessor
 	status                    ConsumerStatus
 	wg                        sync.WaitGroup
 	OutputMessageFunc         func(msg map[string]interface{}) error
@@ -285,11 +340,11 @@ type Consumer struct {
 	AuditLogging              bool
 }
 
-func NewConsumer(outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string) (*Consumer, error) {
+func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string) (*Consumer, error) {
 	c := &Consumer{
-		conn:              nil,
-		channel:           nil,
-		tag:               ctag,
+		Conn:              nil,
+		Channel:           nil,
+		Tag:               ctag,
 		CbServerName:      serverName,
 		CbServerURL:       serverURL,
 		DebugFlag:         debugFlag,
@@ -303,7 +358,8 @@ func NewConsumer(outputMessageFunc func(map[string]interface{}) error, serverNam
 		bindToRawExchange: bindToRawExchange,
 		amqpURI:           amqpURI,
 		AuditLogging:      auditLogging,
-		stopchan:          make(chan struct{}),
+		Stopchan:          make(chan struct{}),
+		wg:                wg,
 	}
 
 	return c, nil
@@ -315,26 +371,26 @@ func (c *Consumer) Connect() error {
 
 	if c.tls != nil {
 		log.Info("Connecting to message bus via TLS...")
-		c.conn, err = amqp.DialTLS(c.amqpURI, c.tls)
+		c.Conn, err = amqp.DialTLS(c.amqpURI, c.tls)
 
 		if err != nil {
 			return err
 		}
 	} else {
 		log.Info("Connecting to message bus...")
-		c.conn, err = amqp.Dial(c.amqpURI)
+		c.Conn, err = amqp.Dial(c.amqpURI)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	c.channel, err = c.conn.Channel()
+	c.Channel, err = c.Conn.Channel()
 	if err != nil {
 		return err
 	}
 
-	queue, err := c.channel.QueueDeclare(
+	queue, err := c.Channel.QueueDeclare(
 		c.CbServerName,
 		c.durableQueues, // durable,
 		true,            // delete when unused
@@ -347,7 +403,7 @@ func (c *Consumer) Connect() error {
 	}
 
 	if c.bindToRawExchange {
-		err = c.channel.QueueBind(c.CbServerName, "", "api.rawsensordata", false, nil)
+		err = c.Channel.QueueBind(c.CbServerName, "", "api.rawsensordata", false, nil)
 		if err != nil {
 			return err
 		}
@@ -355,16 +411,16 @@ func (c *Consumer) Connect() error {
 	}
 
 	for _, key := range c.routingKeys {
-		err = c.channel.QueueBind(c.CbServerName, key, "api.events", false, nil)
+		err = c.Channel.QueueBind(c.CbServerName, key, "api.events", false, nil)
 		if err != nil {
 			return err
 		}
 		log.Infof("Subscribed to %s", key)
 	}
 
-	deliveries, err := c.channel.Consume(
+	deliveries, err := c.Channel.Consume(
 		queue.Name,
-		c.tag,
+		c.Tag,
 		c.automaticAcking, // automatic or manual acking
 		false,             // exclusive
 		false,             // noLocal
@@ -376,16 +432,16 @@ func (c *Consumer) Connect() error {
 		return err
 	}
 	c.deliveries = deliveries
-	c.conn.NotifyClose(c.ConnectionErrors)
+	c.Conn.NotifyClose(c.ConnectionErrors)
 	return nil
 }
 
 func (c *Consumer) Shutdown() error {
-	if err := c.channel.Cancel(c.tag, true); err != nil {
+	if err := c.Channel.Cancel(c.Tag, true); err != nil {
 		return fmt.Errorf("Consumer cancel failed: %s", err)
 	}
 
-	if err := c.conn.Close(); err != nil {
+	if err := c.Conn.Close(); err != nil {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
@@ -394,7 +450,7 @@ func (c *Consumer) Shutdown() error {
 	return nil
 }
 
-func (c *Consumer) logFileProcessingLoop() <-chan error {
+func (c *Consumer) LogFileProcessingLoop() <-chan error {
 
 	errChan := make(chan error)
 
@@ -446,4 +502,85 @@ func (c *Consumer) startExpvarPublish() {
 	expvar.Publish(fmt.Sprintf("subscribed_events_%s", c.CbServerName), expvar.Func(func() interface{} {
 		return c.routingKeys
 	}))
+}
+
+func GetLocalRabbitMQCredentials() (username, password string, err error) {
+	input, err := ini.LoadFile("/etc/cb/cb.conf")
+	if err != nil {
+		return username, password, err
+	}
+	username, _ = input.Get("", "RabbitMQUser")
+	password, _ = input.Get("", "RabbitMQPassword")
+
+	if len(username) == 0 || len(password) == 0 {
+		return username, password, errors.New("Could not get RabbitMQ credentials from /etc/cb/cb.conf")
+	}
+	return username, password, nil
+}
+
+func (c *Consumer) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
+	log.Infof("In process message!")
+	c.status.InputEventCount.Add(1)
+
+	var err error
+	var msgs []map[string]interface{}
+	//
+	// Process message based on ContentType
+	//
+	if contentType == "application/zip" {
+		msgs, err = c.Pbmp.ProcessRawZipBundle(routingKey, body, headers)
+		if err != nil {
+			reportBundleDetails(routingKey, body, headers, c.DebugFlag, c.DebugStore)
+			return
+		}
+	} else if contentType == "application/protobuf" {
+		// if we receive a protobuf through the raw sensor exchange, it's actually a protobuf "bundle" and not a
+		// single protobuf
+		if exchangeName == "api.rawsensordata" {
+			msgs, err = c.Pbmp.ProcessProtobufBundle(routingKey, body, headers)
+		} else {
+			msg, err := c.Pbmp.ProcessProtobufMessage(routingKey, body, headers)
+			if err != nil {
+				reportBundleDetails(routingKey, body, headers, c.DebugFlag, c.DebugStore)
+				c.reportError(routingKey, "Could not process body", err)
+				return
+			} else if msg != nil {
+				msgs = make([]map[string]interface{}, 0, 1)
+				msgs = append(msgs, msg)
+			}
+		}
+	} else if contentType == "application/json" {
+		// Note for simplicity in implementation we are assuming the JSON output by the Cb server
+		// is an object (that is, the top level JSON object is a dictionary and not an array or scalar value)
+		var msg map[string]interface{}
+		decoder := json.NewDecoder(bytes.NewReader(body))
+
+		// Ensure that we decode numbers in the JSON as integers and *not* float64s
+		decoder.UseNumber()
+
+		if err := decoder.Decode(&msg); err != nil {
+			c.reportError(string(body), "Received error when unmarshaling JSON body", err)
+			return
+		}
+
+		msgs, err = c.Jsmp.ProcessJSONMessage(msg, routingKey)
+	} else {
+		c.reportError(string(body), "Unknown content-type", errors.New(contentType))
+		return
+	}
+
+	for _, msg := range msgs {
+		msg["cb_server"] = c.CbServerName
+		if c.PerformFeedPostprocessing {
+			go func(msg map[string]interface{}) {
+				outputMsg := c.Jsmp.PostprocessJSONMessage(msg)
+				c.OutputMessageFunc(outputMsg)
+			}(msg)
+		} else {
+			err = c.OutputMessageFunc(msg)
+			if err != nil {
+				c.reportError(string(body), "Error marshaling message", err)
+			}
+		}
+	}
 }

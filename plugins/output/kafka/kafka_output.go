@@ -116,9 +116,12 @@ func NewKafkaOutputFromCfg(cfg map[interface{}]interface{}) (KafkaOutput, error)
 	return ko, nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
 	stoppubchan := make(chan struct{}, 1)
+	var mypubwg sync.WaitGroup
 	go func() {
+		mypubwg.Add(1)
+		defer mypubwg.Done()
 		for {
 			select {
 			case message := <-messages:
@@ -143,7 +146,7 @@ func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
+		defer wg.Done()
 		for {
 			select {
 			case e := <-o.deliveryChannel:
@@ -163,6 +166,7 @@ func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<
 					// handle exit gracefully
 					log.Info("Received SIGTERM. Exiting")
 					stoppubchan <- struct{}{}
+					mypubwg.Wait()
 					return
 				}
 			}

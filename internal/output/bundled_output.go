@@ -205,13 +205,14 @@ func (o *BundledOutput) Statistics() interface{} {
 	}
 }
 
-func (o *BundledOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *BundledOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
 		defer refreshTicker.Stop()
 		defer o.tempFileOutput.closeFile()
 		defer o.tempFileOutput.flushOutput(true)
+		defer wg.Done()
 
 		for {
 			select {

@@ -74,10 +74,12 @@ func NewHDFSOutputFromCFg(cfg map[interface{}]interface{}, e encoder.Encoder) (H
 	return ho, nil
 }
 
-func (o *HdfsOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *HdfsOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
 	stoppubchan := make(chan struct{}, 1)
+	var mypubwg sync.WaitGroup
 	go func() {
-
+		mypubwg.Add(1)
+		defer mypubwg.Done()
 		for {
 			select {
 			case message := <-messages:
@@ -102,7 +104,7 @@ func (o *HdfsOutput) Go(messages <-chan map[string]interface{}, errorChan chan<-
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
+		defer wg.Done()
 		for {
 			select {
 			case m := <-o.deliveryChan:
@@ -120,6 +122,7 @@ func (o *HdfsOutput) Go(messages <-chan map[string]interface{}, errorChan chan<-
 					// handle exit gracefully
 					log.Info("Received SIGTERM. Exiting")
 					stoppubchan <- struct{}{}
+					mypubwg.Wait()
 					return
 				}
 

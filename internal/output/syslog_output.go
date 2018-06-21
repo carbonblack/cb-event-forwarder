@@ -140,11 +140,12 @@ func (o *SyslogOutput) output(m string) error {
 	return err
 }
 
-func (o *SyslogOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *SyslogOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
 	o.Connect()
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
+		defer wg.Done()
 		for {
 			select {
 			case message := <-messages:

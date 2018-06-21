@@ -97,18 +97,18 @@ func (o *FileOutput) OpenFileForWriting() error {
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal) error {
+func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
 	if o.OutputFile == nil {
 		return errors.New("No output file specified")
 	}
 
 	go func() {
+		wg.Add(1)
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
 		defer o.closeFile()
 		defer o.flushOutput(true)
-
+		defer wg.Done()
 		for {
 			log.Infof("FILE HANDLER SELECT LOOP has control chan %s!", controlchan)
 			select {
@@ -143,8 +143,7 @@ func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<-
 					}
 				case syscall.SIGTERM, syscall.SIGINT:
 					// handle exit gracefully
-					log.Info("Received SIGTERM. Exiting")
-					errorChan <- errors.New("SIGTERM received")
+					log.Info("Received a signal to terminate. Exiting gracefully")
 					return
 				}
 			}

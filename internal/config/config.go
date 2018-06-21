@@ -3,11 +3,9 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	_ "expvar"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/vaughan0/go-ini"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 )
@@ -29,20 +27,6 @@ func LoadFile(filename string) (map[string]interface{}, error) {
 		return conf, err
 	}
 	return conf, err
-}
-
-func parseCbConf() (username, password string, err error) {
-	input, err := ini.LoadFile("/etc/cb/cb.conf")
-	if err != nil {
-		return username, password, err
-	}
-	username, _ = input.Get("", "RabbitMQUser")
-	password, _ = input.Get("", "RabbitMQPassword")
-
-	if len(username) == 0 || len(password) == 0 {
-		return username, password, errors.New("Could not get RabbitMQ credentials from /etc/cb/cb.conf")
-	}
-	return
 }
 
 func ParseConfig(fn string) (map[string]interface{}, error) {

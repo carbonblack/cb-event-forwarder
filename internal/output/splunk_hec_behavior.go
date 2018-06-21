@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"text/template"
+	"errors"
 )
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
@@ -41,7 +42,7 @@ func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string]string,
 	} else {
 		if jsonFormat {
 			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(
-				`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+						`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
 		} else {
 			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
 		}
@@ -117,4 +118,31 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 			Result: fmt.Errorf("HTTP request failed: Error code %s", errorData), Status: resp.StatusCode}
 	}
 	return UploadStatus{FileName: fileName, Result: err, Status: 200}
+}
+
+
+func SplunkBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugStore string, tlsConfig *tls.Config) (*SplunkBehavior, error) {
+	http_post_template := ""
+	if temp, ok := cfg["http_post_template"]; ok {
+		http_post_template, _ = temp.(string)
+	}
+	dest := ""
+	if dtemp, ok := cfg["destination"]; ok {
+		dest, _ = dtemp.(string)
+	} else {
+		return nil, errors.New("No destination provided in HTTP section")
+	}
+	commaSeparate := false
+	if btemp, ok := cfg["comma_seperate_events"]; ok {
+		commaSeparate = btemp.(bool)
+	}
+	headers := make(map[string]string)
+	if headerTemp, ok := cfg["headers"]; ok {
+		headerTempMap, _ := headerTemp.(map[interface{}]interface{})
+		for k, v := range headerTempMap {
+			headers[k.(string)] = v.(string)
+		}
+	}
+	httpb, err := NewSplunkBehavior(http_post_template, dest, headers, commaSeparate, debugFlag, debugStore, tlsConfig)
+	return &httpb, err
 }
