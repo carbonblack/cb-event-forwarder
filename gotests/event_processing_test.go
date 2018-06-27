@@ -2,12 +2,16 @@ package tests
 
 import (
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
+	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
+
+var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{}
+var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{}
 
 func BenchmarkProtobufEventProcessing(b *testing.B) {
 	fn := path.Join("../test/raw_data/protobuf/ingress.event.process/0.protobuf")
@@ -80,7 +84,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 			os.MkdirAll(path.Join("../test_output", outputDir, format.formatType, routingKey), 0755)
 
 			// add this routing key into the filtering map
-			config.EventMap[routingKey] = true
+			//config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())

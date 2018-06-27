@@ -2,13 +2,13 @@ package output
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"text/template"
-	"errors"
 )
 
 /* This is the Splunk HTTP Event Collector (HEC) implementation of the OutputHandler interface defined in main.go */
@@ -42,7 +42,7 @@ func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string]string,
 	} else {
 		if jsonFormat {
 			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(
-						`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
+				`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
 		} else {
 			HTTPPostTemplate = template.Must(HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
 		}
@@ -119,7 +119,6 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	}
 	return UploadStatus{FileName: fileName, Result: err, Status: 200}
 }
-
 
 func SplunkBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugStore string, tlsConfig *tls.Config) (*SplunkBehavior, error) {
 	http_post_template := ""

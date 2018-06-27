@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-var m map[string]interface{} = map[string]interface{}{"plugin": map[interface{}]interface{}{"hdfs_server": nil}}
+var m map[string]interface{} = map[string]interface{}{"plugin": map[string]interface{}{"hdfs_server": nil}}
 
 var config conf.Configuration = conf.Configuration{UploadEmptyFiles: false, BundleSizeMax: 1024 * 1024 * 1024, BundleSendTimeout: time.Duration(30) * time.Second, CbServerURL: "https://cbtests/", DebugStore: ".", DebugFlag: true, ConfigMap: m, EventMap: make(map[string]bool)}
 

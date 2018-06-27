@@ -382,8 +382,11 @@ func (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []b
 				pb.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
 		}
 	}
-
-	return outmsg, nil
+	if len(outmsg) > 0 {
+		return outmsg, nil
+	} else {
+		return nil, errors.New("Unable to process protobuf")
+	}
 }
 
 func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
@@ -978,7 +981,7 @@ func (pbm *PbMessageProcessor) ProcessProtobuf(routingKey string, indata []byte)
 	if err != nil {
 		return nil, err
 	}
-	msgs := make([]map[string]interface{}, 0, 1)
+	msgs := make([]map[string]interface{}, 0, 0)
 	msgs = append(msgs, msg)
 	return msgs, nil
 }

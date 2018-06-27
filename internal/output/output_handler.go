@@ -32,12 +32,12 @@ func loadOutputFromPlugin(pluginPath string, pluginName string, cfg map[interfac
 	return pluginHandlerFuncRaw.(func(map[interface{}]interface{}, encoder.Encoder) (OutputHandler, error))(cfg, e)
 }
 
-func GetOutputsFromCfg(cfg [] interface{}) ([]OutputHandler, error) {
+func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 	var temp []OutputHandler = make([]OutputHandler, len(cfg))
 	var tlsConfig *tls.Config = nil
 	var count int = 0
 	for _, outputI := range cfg {
-		if outputCfg, ok := outputI.(map[interface{}] interface{}); ok {
+		if outputCfg, ok := outputI.(map[interface{}]interface{}); ok {
 			for outputtype, output := range outputCfg {
 				tlsConfig = nil
 				outputMap, _ := output.(map[interface{}]interface{})

@@ -65,6 +65,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table, deb
 }
 
 func (c *Consumer) Consume() {
+	c.status.StartTime = time.Now()
 	c.startExpvarPublish()
 	c.wg.Add(1)
 	go func() {
@@ -74,7 +75,14 @@ func (c *Consumer) Consume() {
 				err := c.Connect()
 				if err != nil {
 					log.Infof("Consumer couldn't connect - Will try again in 30 seconds")
-					time.Sleep(30 * time.Second)
+					//time.Sleep(30 * time.Second)
+					select {
+					case <-c.Stopchan:
+						c.wg.Done()
+						log.Infof("Consumer told to exit before connection succesfully established")
+						return
+					case <-time.After(30 * time.Second):
+					}
 				} else {
 					log.Infof("Consumer connected succesfully!")
 					break
@@ -167,7 +175,7 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string, wg sync.WaitGroup) (*Consumer, error) {
 	var consumerTlsCfg *tls.Config = nil
 	if temp, ok := consumerCfg["tls"]; ok {
-		tlsCfg := temp.(map[string]interface{})
+		tlsCfg := temp.(map[interface{}]interface{})
 		tls_ca_cert := ""
 		if temp, ok := tlsCfg["ca_cert"]; ok {
 			tls_ca_cert = temp.(string)
@@ -331,7 +339,7 @@ type Consumer struct {
 	DebugFlag                 bool
 	DebugStore                string
 	ConnectionErrors          chan *amqp.Error
-	routingKeys               []string
+	RoutingKeys               []string
 	tls                       *tls.Config
 	durableQueues             bool
 	automaticAcking           bool
@@ -349,7 +357,7 @@ func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{
 		CbServerURL:       serverURL,
 		DebugFlag:         debugFlag,
 		DebugStore:        debugStore,
-		routingKeys:       routingKeys,
+		RoutingKeys:       routingKeys,
 		OutputMessageFunc: outputMessageFunc,
 		ConnectionErrors:  make(chan *amqp.Error, 1),
 		tls:               tlsCfg,
@@ -360,7 +368,14 @@ func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{
 		AuditLogging:      auditLogging,
 		Stopchan:          make(chan struct{}),
 		wg:                wg,
+		status:            ConsumerStatus{InputEventCount: expvar.NewInt(fmt.Sprintf("%_input_event_count", serverName)), ErrorCount: expvar.NewInt(fmt.Sprintf("%_error_count", serverName))},
 	}
+	eventMap := make(map[string]interface{})
+	for _, rk := range routingKeys {
+		eventMap[rk] = true
+	}
+	pbmp := pbmessageprocessor.PbMessageProcessor{EventMap: eventMap}
+	c.Pbmp = pbmp
 
 	return c, nil
 }
@@ -410,7 +425,7 @@ func (c *Consumer) Connect() error {
 		log.Info("Subscribed to bulk raw sensor event exchange")
 	}
 
-	for _, key := range c.routingKeys {
+	for _, key := range c.RoutingKeys {
 		err = c.Channel.QueueBind(c.CbServerName, key, "api.events", false, nil)
 		if err != nil {
 			return err
@@ -493,14 +508,11 @@ func (c *Consumer) LogFileProcessingLoop() <-chan error {
 }
 
 func (c *Consumer) startExpvarPublish() {
-	c.status.InputEventCount = expvar.NewInt("input_event_count")
-	c.status.ErrorCount = expvar.NewInt("error_count")
-	c.status.StartTime = time.Now()
 	expvar.Publish(fmt.Sprintf("uptime_%s", c.CbServerName), expvar.Func(func() interface{} {
 		return time.Now().Sub(c.status.StartTime).Seconds()
 	}))
 	expvar.Publish(fmt.Sprintf("subscribed_events_%s", c.CbServerName), expvar.Func(func() interface{} {
-		return c.routingKeys
+		return c.RoutingKeys
 	}))
 }
 

@@ -54,7 +54,7 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func NewKafkaOutputFromCfg(cfg map[interface{}]interface{}) (KafkaOutput, error) {
+func NewKafkaOutputFromCfg(cfg map[string]interface{}) (KafkaOutput, error) {
 	ko := KafkaOutput{}
 
 	log.Infof("Trying to create kafka output with plugin section: %s", cfg)
@@ -204,7 +204,7 @@ func (o *KafkaOutput) output(topic string, m string) {
 	log.Infof("o.Producer.Produce returned")
 }
 
-func GetOutputHandler(cfg map[interface{}]interface{}) (output.OutputHandler, error) {
+func GetOutputHandler(cfg map[string]interface{}) (output.OutputHandler, error) {
 	ko, err := NewKafkaOutputFromCfg(cfg)
 	return &ko, err
 }

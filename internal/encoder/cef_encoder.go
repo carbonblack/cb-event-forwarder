@@ -73,8 +73,47 @@ func (e *CEFEncoder) String() string {
 }
 
 func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
+
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
+
+	add_to_kvs := func(key string, val interface{}) {
+		log.Debugf("adding key = val to kvPairs %s=%s", key, val)
+
+		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
+	}
+
+
+	normalize_add_to_kvs := func (msg map[string]interface{}, temp map[string]interface{}) {
+		outboundConnections := map[string]string{
+			"local_ip":    "src",
+			"remote_ip":   "dst",
+			"protocol":    "proto",
+			"local_port":  "srcPort",
+			"remote_port": "dstPort",
+		}
+		inboundConnections := map[string]string{
+			"local_ip":    "dst",
+			"remote_ip":   "src",
+			"protocol":    "proto",
+			"local_port":  "dstPort",
+			"remote_port": "srcPort",
+		}
+
+		leefMap := outboundConnections
+		if directionality, ok := temp["direction"]; ok {
+			if directionality == "inbound" {
+				leefMap = inboundConnections
+			}
+		}
+
+		for key, value := range temp {
+			if newKey, ok := leefMap[key]; ok {
+				//msg[newKey] = value
+				add_to_kvs(newKey,value)
+			}
+		}
+	}
 
 	// promote "docs" up to the root
 	if val, ok := msg["docs"]; ok {
@@ -86,9 +125,10 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			}
 			if kv, ok := subdocs[0].(map[string]interface{}); ok {
 				for key, value := range kv {
-					msg[key] = value
+					//msg[key] = value
+					add_to_kvs(key,value)
 				}
-				delete(msg, "docs")
+				//delete(msg, "docs")
 			} else {
 				// TODO: remove before flight
 				return "", errors.New("could not map docs[0] to map[string]interface{}")
@@ -98,9 +138,10 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 				return "", errors.New("More than one entry in docs[]")
 			}
 			for key, value := range subdocs[0] {
-				msg[key] = value
+				//msg[key] = value
+				add_to_kvs(key,value)
 			}
-			delete(msg, "docs")
+			//delete(msg, "docs")
 		} else {
 			// TODO: remove before flight
 			return "", errors.New("could not map docs to []interface{}")
@@ -141,7 +182,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			//
 			// Add fields from temp into msg using QRadar normalized IP fields
 			//
-			c.normalizeAddToMap(msg, temp)
+			normalize_add_to_kvs(msg, temp)
 
 		} else if val.Kind() == reflect.Map {
 			//
@@ -151,7 +192,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 				//
 				// Add fields from kv into msg using QRadar normalized IP fields
 				//
-				c.normalizeAddToMap(msg, kv)
+				normalize_add_to_kvs(msg, kv)
 			}
 		}
 	}
@@ -161,11 +202,13 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 	//
 
 	if msg["type"] == "ingress.event.netconn" {
-		c.normalizeAddToMap(msg, msg)
+		normalize_add_to_kvs(msg, msg)
 	}
 
 	for key, _ := range msg {
-		keyNames = append(keyNames, key)
+		if key != "docs" && key != "ioc_attr" {
+			keyNames = append(keyNames, key)
+		}
 	}
 
 	// message type applied to messages without an explicit message type.
@@ -178,80 +221,8 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 		if !reflect.ValueOf(msg[key]).IsValid() {
 			continue
 		}
-
-		msg_func := func(msg map[string]interface{}, key string) string {
-			var val string
-
-			the_type := reflect.ValueOf(msg[key]).Type()
-			the_kind := the_type.Kind()
-
-			switch typed_msg_val := msg[key].(type) {
-
-			case map[string]interface{}:
-
-				if len(typed_msg_val) == 0 {
-					val = ""
-				} else {
-					t, err := json.Marshal(typed_msg_val)
-					if err != nil {
-						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-						return ""
-					}
-					val = string(t)
-				}
-
-			case []string:
-				// if the value is a map, array or slice, then format as JSON
-				length_of_array := len(typed_msg_val)
-				if length_of_array == 0 {
-					val = ""
-				} else if length_of_array == 1 {
-					if key == "type" {
-						messageType = typed_msg_val[0]
-					} else if key == "cb_version" {
-						cbVersion = typed_msg_val[0]
-					}
-					val = typed_msg_val[0]
-				} else {
-					t, err := json.Marshal(typed_msg_val)
-					if err != nil {
-						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())
-						return ""
-					}
-					val = string(t)
-				}
-
-			case json.Number:
-				val_str := typed_msg_val.String()
-				if key == "type" {
-					messageType = val_str
-				} else if key == "cb_version" {
-					cbVersion = val_str
-				}
-				val = c.formatter.Replace(val_str)
-
-			case string:
-				// make sure to format strings with the appropriate character escaping
-				// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-				if key == "type" {
-					messageType = typed_msg_val
-				} else if key == "cb_version" {
-					cbVersion = typed_msg_val
-				}
-				val = c.formatter.Replace(typed_msg_val)
-			case int, int32, int64, uint32, uint64, uint:
-				val = fmt.Sprintf("%d", typed_msg_val)
-			case bool:
-				val = fmt.Sprintf("%t", typed_msg_val)
-			default:
-				// simplify and use fmt.Sprintf to format the output
-				log.Debugf("Default case for cef encode: type/kind  = %s/%s ", the_type, the_kind)
-				val = fmt.Sprintf("%v", typed_msg_val)
-			}
-			return val
-		}
-
-		ret_val := msg_func(msg, key)
+		var ret_val string = ""
+		cbVersion,messageType,ret_val = msgfunc(cbVersion, messageType, msg, key)
 		log.Debugf("adding key = val to kvPairs %s=%s", key, ret_val)
 
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, ret_val))

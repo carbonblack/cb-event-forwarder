@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	cef "github.com/carbonblack/cb-event-forwarder/internal/cef"
 	"io/ioutil"
 	"os"
 	"path"

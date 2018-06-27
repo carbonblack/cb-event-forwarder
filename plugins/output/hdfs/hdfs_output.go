@@ -169,7 +169,7 @@ func (o *HdfsOutput) output(fn, m string) {
 
 }
 
-func GetOutputHandler(cfg map[interface{}]interface{}, e encoder.Encoder) (output.OutputHandler, error) {
+func GetOutputHandler(cfg map[string]interface{}, e encoder.Encoder) (output.OutputHandler, error) {
 	ho, err := GetOutputHandler(cfg, e)
 	return ho, err
 }

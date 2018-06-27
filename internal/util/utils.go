@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/filetype.v1"
@@ -30,55 +29,6 @@ func LoadFuncMapFromPlugin(pluginPath string, pluginName string) template.FuncMa
 		log.Panicf("Failed to load encoder plugin %v", err)
 	}
 	return pluginGetFuncMapRaw.(func() template.FuncMap)()
-}
-
-func MapGetByArray(m map[string]interface{}, lookup []string) (interface{}, error) {
-	var temp interface{} = nil
-	log.Infof("Lookup %s in %s", lookup, m)
-	for index, key := range lookup {
-		if index == 0 {
-			_, ok := m[key]
-			if !ok {
-				errStr := fmt.Sprintf("Couldn't find %s of %s in %s", key, lookup, m)
-				log.Infof(errStr)
-				return nil, errors.New(errStr)
-			} else {
-				log.Infof("Found key %s of %s in %s value is %s", key, lookup, m, m[key])
-				temp = m[key]
-			}
-		} else {
-			if temp != nil {
-				tempmap, ok := temp.(map[interface{}]interface{})
-				if ok {
-					iface, ok := tempmap[key]
-					if !ok {
-						errStr := fmt.Sprintf("Couldn't find %s in %s in %s withsin %s", key, lookup, tempmap, m)
-						log.Infof(errStr)
-						return iface, errors.New(errStr)
-					} else {
-						log.Infof("Found key %s of %s in %s within %s value is %s", key, lookup, temp, iface, m)
-						temp = iface
-					}
-				} else {
-					errStr := "Type coercion failed"
-					switch t := temp.(type) {
-					default:
-						errStr = fmt.Sprintf("Failed to coerce temporary iface %s into map[interface{}] interface{} it's really :  %T", temp, t)
-					}
-
-					log.Infof(errStr)
-					return nil, errors.New(errStr)
-
-				}
-			} else {
-				errStr := fmt.Sprintf("Couldn't find %s of %s in %s within %s [TEMP IFACE IS NIL]", key, lookup, temp, m)
-				log.Infof(errStr)
-				return nil, errors.New(errStr)
-			}
-		}
-	}
-	log.Infof("Lookup returning %s for %s", temp, lookup)
-	return temp, nil
 }
 
 func WindowsTimeToUnixTime(windowsTime int64) int64 {

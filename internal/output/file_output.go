@@ -110,7 +110,7 @@ func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<-
 		defer o.flushOutput(true)
 		defer wg.Done()
 		for {
-			log.Infof("FILE HANDLER SELECT LOOP has control chan %s!", controlchan)
+			//log.Infof("FILE HANDLER SELECT LOOP has control chan %s!", controlchan)
 			select {
 			case message := <-messages:
 				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
