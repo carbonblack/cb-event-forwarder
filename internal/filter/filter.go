@@ -14,7 +14,7 @@ type Filter struct {
 	FilterTemplate *template.Template
 }
 
-func NewFilter(filterString, filterPlugin, pluginPath string) (*Filter, error) {
+func NewFilter(filterString, filterPlugin, pluginPath string) *Filter {
 	var filterTemplate *template.Template = nil
 	var err error = nil
 	if filterPlugin != "" {
@@ -23,8 +23,11 @@ func NewFilter(filterString, filterPlugin, pluginPath string) (*Filter, error) {
 	} else {
 		filterTemplate, err = template.New("TemplateFilter").Parse(filterString)
 	}
+	if err != nil {
+		log.Panicf("Error constructing event filter: %v", err)
+	}
 	f := Filter{FilterTemplate: filterTemplate}
-	return &f, err
+	return &f
 }
 
 //boolean returns false if the message should be discarded by the event forwarder
@@ -50,7 +53,7 @@ func (f *Filter) FilterEvent(msg map[string]interface{}) bool {
 	}
 }
 
-func GetFilterFromCfg(cfg map[interface{}]interface{}) (*Filter, error) {
+func GetFilterFromCfg(cfg map[interface{}]interface{}) *Filter {
 	log.Infof("Trying to load filter from cfg")
 	if filter, ok := cfg["template"]; ok {
 		if filterPlugin, ok := cfg["plugin"]; ok {
@@ -62,5 +65,5 @@ func GetFilterFromCfg(cfg map[interface{}]interface{}) (*Filter, error) {
 		}
 		return NewFilter(filter.(string), "", ".")
 	}
-	return nil, nil //template section is optional
+	return nil //template section is optional
 }

@@ -239,10 +239,8 @@ func (o *FileOutput) closeFile() {
 		o.flushOutput(true)
 		o.OutputFileGzWriter.Close()
 		o.OutputFileGzWriter = nil
-	}
-	if o.OutputFile != nil {
+	} else if o.OutputFile != nil {
 		o.flushOutput(true)
-		log.Debugf("Closing file %s", o.OutputFileName)
 		o.OutputFile.Close()
 		o.OutputFile = nil
 	}

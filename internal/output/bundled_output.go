@@ -128,8 +128,8 @@ func (o *BundledOutput) queueStragglers() {
 	}
 }
 
-func NewBundledOutput(bundle_size_max, bundle_send_timeout int64, upload_empty_files, debug bool, debugstore string, behavior BundleBehavior, encoder encoder.Encoder) (BundledOutput, error) {
-	tempBundledOutput := BundledOutput{rollOverDuration: time.Duration(bundle_send_timeout) * time.Second, UploadEmptyFiles: upload_empty_files, maxFileSize: bundle_size_max, Behavior: behavior, Encoder: encoder}
+func NewBundledOutput(temp_file_directory string, bundle_size_max, bundle_send_timeout int64, upload_empty_files, debug bool, debugstore string, behavior BundleBehavior, encoder encoder.Encoder) (BundledOutput, error) {
+	tempBundledOutput := BundledOutput{TempFileDirectory: temp_file_directory, rollOverDuration: time.Duration(bundle_send_timeout) * time.Second, UploadEmptyFiles: upload_empty_files, maxFileSize: bundle_size_max, Behavior: behavior, Encoder: encoder}
 	tempBundledOutput.fileResultChan = make(chan UploadStatus)
 	tempBundledOutput.filesToUpload = make([]string, 0)
 
@@ -211,7 +211,6 @@ func (o *BundledOutput) Go(messages <-chan map[string]interface{}, errorChan cha
 
 		defer refreshTicker.Stop()
 		defer o.tempFileOutput.closeFile()
-		defer o.tempFileOutput.flushOutput(true)
 		defer wg.Done()
 
 		for {

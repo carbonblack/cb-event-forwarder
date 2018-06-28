@@ -2,16 +2,12 @@ package tests
 
 import (
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
-	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
-
-var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{}
-var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{}
 
 func BenchmarkProtobufEventProcessing(b *testing.B) {
 	fn := path.Join("../test/raw_data/protobuf/ingress.event.process/0.protobuf")

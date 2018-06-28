@@ -1,20 +1,16 @@
 package tests
 
 import (
-	te "github.com/carbonblack/cb-event-forwarder/internal/template_encoder"
-	"github.com/carbonblack/cb-event-forwarder/internal/util"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"testing"
-	"text/template"
 )
 
 func marshalTemplate(msgs []map[string]interface{}) (string, error) {
-	var EncoderTemplate *template.Template = template.New("testencoder").Funcs(template.FuncMap{"JsonFormat": util.Json})
-	EncoderTemplate, _ = EncoderTemplate.Parse("{{JsonFormat .}}")
+	te, _ := encoder.NewTemplateEncoder("{{JsonFormat .}}", "", "")
 	var ret string
-
 	for _, msg := range msgs {
 		msg["cb_server"] = "cbserver"
-		marshaled, err := te.EncodeWithTemplate(msg, EncoderTemplate)
+		marshaled, err := te.Encode(msg)
 		if err != nil {
 			return "", err
 		}

@@ -9,31 +9,22 @@ import (
 	"os"
 	"path"
 	"testing"
-	"text/template"
 )
 
-var FilterTemplate *template.Template = template.New("testfilter")
-
-func init() {
-	testFilterTemplate, err := FilterTemplate.Parse("{{if (eq .type \"alert.watchlist.hit.query.binary\")}}KEEP{{else}}DROP{{end}}")
-	if err == nil {
-		FilterTemplate = testFilterTemplate
-	} else {
-	}
-}
+var testFilter *filter.Filter = filter.NewFilter("{{if (eq .type \"alert.watchlist.hit.query.binary\")}}KEEP{{else}}DROP{{end}}", "", "")
 
 func filterMessages(msgs []map[string]interface{}) []map[string]interface{} {
 	var ret []map[string]interface{} = make([]map[string]interface{}, 0)
 	for _, msg := range msgs {
 		msg["cb_server"] = "cbserver"
-		if keep := filter.FilterWithTemplate(msg, FilterTemplate); keep {
+		if keep := testFilter.FilterEvent(msg); keep {
 			ret = append(ret, msg)
 		}
 	}
 	return ret
 }
 
-func generateFilteredOutput(exampleJSONInput string, FilterTemplate *template.Template) error {
+func generateFilteredOutput(exampleJSONInput string) error {
 
 	var msg map[string]interface{}
 
@@ -52,7 +43,7 @@ func generateFilteredOutput(exampleJSONInput string, FilterTemplate *template.Te
 	}
 
 	for _, msg := range msgs {
-		if ok := filter.FilterWithTemplate(msg, FilterTemplate); ok {
+		if ok := testFilter.FilterEvent(msg); ok {
 
 		}
 	}
@@ -66,7 +57,7 @@ func BenchmarkFilter(b *testing.B) {
 	d, _ := ioutil.ReadAll(fp)
 	s := string(d)
 	for i := 0; i < b.N; i++ {
-		generateFilteredOutput(s, FilterTemplate)
+		generateFilteredOutput(s)
 	}
 }
 
@@ -106,9 +97,6 @@ func filterTestEvents(t *testing.T, outputDir string, filterFunc FilterFunc) {
 
 			routingKey := info.Name()
 			os.MkdirAll(path.Join("../test_output", outputDir, format.formatType, routingKey), 0755)
-
-			// add this routing key into the filtering map
-			config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())

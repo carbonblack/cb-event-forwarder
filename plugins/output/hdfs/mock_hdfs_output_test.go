@@ -20,7 +20,7 @@ CARBON BLACK 2018 - Zachary Estep - Using this code as the basis for a producer 
 */
 
 import (
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
@@ -29,17 +29,32 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"testing"
-	"time"
 )
 
-var m map[string]interface{} = map[string]interface{}{"plugin": map[string]interface{}{"hdfs_server": nil}}
-
-var config conf.Configuration = conf.Configuration{UploadEmptyFiles: false, BundleSizeMax: 1024 * 1024 * 1024, BundleSendTimeout: time.Duration(30) * time.Second, CbServerURL: "https://cbtests/", DebugStore: ".", DebugFlag: true, ConfigMap: m, EventMap: make(map[string]bool)}
-
-var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{Config: &config}
-var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{Config: &config}
+var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{}
+var eventMap map[string]interface{} = map[string]interface{}{
+	"ingress.event.process":        true,
+	"ingress.event.procstart":      true,
+	"ingress.event.netconn":        true,
+	"ingress.event.procend":        true,
+	"ingress.event.childproc":      true,
+	"ingress.event.moduleload":     true,
+	"ingress.event.module":         true,
+	"ingress.event.filemod":        true,
+	"ingress.event.regmod":         true,
+	"ingress.event.tamper":         true,
+	"ingress.event.crossprocopen":  true,
+	"ingress.event.remotethread":   true,
+	"ingress.event.processblock":   true,
+	"ingress.event.emetmitigation": true,
+	"binaryinfo.#":                 true,
+	"binarystore.#":                true,
+	"events.partition.#":           true,
+}
+var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{EventMap: eventMap}
 
 type MockedHDFSClient struct {
 	mock.Mock
@@ -67,32 +82,27 @@ func TestHDFSOutput(t *testing.T) {
 	}
 	mockHdfs := new(MockedHDFSClient)
 	mockHdfs.outdir = outputDir
-	var outputHandler output.OutputHandler = &HdfsOutput{HDFSClient: mockHdfs}
-
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, "mockhdfs")
+	testEncoder := encoder.NewJSONEncoder()
+	outputHandler := HdfsOutput{HDFSClient: mockHdfs, Encoder: &testEncoder}
+	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler)
 
 }
 
-func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc outputMessageFunc, oh output.OutputHandler, ohname string) {
+func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc outputMessageFunc, oh output.OutputHandler) {
 	t.Logf("Tring to preform test with %v %s", oh, oh)
-	t.Logf("Starting outputhandler %s ", ohname)
-	err := oh.Initialize(ohname, &config)
-	if err != nil {
-		t.Errorf("%v", err)
-		t.FailNow()
-	} else {
-		t.Logf("Output handler %v initialized succesfully, entering test", oh)
-	}
+
 	formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
 	}{{"json", jsmp.ProcessJSON}, {"protobuf", pbmp.ProcessProtobuf}}
 
-	messages := make(chan string, 100)
+	messages := make(chan map[string]interface{}, 100)
 	errors := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	controlchan := make(chan os.Signal, 5)
 
-	oh.Go(messages, errors, controlchan)
+	oh.Go(messages, errors, controlchan, wg)
 
 	for _, format := range formats {
 		pathname := path.Join("../../../test/raw_data", format.formatType)
@@ -117,9 +127,6 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 
 			routingKey := info.Name()
 			os.MkdirAll(outputDir, 0755)
-
-			// add this routing key into the filtering map
-			config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())
@@ -164,13 +171,15 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 					t.Errorf("got zero messages out of: %s/%s", routingDir, fn.Name())
 					continue
 				}
+				for _, msg := range msgs {
+					messages <- msg
+				}
 
-				out, err := outputFunc(msgs)
+				_, err = outputFunc(msgs)
 				if err != nil {
 					t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
 					continue
 				}
-				messages <- out
 			}
 		}
 	}

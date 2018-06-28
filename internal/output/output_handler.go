@@ -102,7 +102,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 					}
 					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
 					if err == nil {
-						bo, err := NewBundledOutput(bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
+						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
 						if err != nil {
 							return temp, err
 						}
@@ -126,7 +126,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 					}
 					splunkBundleBehavior, err := SplunkBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
 					if err == nil {
-						bo, err := NewBundledOutput(bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", splunkBundleBehavior, myencoder)
+						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", splunkBundleBehavior, myencoder)
 						if err != nil {
 							return temp, err
 						}
@@ -146,7 +146,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 					}
 					s3BundleBehavior, err := S3BehaviorFromCfg(outputMap)
 					if err == nil {
-						bo, err := NewBundledOutput(bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", &s3BundleBehavior, myencoder)
+						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", &s3BundleBehavior, myencoder)
 						if err != nil {
 							return temp, err
 						}

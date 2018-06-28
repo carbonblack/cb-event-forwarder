@@ -1,9 +1,11 @@
 package tests
 
 import (
-	cef "github.com/carbonblack/cb-event-forwarder/internal/cef"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"testing"
 )
+
+var cef encoder.CEFEncoder = encoder.NewCEFEncoder(10)
 
 func marshalCef(msgs []map[string]interface{}) (string, error) {
 	var ret string

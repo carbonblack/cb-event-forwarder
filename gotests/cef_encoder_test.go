@@ -28,7 +28,7 @@ func generateCefOutput(exampleJSONInput string) error {
 	}
 
 	for i, msg := range msgs {
-		if _, err := cef.EncodeWithSeverity(msg, 5); err != nil {
+		if _, err := cef.Encode(msg); err != nil {
 			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}

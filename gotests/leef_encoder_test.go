@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
+
+var leef encoder.LEEFEncoder = encoder.NewLEEFEncoder()
 
 func generateLeefOutput(exampleJSONInput string) error {
 	var msg map[string]interface{}

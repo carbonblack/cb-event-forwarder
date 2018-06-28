@@ -17,7 +17,7 @@ type LEEFEncoder struct {
 	leefVersion       string
 }
 
-var formatter * strings.Replacer
+var formatter *strings.Replacer
 
 func init() {
 	formatter = strings.NewReplacer(
@@ -25,9 +25,8 @@ func init() {
 		"\n", "\\n",
 		"\r", "\\r",
 		"\t", "\\t",
-		"=", "\\=",)
+		"=", "\\=")
 }
-
 
 func NewLEEFEncoder() LEEFEncoder {
 	temp := LEEFEncoder{productVendorName: "CB", productName: "CB", productVersion: "5.1", leefVersion: "1.0"}
@@ -39,7 +38,6 @@ func (l *LEEFEncoder) generateHeader(cbVersion, eventType string) string {
 		eventType)
 }
 
-
 func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 	keyNames := make([]string, 0)
 	kvPairs := make([]string, 0)
@@ -50,8 +48,7 @@ func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
 
-
-	normalize_add_to_kvs := func (msg map[string]interface{}, temp map[string]interface{}) {
+	normalize_add_to_kvs := func(msg map[string]interface{}, temp map[string]interface{}) {
 		outboundConnections := map[string]string{
 			"local_ip":    "src",
 			"remote_ip":   "dst",
@@ -77,7 +74,7 @@ func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 		for key, value := range temp {
 			if newKey, ok := leefMap[key]; ok {
 				//msg[newKey] = value
-				add_to_kvs(newKey,value)
+				add_to_kvs(newKey, value)
 			}
 		}
 	}
@@ -93,7 +90,7 @@ func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			if kv, ok := subdocs[0].(map[string]interface{}); ok {
 				for key, value := range kv {
 					//msg[key] = value
-					add_to_kvs(key,value)
+					add_to_kvs(key, value)
 				}
 				//delete(msg, "docs")
 			} else {
@@ -106,7 +103,7 @@ func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			}
 			for key, value := range subdocs[0] {
 				//msg[key] = value
-				add_to_kvs(key,value)
+				add_to_kvs(key, value)
 			}
 			//delete(msg, "docs")
 		} else {
@@ -189,7 +186,7 @@ func (l *LEEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			continue
 		}
 		var ret_val string = ""
-		cbVersion,messageType,ret_val = msgfunc(cbVersion, messageType, msg, key)
+		cbVersion, messageType, ret_val = msgfunc(cbVersion, messageType, msg, key)
 		log.Debugf("adding key = val to kvPairs %s=%s", key, ret_val)
 
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, ret_val))
@@ -213,78 +210,78 @@ func (e *LEEFEncoder) String() string {
 	return "leef"
 }
 
-func msgfunc(cbVersion,messageType  string,msg map[string]interface{}, key string) (string,string,string) {
-	return interfaceString(cbVersion, messageType, key,msg[key])
+func msgfunc(cbVersion, messageType string, msg map[string]interface{}, key string) (string, string, string) {
+	return interfaceString(cbVersion, messageType, key, msg[key])
 }
 
-func interfaceString(cbVersion, messageType, key string,v interface{}) (string, string, string) {
-			var val string
+func interfaceString(cbVersion, messageType, key string, v interface{}) (string, string, string) {
+	var val string
 
-			the_type := reflect.ValueOf(v).Type()
-			the_kind := the_type.Kind()
+	the_type := reflect.ValueOf(v).Type()
+	the_kind := the_type.Kind()
 
-			switch typed_msg_val := v.(type) {
+	switch typed_msg_val := v.(type) {
 
-			case map[string]interface{}:
+	case map[string]interface{}:
 
-				if len(typed_msg_val) == 0 {
-					val = ""
-				} else {
-					t, err := json.Marshal(typed_msg_val)
-					if err != nil {
-						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping",  v, err.Error())
-						return cbVersion, messageType, ""
-					}
-					val = string(t)
-				}
-
-			case []string:
-				// if the value is a map, array or slice, then format as JSON
-				length_of_array := len(typed_msg_val)
-				if length_of_array == 0 {
-					val = ""
-				} else if length_of_array == 1 {
-					if key == "type" {
-						messageType = typed_msg_val[0]
-					} else if key == "cb_version" {
-						cbVersion = typed_msg_val[0]
-					}
-					val = typed_msg_val[0]
-				} else {
-					t, err := json.Marshal(typed_msg_val)
-					if err != nil {
-						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, v, err.Error())
-						return cbVersion, messageType,""
-					}
-					val = string(t)
-				}
-
-			case json.Number:
-				val_str := typed_msg_val.String()
-				if key == "type" {
-					messageType = val_str
-				} else if key == "cb_version" {
-					cbVersion = val_str
-				}
-				val = formatter.Replace(val_str)
-
-			case string:
-				// make sure to format strings with the appropriate character escaping
-				// also make sure we reflect the "type" and "cb_version" on to the message header, if present
-				if key == "type" {
-					messageType = typed_msg_val
-				} else if key == "cb_version" {
-					cbVersion = typed_msg_val
-				}
-				val = formatter.Replace(typed_msg_val)
-			case int, int32, int64, uint32, uint64, uint:
-				val = fmt.Sprintf("%d", typed_msg_val)
-			case bool:
-				val = fmt.Sprintf("%t", typed_msg_val)
-			default:
-				// simplify and use fmt.Sprintf to format the output
-				log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
-				val = fmt.Sprintf("%v", typed_msg_val)
+		if len(typed_msg_val) == 0 {
+			val = ""
+		} else {
+			t, err := json.Marshal(typed_msg_val)
+			if err != nil {
+				log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", v, err.Error())
+				return cbVersion, messageType, ""
 			}
-			return cbVersion, messageType,val
+			val = string(t)
+		}
+
+	case []string:
+		// if the value is a map, array or slice, then format as JSON
+		length_of_array := len(typed_msg_val)
+		if length_of_array == 0 {
+			val = ""
+		} else if length_of_array == 1 {
+			if key == "type" {
+				messageType = typed_msg_val[0]
+			} else if key == "cb_version" {
+				cbVersion = typed_msg_val[0]
+			}
+			val = typed_msg_val[0]
+		} else {
+			t, err := json.Marshal(typed_msg_val)
+			if err != nil {
+				log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, v, err.Error())
+				return cbVersion, messageType, ""
+			}
+			val = string(t)
+		}
+
+	case json.Number:
+		val_str := typed_msg_val.String()
+		if key == "type" {
+			messageType = val_str
+		} else if key == "cb_version" {
+			cbVersion = val_str
+		}
+		val = formatter.Replace(val_str)
+
+	case string:
+		// make sure to format strings with the appropriate character escaping
+		// also make sure we reflect the "type" and "cb_version" on to the message header, if present
+		if key == "type" {
+			messageType = typed_msg_val
+		} else if key == "cb_version" {
+			cbVersion = typed_msg_val
+		}
+		val = formatter.Replace(typed_msg_val)
+	case int, int32, int64, uint32, uint64, uint:
+		val = fmt.Sprintf("%d", typed_msg_val)
+	case bool:
+		val = fmt.Sprintf("%t", typed_msg_val)
+	default:
+		// simplify and use fmt.Sprintf to format the output
+		log.Debugf("Default case for leef encode: type/kind  = %s/%s ", the_type, the_kind)
+		val = fmt.Sprintf("%v", typed_msg_val)
+	}
+	return cbVersion, messageType, val
 }

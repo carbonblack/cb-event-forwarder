@@ -83,8 +83,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, val))
 	}
 
-
-	normalize_add_to_kvs := func (msg map[string]interface{}, temp map[string]interface{}) {
+	normalize_add_to_kvs := func(msg map[string]interface{}, temp map[string]interface{}) {
 		outboundConnections := map[string]string{
 			"local_ip":    "src",
 			"remote_ip":   "dst",
@@ -110,7 +109,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 		for key, value := range temp {
 			if newKey, ok := leefMap[key]; ok {
 				//msg[newKey] = value
-				add_to_kvs(newKey,value)
+				add_to_kvs(newKey, value)
 			}
 		}
 	}
@@ -126,7 +125,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			if kv, ok := subdocs[0].(map[string]interface{}); ok {
 				for key, value := range kv {
 					//msg[key] = value
-					add_to_kvs(key,value)
+					add_to_kvs(key, value)
 				}
 				//delete(msg, "docs")
 			} else {
@@ -139,7 +138,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			}
 			for key, value := range subdocs[0] {
 				//msg[key] = value
-				add_to_kvs(key,value)
+				add_to_kvs(key, value)
 			}
 			//delete(msg, "docs")
 		} else {
@@ -222,7 +221,7 @@ func (c *CEFEncoder) Encode(msg map[string]interface{}) (string, error) {
 			continue
 		}
 		var ret_val string = ""
-		cbVersion,messageType,ret_val = msgfunc(cbVersion, messageType, msg, key)
+		cbVersion, messageType, ret_val = msgfunc(cbVersion, messageType, msg, key)
 		log.Debugf("adding key = val to kvPairs %s=%s", key, ret_val)
 
 		kvPairs = append(kvPairs, fmt.Sprintf("%s=%s", key, ret_val))

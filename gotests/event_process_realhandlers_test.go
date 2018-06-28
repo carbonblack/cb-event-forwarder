@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"io"
@@ -11,20 +12,23 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 )
 
 func TestFileOutput(t *testing.T) {
-	var outputHandler output.OutputHandler = &output.FileOutput{Config: &config}
 	outputDir := "../test_output/real_output_file/"
 	os.MkdirAll(outputDir, 0755)
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, path.Join(outputDir, "/filehandlerout"), nil, nil)
+	testEncoder := encoder.NewJSONEncoder()
+	outputHandler := output.NewFileOutputHandler(outputDir+"file.out", &testEncoder)
+	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, nil, nil)
 }
 
 func TestNetOutputTCP(t *testing.T) {
-	var outputHandler output.OutputHandler = &output.NetOutput{Config: &config}
+	testEncoder := encoder.NewJSONEncoder()
+	outputHandler, _ := output.NewNetOutputHandler("tcp:127.0.0.1:41337", &testEncoder)
 	t.Logf("Starting netoutput test")
 	outputDir := "../test_output/real_output_net"
 	os.MkdirAll(outputDir, 0755)
@@ -78,54 +82,7 @@ func TestNetOutputTCP(t *testing.T) {
 		stopchan <- struct{}{}
 	}
 
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, "tcp:127.0.0.1:41337", &background, &shutdown)
-}
-
-//Doesn't work yet
-func testNetOutputUDP(t *testing.T) {
-	var outputHandler output.OutputHandler = &output.NetOutput{Config: &config}
-	t.Logf("Starting netoutput test")
-	outputDir := "../test_output/real_output_net"
-	os.MkdirAll(outputDir, 0755)
-
-	listener, err := net.ListenPacket("udp", "127.0.0.1:41337")
-	if err != nil {
-		t.Errorf("Could not accept connection on listening socket %v ", err)
-		t.FailNow()
-	}
-	defer listener.Close()
-
-	outfile, err := os.Create(path.Join(outputDir, "/netoutputudp")) // For read access.
-	if err != nil {
-		t.Errorf("Coudln't open httpoutput file %v", err)
-		t.FailNow()
-		return
-	}
-
-	stopchan := make(chan struct{}, 1)
-
-	//spawn a TCP server
-	background := func() {
-		defer outfile.Close()
-		for {
-			select {
-			case <-stopchan:
-				t.Logf("got stop chan event in listner")
-				return
-			default:
-			}
-			buffer := make([]byte, 1024*4)
-			_, addr, err := listener.ReadFrom(buffer)
-			n, err := outfile.Write(buffer)
-			t.Logf("Wrote %d bytes to logfile %v recv'd from %s", n, err, addr)
-		}
-	}
-
-	shutdown := func() {
-		stopchan <- struct{}{}
-	}
-
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, "udp:127.0.0.1:41337", &background, &shutdown)
+	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, &background, &shutdown)
 }
 
 type handler struct {
@@ -143,7 +100,9 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestHttpOutput(t *testing.T) {
-	var outputHandler output.OutputHandler = &output.BundledOutput{TempFileDirectory: ".", Behavior: &output.HTTPBehavior{}}
+	testEncoder := encoder.NewJSONEncoder()
+	httpBundleBehavior, _ := output.NewHTTPBehavior("", "http://127.0.0.1:51337/", make(map[string]string, 0), false, false, "", nil)
+	outputHandler, _ := output.NewBundledOutput(".", 500000, 30, false, true, "/tmp", &httpBundleBehavior, &testEncoder)
 	t.Logf("Starting httpoutput test")
 	outputDir := "../test_output/real_output_http"
 	os.MkdirAll(outputDir, 0755)
@@ -182,7 +141,7 @@ func TestHttpOutput(t *testing.T) {
 		h.outf.Close()
 	}
 
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, "http://127.0.0.1:51337/", &background, &shutdown)
+	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, &background, &shutdown)
 }
 
 func TestS3Output(t *testing.T) {
@@ -196,36 +155,36 @@ func TestS3Output(t *testing.T) {
 		return
 	}
 	mocks3.outfile = outFile
-	var outputHandler output.OutputHandler = &output.BundledOutput{TempFileDirectory: ".", Behavior: &output.S3Behavior{Out: mocks3}}
+	// "http://127.0.0.1:51337/"
+	testEncoder := encoder.NewJSONEncoder()
+	s3behavior := output.S3Behavior{Out: mocks3}
+	outputHandler, _ := output.NewBundledOutput(".", 500000, 30, false, true, "/tmp", &s3behavior, &testEncoder)
 	t.Logf("Starting s3output test")
-	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler, "http://127.0.0.1:51337/", nil, nil)
+	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, nil, nil)
 }
 
-func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc outputMessageFunc, oh output.OutputHandler, ohname string, backgroundfunc *func(), shutdown *func()) {
+func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc outputMessageFunc, oh output.OutputHandler, backgroundfunc *func(), shutdown *func()) {
 	t.Logf("Tring to preform test with %v %s", oh, oh)
 	if backgroundfunc != nil {
 		t.Logf("Executing background func")
 		go (*backgroundfunc)()
 
 	}
-	t.Logf("Starting outputhandler %s ", ohname)
-	err := oh.Initialize(ohname, &config)
-	if err != nil {
-		t.Errorf("%v", err)
-		t.FailNow()
-	} else {
-		t.Logf("Output handler %v initialized succesfully, entering test", oh)
-	}
+	t.Logf("Starting outputhandler test %s ", oh)
+
 	formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
 	}{{"json", jsmp.ProcessJSON}, {"protobuf", pbmp.ProcessProtobuf}}
 
-	messages := make(chan string, 100)
+	messages := make(chan map[string]interface{}, 100)
 	errors := make(chan error)
 	controlchan := make(chan os.Signal, 1)
+	var stopWg sync.WaitGroup
 
-	go oh.Go(messages, errors, controlchan)
+	stopWg.Add(1)
+
+	go oh.Go(messages, errors, controlchan, stopWg)
 
 	for _, format := range formats {
 		pathname := path.Join("../test/raw_data", format.formatType)
@@ -250,9 +209,6 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 
 			routingKey := info.Name()
 			os.MkdirAll(outputDir, 0755)
-
-			// add this routing key into the filtering map
-			config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())
@@ -298,12 +254,16 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 					continue
 				}
 
-				out, err := outputFunc(msgs)
+				for _, msg := range msgs {
+					messages <- msg
+				}
+
+				_, err = outputFunc(msgs)
 				if err != nil {
 					t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
 					continue
 				}
-				messages <- out
+
 			}
 		}
 	}
