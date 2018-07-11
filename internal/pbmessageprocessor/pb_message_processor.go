@@ -242,12 +242,12 @@ func (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []b
 	}
 
 	outmsg := make(map[string]interface{})
-	outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	outmsg["event_timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
 	outmsg["process_create_time"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetProcessCreateTime())
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
-	outmsg["computer_name"] = cbMessage.Env.Endpoint.GetSensorHostName()
+	outmsg["hostname"] = cbMessage.Env.Endpoint.GetSensorHostName()
 
 	// is the message from an endpoint event process?
 	eventMsg := true
@@ -410,7 +410,7 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 		kv["type"] = "ingress.event.procend"
 	}
 
-	kv["command_line"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
+	kv["cmdline"] = util.GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
 
 	om := message.OriginalMessage
 

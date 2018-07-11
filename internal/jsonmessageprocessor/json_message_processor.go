@@ -81,19 +81,51 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 	parsedQuery = queryArray[0]
 	return
 }
+func handleKeyValues(msg map[string] interface{}) {
 
-func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string]interface{}) {
-	// go through each key and fix up as necessary
-
+	var alliance_data_map map[string] map[string] interface{} = make(map[string] map[string] interface{},0)
 	for key, value := range msg {
 		switch {
+		case strings.Contains(key,"alliance_"):
+			alliance_data := strings.Split(key,"_")
+			alliance_data_source := alliance_data[2]
+			alliance_data_key := alliance_data[1]
+			alliance_map, alreadyexists := alliance_data_map[alliance_data_source]
+			if alreadyexists {
+				alliance_map[alliance_data_key] = value
+			} else {
+				temp := make(map[string] interface{})
+				temp[alliance_data_key] = value
+				alliance_data_map[alliance_data_source] = temp
+			}
+			delete(msg,key)
+		case key == "endpoint":
+			endpointstr := ""
+			switch value.(type) {
+				case string:
+					endpointstr = value.(string)
+				case [] interface{}:
+					endpointstr = value.([]interface{})[0].(string)
+			}
+			parts := strings.Split(endpointstr,"|")
+			hostname := parts[0]
+			nodeID := parts[1]
+			msg["hostname"] = hostname
+			msg["node_id"] = nodeID
+			delete(msg,"endpoint")
+		case key == "highlights_by_doc":
+			delete(msg,"highlights_by_doc")
 		case key == "highlights":
 			delete(msg, "highlights")
-		case key == "event_timestamp":
+		/*case key == "event_timestamp":
 			msg["timestamp"] = value
-			delete(msg, "event_timestamp")
-		case key == "hostname":
-			msg["computer_name"] = value
+			delete(msg, "event_timestamp")*/
+		case key == "timestamp":
+			msg["event_timestamp"] = value
+			delete(msg,"timestamp")
+		case key == "computer_name":
+			msg["hostname"] = value
+			delete(msg, "computer_name")
 		case key == "md5" || key == "parent_md5" || key == "process_md5":
 			if md5, ok := value.(string); ok {
 				if len(md5) == 32 {
@@ -138,6 +170,14 @@ func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string
 			}
 		}
 	}
+	if len(alliance_data_map) > 0 {
+		msg["alliance_data"] = alliance_data_map
+	}
+}
+func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string]interface{}) {
+	// go through each key and fix up as necessary
+
+	handleKeyValues(msg)
 
 	hasprocessGUID := false
 
@@ -249,15 +289,20 @@ func (jsp *JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, 
 	if val, ok := msg["docs"]; ok {
 		subdocs := deepcopy.Iface(val).([]interface{})
 		delete(msg, "docs")
-
 		for _, submsg := range subdocs {
 			submsg := submsg.(map[string]interface{})
 			newMsg := deepcopy.Iface(msg).(map[string]interface{})
-			newSlice := make([]map[string]interface{}, 0, 1)
-			newDoc := deepcopy.Iface(submsg).(map[string]interface{})
-			jsp.fixupMessage(routingKey, newDoc)
-			newSlice = append(newSlice, newDoc)
-			newMsg["docs"] = newSlice
+			//newSlice := make([]map[string]interface{}, 0, 1)
+			//newDoc := deepcopy.Iface(submsg).(map[string]interface{})
+			//jsp.fixupMessage(routingKey, newDoc)
+			//newSlice = append(newSlice, newDoc)
+			//old way newMsg["docs"] = newSlice
+			handleKeyValues(submsg)
+			for k, v := range submsg {
+				if k != "event_timestamp" && k != "cb_version" {
+					newMsg[k] = v
+				}
+			}
 			msgs = append(msgs, newMsg)
 		}
 	} else {
@@ -274,15 +319,11 @@ func (jsp *JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, 
  */
 func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
-	if val, ok := msg["type"]; ok {
-		messageType := val.(string)
-
-		if strings.HasPrefix(messageType, "feed.") {
 			feedID, feedIDPresent := msg["feed_id"]
 			reportID, reportIDPresent := msg["report_id"]
 
 			/*
-			 * First make sure these fields are present
+:/p			 * First make sure these fields are present
 			 */
 			if feedIDPresent && reportIDPresent {
 				/*
@@ -321,9 +362,6 @@ func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface
 					log.Info("Feed Id was an unexpected type")
 				}
 			}
-		}
-
-	}
 	return msg
 }
 
@@ -331,7 +369,7 @@ func MarshalJSON(msgs []map[string]interface{}) (string, error) {
 	var ret string
 
 	for _, msg := range msgs {
-		msg["cb_server"] = "cbserver"
+		//msg["cb_server"] = "cbserver"
 		marshaled, err := json.Marshal(msg)
 		if err != nil {
 			return "", err
