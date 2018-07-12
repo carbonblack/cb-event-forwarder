@@ -1,21 +1,40 @@
 package filter
+
 //package main
 
 import (
 	"bytes"
-	"text/template"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
-	"encoding/json"
+	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	log "github.com/sirupsen/logrus"
-	"os"
 	"strings"
+	"text/template"
 )
+
+type Filter struct {
+	FilterTemplate *template.Template
+}
+
+func NewFilter(filterString, filterPlugin, pluginPath string) *Filter {
+	var filterTemplate *template.Template = nil
+	var err error = nil
+	if filterPlugin != "" {
+		log.Info("!!!LOADING FILTER PLUGIN!!!")
+		filterTemplate, err = template.New("TemplatFilter").Funcs(util.LoadFuncMapFromPlugin(pluginPath, filterPlugin)).Parse(filterString)
+	} else {
+		filterTemplate, err = template.New("TemplateFilter").Parse(filterString)
+	}
+	if err != nil {
+		log.Panicf("Error constructing event filter: %v", err)
+	}
+	f := Filter{FilterTemplate: filterTemplate}
+	return &f
+}
 
 //boolean returns false if the message should be discarded by the event forwarder
 //FILTER RETURN VALUES: "KEEP" to keep a msg, "DROP" to drop a message all other returns get DROPPED
-func FilterWithTemplate(msg map[string]interface{}, template *template.Template) bool {
+func (f *Filter) FilterEvent(msg map[string]interface{}) bool {
 	var doc bytes.Buffer
-	err := template.Execute(&doc, msg)
+	err := f.FilterTemplate.Execute(&doc, msg)
 	if err == nil {
 		msg_str := strings.TrimSpace(doc.String())
 		keep := msg_str == "KEEP"
@@ -34,19 +53,17 @@ func FilterWithTemplate(msg map[string]interface{}, template *template.Template)
 	}
 }
 
-func main() {
-	log.Infof("Starting filter test")
-	var msgDict map[string]interface{}
-	config, err := conf.ParseConfig(os.Args[1])
-	if err == nil {
-		m := "{\"k\": {\"k\":\"v\"}}"
-		json.Unmarshal([] byte (m), &msgDict)
-		keepEvent := true
-		if config.FilterEnabled {
-			keepEvent = FilterWithTemplate(msgDict, config.FilterTemplate)
-			log.Infof("Filter result :  %t ", keepEvent)
+func GetFilterFromCfg(cfg map[interface{}]interface{}) *Filter {
+	log.Infof("Trying to load filter from cfg")
+	if filter, ok := cfg["template"]; ok {
+		if filterPlugin, ok := cfg["plugin"]; ok {
+			if pluginPath, ok := cfg["plugin_path"]; ok {
+				return NewFilter(filter.(string), filterPlugin.(string), pluginPath.(string))
+			}
+			//default plugin path
+			return NewFilter(filter.(string), filterPlugin.(string), ".")
 		}
-	} else {
-		log.Warn("%v",err)
+		return NewFilter(filter.(string), "", ".")
 	}
+	return nil //template section is optional
 }

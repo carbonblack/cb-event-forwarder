@@ -5,11 +5,10 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,15 +21,21 @@ type BufferOutput struct {
 }
 
 type FileOutput struct {
-	config              conf.Configuration
-	outputFileName      string
-	outputFileExtension string
-	outputFile          io.WriteCloser
-	outputGzWriter      *gzip.Writer
-	fileOpenedAt        time.Time
-	lastRolledOver      time.Time
+	OutputFileName     string
+	OutputFile         io.WriteCloser
+	OutputFileGzWriter *gzip.Writer
+	FileOpenedAt       time.Time
+	LastRolledOver     time.Time
+	BufferOutput       BufferOutput
+	CompressData       bool
 	sync.RWMutex
-	bufferOutput BufferOutput
+	Encoder encoder.Encoder
+}
+
+func NewFileOutputHandler(outputFileName string, e encoder.Encoder) FileOutput {
+	f := FileOutput{Encoder: e, CompressData: strings.HasSuffix(outputFileName, ".gz"), OutputFileName: outputFileName}
+	f.OpenFileForWriting()
+	return f
 }
 
 type FileStatistics struct {
@@ -42,37 +47,33 @@ func (o *FileOutput) Statistics() interface{} {
 	o.RLock()
 	defer o.RUnlock()
 
-	return FileStatistics{LastOpenTime: o.fileOpenedAt, FileName: o.outputFileName}
+	return FileStatistics{LastOpenTime: o.FileOpenedAt, FileName: o.OutputFileName}
 }
 
 func (o *FileOutput) Key() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("file:%s", o.outputFileName)
+	return fmt.Sprintf("file:%s", o.OutputFileName)
 }
 
-func (o *FileOutput) Initialize(fileName string, config conf.Configuration) error {
+func (o *FileOutput) OpenFileForWriting() error {
 	o.Lock()
 	defer o.Unlock()
 
-	o.config = config
-
-	o.outputFileName = fileName
-
-	o.fileOpenedAt = time.Time{}
-	o.lastRolledOver = time.Now()
+	o.FileOpenedAt = time.Time{}
+	o.LastRolledOver = time.Now()
 	o.closeFile()
 
 	// if the output file already exists, let's roll it over to start from scratch
-	fp, err := os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+	fp, err := os.OpenFile(o.OutputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 	if err != nil {
 		if os.IsExist(err) {
 			// the output file already exists, try to roll it over
 			o.rollOverRename("2006-01-02T15:04:05.000.restart")
 
 			// try again
-			fp, err = os.OpenFile(o.outputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
+			fp, err = os.OpenFile(o.OutputFileName, os.O_RDWR|os.O_EXCL|os.O_CREATE, 0644)
 			if err != nil {
 				// give up if we still have an error
 				return err
@@ -83,51 +84,46 @@ func (o *FileOutput) Initialize(fileName string, config conf.Configuration) erro
 		}
 	}
 
-	if o.config.FileHandlerCompressData != false {
+	if o.CompressData != false {
 		log.Info("File handler configured to compress data")
-		o.outputGzWriter = gzip.NewWriter(fp)
+		o.OutputFileGzWriter = gzip.NewWriter(fp)
 	}
-	o.outputFile = fp
+	o.OutputFile = fp
 
-	o.fileOpenedAt = time.Now()
-	o.lastRolledOver = time.Now()
-	o.bufferOutput.lastFlush = time.Now()
+	o.FileOpenedAt = time.Now()
+	o.LastRolledOver = time.Now()
+	o.BufferOutput.lastFlush = time.Now()
 
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
-	if o.outputFile == nil {
+func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
+	if o.OutputFile == nil {
 		return errors.New("No output file specified")
 	}
 
 	go func() {
+		wg.Add(1)
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
-		hup := make(chan os.Signal, 1)
-		signal.Notify(hup, syscall.SIGHUP)
-
-		term := make(chan os.Signal, 1)
-		signal.Notify(term, syscall.SIGTERM)
-		signal.Notify(term, syscall.SIGINT)
-
 		defer o.closeFile()
 		defer o.flushOutput(true)
-		defer signal.Stop(hup)
-		defer signal.Stop(term)
-
+		defer wg.Done()
 		for {
-
+			//log.Infof("FILE HANDLER SELECT LOOP has control chan %s!", controlchan)
 			select {
 			case message := <-messages:
-				if err := o.output(message); err != nil {
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					if err := o.output(encodedMsg); err != nil {
+						errorChan <- err
+						return
+					}
+				} else {
 					errorChan <- err
-					return
 				}
 
 			case <-refreshTicker.C:
-				if o.lastRolledOver.Day() != time.Now().Day() {
+				if o.LastRolledOver.Day() != time.Now().Day() {
 					if _, err := o.rollOverFile("20060102"); err != nil {
 						errorChan <- err
 						return
@@ -135,19 +131,21 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				}
 				o.flushOutput(false)
 
-			case <-hup:
-				// reopen file
-				log.Info("Received SIGHUP, Rolling over file now.")
-				if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
-					errorChan <- err
+			case cmsg := <-controlchan:
+				log.Infof("Fileoutput got %s over controlchan", cmsg)
+				switch cmsg {
+				case syscall.SIGHUP:
+					// reopen file
+					log.Info("Received SIGHUP, Rolling over file now.")
+					if _, err := o.rollOverFile("2006-01-02T15:04:05.000"); err != nil {
+						errorChan <- err
+						return
+					}
+				case syscall.SIGTERM, syscall.SIGINT:
+					// handle exit gracefully
+					log.Info("Received a signal to terminate. Exiting gracefully")
 					return
 				}
-
-			case <-term:
-				// handle exit gracefully
-				log.Info("Received SIGTERM. Exiting")
-				errorChan <- errors.New("SIGTERM received")
-				return
 			}
 		}
 	}()
@@ -159,7 +157,7 @@ func (o *FileOutput) String() string {
 	o.RLock()
 	defer o.RUnlock()
 
-	return fmt.Sprintf("File %s", o.outputFileName)
+	return fmt.Sprintf("File %s", o.OutputFileName)
 }
 
 func (o *FileOutput) flushOutput(force bool) error {
@@ -168,28 +166,28 @@ func (o *FileOutput) flushOutput(force bool) error {
 	 * 1000000ns = 1ms
 	 */
 
-	if time.Since(o.bufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
+	if time.Since(o.BufferOutput.lastFlush).Nanoseconds() > 100000000 || force {
 
-		if o.config.FileHandlerCompressData && o.outputGzWriter != nil {
+		if o.CompressData && o.OutputFileGzWriter != nil {
 
-			_, err := o.outputGzWriter.Write(o.bufferOutput.buffer.Bytes())
-			o.outputGzWriter.Flush()
+			_, err := o.OutputFileGzWriter.Write(o.BufferOutput.buffer.Bytes())
+			o.OutputFileGzWriter.Flush()
 
 			if err != nil {
 				return err
 			}
 
-			o.bufferOutput.buffer.Reset()
-			o.bufferOutput.lastFlush = time.Now()
+			o.BufferOutput.buffer.Reset()
+			o.BufferOutput.lastFlush = time.Now()
 			return nil
 
-		} else if o.outputFile != nil {
-			_, err := o.outputFile.Write(o.bufferOutput.buffer.Bytes())
+		} else if o.OutputFile != nil {
+			_, err := o.OutputFile.Write(o.BufferOutput.buffer.Bytes())
 			if err != nil {
 				return err
 			}
-			o.bufferOutput.buffer.Reset()
-			o.bufferOutput.lastFlush = time.Now()
+			o.BufferOutput.buffer.Reset()
+			o.BufferOutput.lastFlush = time.Now()
 			return nil
 		}
 	}
@@ -200,7 +198,7 @@ func (o *FileOutput) output(s string) error {
 	/*
 	 * Write to our buffer first
 	 */
-	o.bufferOutput.buffer.WriteString(s + "\n")
+	o.BufferOutput.buffer.WriteString(s + "\n")
 	err := o.flushOutput(false)
 	return err
 }
@@ -208,25 +206,27 @@ func (o *FileOutput) output(s string) error {
 func (o *FileOutput) rollOverFile(tf string) (string, error) {
 	o.closeFile()
 
+	log.Infof("Rolling over file with format string: %s", tf)
+
 	newName, err := o.rollOverRename(tf)
 	if err != nil {
 		return "", err
 	}
 
-	return newName, o.Initialize(o.outputFileName, o.config)
+	return newName, o.OpenFileForWriting()
 }
 
 func (o *FileOutput) rollOverRename(tf string) (string, error) {
 	var newName string
-	if o.config.FileHandlerCompressData == true {
-		fileNameWithoutExtension := strings.TrimSuffix(o.outputFileName, ".gz")
-		newName = fileNameWithoutExtension + "." + o.lastRolledOver.Format(tf) + ".gz"
+	if o.CompressData == true {
+		fileNameWithoutExtension := strings.TrimSuffix(o.OutputFileName, ".gz")
+		newName = fileNameWithoutExtension + "." + o.LastRolledOver.Format(tf) + ".gz"
 	} else {
-		newName = o.outputFileName + "." + o.lastRolledOver.Format(tf)
+		newName = o.OutputFileName + "." + o.LastRolledOver.Format(tf)
 	}
 
-	log.Infof("Rolling file %s to %s", o.outputFileName, newName)
-	err := os.Rename(o.outputFileName, newName)
+	log.Infof("Rolling file %s to %s", o.OutputFileName, newName)
+	err := os.Rename(o.OutputFileName, newName)
 	if err != nil {
 		return "", err
 	}
@@ -235,16 +235,14 @@ func (o *FileOutput) rollOverRename(tf string) (string, error) {
 }
 
 func (o *FileOutput) closeFile() {
-	if o.outputGzWriter != nil {
+	if o.OutputFileGzWriter != nil {
 		o.flushOutput(true)
-		o.outputGzWriter.Close()
-		o.outputGzWriter = nil
-	}
-	if o.outputFile != nil {
+		o.OutputFileGzWriter.Close()
+		o.OutputFileGzWriter = nil
+	} else if o.OutputFile != nil {
 		o.flushOutput(true)
-		log.Debugf("Closing file %s", o.outputFileName)
-		o.outputFile.Close()
-		o.outputFile = nil
+		o.OutputFile.Close()
+		o.OutputFile = nil
 	}
 
 }
