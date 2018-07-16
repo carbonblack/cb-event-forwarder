@@ -52,10 +52,7 @@ type CbEventForwarder struct {
  */
 
 func (cbef *CbEventForwarder) OutputMessage(msg map[string]interface{}) error {
-
-	log.Infof("Cb event forardering processing message %s", msg)
 	var err error
-
 	//
 	// Marshal result into the correct output format
 	//
@@ -74,21 +71,19 @@ func (cbef *CbEventForwarder) OutputMessage(msg map[string]interface{}) error {
 	//Apply Event Filter if specified
 	keepEvent := true
 	if cbef.Filter != nil {
-		log.Debugf("Filtering Events!!!")
 		keepEvent = cbef.Filter.FilterEvent(msg)
 	}
 
 	if keepEvent {
 
 		if len(msg) > 0 && err == nil {
-			log.Infof("cbef.status.OutputEventCount is %s", cbef.Status.OutputEventCount)
 			cbef.Status.OutputEventCount.Add(1)
 			for _, r := range cbef.Results {
 				select {
 				case r <- msg:
-					log.Infof("Sent event...")
+					log.Debugf("Sent event...")
 				default:
-					log.Infof("Dropping event for output because channel send failed/timedout... %s", msg)
+					log.Debugf("Dropping event for output because channel send failed/timedout... %s", msg)
 				}
 			}
 		} else if err != nil {
@@ -96,16 +91,14 @@ func (cbef *CbEventForwarder) OutputMessage(msg map[string]interface{}) error {
 		}
 	} else { //EventDropped due to filter
 		cbef.Status.FilteredEventCount.Add(1)
-		log.Infof("Filtered Event %d", cbef.Status.FilteredEventCount)
+		log.Debugf("Filtered Event %d", cbef.Status.FilteredEventCount)
 	}
-	log.Infof("Done outputing message")
 	return nil
 }
 
 func (cbef *CbEventForwarder) InputFileProcessingLoop(inputFile string) <-chan error {
 	errChan := make(chan error)
 	go func() {
-
 		log.Debugf("Opening input file : %s", inputFile)
 		_, deliveries, err := consumer.NewFileConsumer(inputFile)
 		if err != nil {
@@ -147,21 +140,20 @@ func (cbef *CbEventForwarder) startExpvarPublish() {
 		}))
 }
 
+//Terminate consumers
+
 func (cbef *CbEventForwarder) TerminateConsumers() {
-	log.Infof("CB event forwarder %s trying to stop consumers", cbef.Name)
+	log.Debugf("%s trying to stop consumers...", cbef.Name)
 	for _, consumer := range cbef.Consumers {
-		log.Infof("Consumer = %s stopchan = %s", consumer.CbServerName, &consumer.Stopchan)
+		log.Debugf("Consumer = %s stopchan = %s", consumer.CbServerName, &consumer.Stopchan)
 		consumer.Stopchan <- struct{}{}
 	}
-	log.Infof("terminate consumers exiting")
 }
 
+// launch the amqp consumer goroutines
 func (cbef *CbEventForwarder) LaunchConsumers() {
-
-	log.Infof("Consumer wait group := %s", cbef.ConsumerWaitGroup)
-
 	for _, c := range cbef.Consumers {
-		log.Infof("CBef: %s launching consumer %s", cbef.Name, c.CbServerName)
+		log.Infof("%s launching amqp consumer %s", cbef.Name, c.CbServerName)
 		c.Consume()
 	}
 }
@@ -178,7 +170,7 @@ func (cbef *CbEventForwarder) StartOutputs() error {
 		if err := outputHandler.Go(cbef.Results[i], cbef.OutputErrors, *cbef.Controlchans[i], cbef.OutputWaitGroup); err != nil {
 			return err
 		}
-		log.Infof("Initialized output: %s ", outputHandler.String())
+		log.Infof("Successfully Initialized output: %s ", outputHandler.String())
 
 		go func() {
 			select {
@@ -193,7 +185,7 @@ func (cbef *CbEventForwarder) StartOutputs() error {
 func conversionFailure(i interface{}) {
 	switch t := i.(type) {
 	default:
-		log.Infof("Failed to convert %T %s", t, t)
+		log.Errorf("Failed to convert %T %s", t, t)
 	}
 }
 
@@ -209,7 +201,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 		debugStore = t.(string)
 	}
 
-	log.Infof("Trying to load event forwarder for config: %s", config)
+	log.Debugf("Trying to load event forwarder for config: %s", config)
 
 	outputE := make(chan error)
 
@@ -234,7 +226,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 	outputcontrolchannels := make([]*chan os.Signal, len(outputconfigs))
 	i := 0
 	for i < len(outputconfigs) {
-		res[i] = make(chan map[string]interface{}, 100)
+		res[i] = make(chan map[string]interface{})
 		controlchan := make(chan os.Signal, 2)
 		outputcontrolchannels[i] = &controlchan
 		i++
@@ -244,7 +236,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 	if err != nil {
 		log.Panicf("ERROR PROCESSING OUTPUT CONFIGURATIONS %v", err)
 	} else {
-		log.Infof("Found %d ouputs", len(outputs))
+		log.Infof("Found %d ouputs...", len(outputs))
 	}
 
 	addToOutput := make(map[string]interface{})
@@ -264,12 +256,9 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 		}
 	}
 
-	name := ""
+	name := "cb-event-forwarder"
 	if n, ok := config["name"]; ok {
 		name = n.(string)
-	} else {
-		log.Panicf("Must provide a name for each event-forwarder in configuration file")
-
 	}
 
 	cbef := CbEventForwarder{Controlchans: outputcontrolchannels, AddToOutput: addToOutput, RemoveFromOutput: removeFromOutput, Name: name, Outputs: outputs, Filter: myfilter, OutputErrors: outputE, Results: res, Config: config, Status: Status{ErrorCount: expvar.NewInt("cbef_error_count"), FilteredEventCount: expvar.NewInt("filtered_event_count"), OutputEventCount: expvar.NewInt("output_event_count")}}
@@ -280,7 +269,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 
 	for cbServerNameI, consumerConf := range consumerconfigs {
 		cbServerName := cbServerNameI.(string)
-		log.Infof("%s , %s ", cbServerName, consumerConf)
+		log.Debugf("%s , %s ", cbServerName, consumerConf)
 		consumerConfMap, ok := consumerConf.(map[interface{}]interface{})
 		if !ok {
 			conversionFailure(consumerConf)
@@ -337,7 +326,7 @@ func (cbef *CbEventForwarder) Go(sigs chan os.Signal, inputFile *string) {
 		log.Info("cb-event forwarder running...")
 		select {
 		case sig := <-sigs:
-			log.Infof("Signal handler got Signal %s ", sig)
+			log.Debugf("Signal handler got Signal %s ", sig)
 			switch sig {
 			case syscall.SIGTERM, syscall.SIGINT:
 				//termiante consumers, then outputs

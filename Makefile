@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.4
-VERSION := 3.4
+GIT_VERSION := 4.0
+VERSION := 4.0
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 
 .PHONY: clean test rpmbuild rpminstall build rpm
@@ -16,7 +16,7 @@ dep-ensure:
 	dep ensure
 
 build-plugins: dep-ensure
-	go build -buildmode=plugin -o plugins/output/kafka/kafka_output.so plugins/output/kafka/kafka_output.go     
+	go build -buildmode=plugin -tags static -o plugins/output/kafka/kafka_output.so plugins/output/kafka/kafka_output.go     
 	go build -buildmode=plugin -o plugins/encoder/basic/basic_encoder.so plugins/encoder/basic/basic_encoder.go     
 	go build -buildmode=plugin -o plugins/filter/basic/basic_filter.so plugins/filter/basic/basic_filter.go     
 	go build -buildmode=plugin -o plugins/output/hdfs/hdfs_output.so plugins/output/hdfs/hdfs_output.go     
@@ -36,7 +36,6 @@ rpmbuild:
 	go generate ./internal/sensor_events; \
 	dep ensure; \
 	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
-
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -82,4 +81,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 4' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 0' -bb cb-event-forwarder.rpm.spec

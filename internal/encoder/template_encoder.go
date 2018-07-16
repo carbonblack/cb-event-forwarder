@@ -110,7 +110,6 @@ func ParseTime(t string, format string) (string, error) {
 }
 
 func GetEncoderFromCfg(cfg map[interface{}]interface{}) (Encoder, error) {
-	log.Info("GetEncoder from CFG ")
 	if t, ok := cfg["type"]; ok {
 		switch t.(string) {
 		case "leef":

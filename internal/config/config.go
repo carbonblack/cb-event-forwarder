@@ -22,7 +22,7 @@ func LoadFile(filename string) (map[string]interface{}, error) {
 		yaml.Unmarshal(content, &i)
 		switch t := i.(type) {
 		default:
-			log.Infof(fmt.Sprintf("Real type of yaml object is %T %s", t, i))
+			log.Debugf(fmt.Sprintf("Real type of yaml object is %T %s", t, i))
 		}
 		return conf, err
 	}
@@ -32,7 +32,7 @@ func LoadFile(filename string) (map[string]interface{}, error) {
 func ParseConfig(fn string) (map[string]interface{}, error) {
 	//errs := ConfigurationError{Empty: true}
 	config, err := LoadFile(fn)
-	log.Infof("configs from load file = %s \n err = %s \n ", config, err)
+	log.Debugf("configs from load file = %s \n err = %s \n ", config, err)
 	return config, err
 }
 
@@ -98,7 +98,7 @@ func GetTLSConfigFromCfg(cfg map[interface{}]interface{}) (*tls.Config, error) {
 		log.Info("Enforcing minimum TLS version 1.2")
 		tlsConfig.MinVersion = tls.VersionTLS12
 	} else {
-		log.Info("Relaxing minimum TLS version to 1.0")
+		log.Warn("Relaxing minimum TLS version to 1.0")
 		tlsConfig.MinVersion = tls.VersionTLS10
 	}
 

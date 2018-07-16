@@ -65,7 +65,7 @@ func main() {
 			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/static/", 301)
 			})
-			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, httpserverport)
+			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, *httpserverport)
 			break
 		}
 	}
@@ -103,7 +103,9 @@ func main() {
 		os.Exit(0)
 	}
 
+	log.SetLevel(log.InfoLevel)
 	if *debug {
+		log.SetLevel(log.DebugLevel)
 		http.HandleFunc(fmt.Sprintf("/debug/sendmessage"), func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "POST" {
 				msg := make([]byte, r.ContentLength)

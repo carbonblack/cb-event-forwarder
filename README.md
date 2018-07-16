@@ -1,19 +1,5 @@
 # Cb Response Event Forwarder
 
-## NEW FOR 4.0
-
-* Yaml Configuration
-    * The configuration format has been changed from .ini to .yaml. use `key: v` rather than `key=value` format.
-* Multilple Forwarders 
-    * Run multiple event forwarders 
-* Modular Output Plugins
-    * Users can write their own modular outputs for the event forwarder, without commiting source upstream.
-    * The existing kafka-output has been removed and replaced with a kafka-output plugin using go-kafka-confluent
-* Template Encoders For Formatting Output 
-    * Users can configure Go-template driven formatting for their Cb Event messages 
-* Event Filtering
-    * Users can configure Go-Template driven filtering for their Cb Event messages
-
 ## Overview
 
 The Cb Response Event Forwarder is a standalone service that will listen on the Cb Response enterprise bus and export
@@ -25,6 +11,46 @@ The list of events to collect is configurable.
 By default all feed and watchlist hits, alerts, binary notifications, and raw sensor events are exported into JSON.  The
 configuration file for the connector is stored in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf`.
 
+
+The 4.0 Cb Event Forwarder has a three part processing pipeline:
+
+1) input - this section defines a number of consumers each reading from a specific CbR server messaging bus
+```
+input: 
+    cbserver1:
+        cb_server_url: https://zestep-centos-cbresponseserver 
+        rabbit_mq_username: cb
+        rabbit_mq_hostname: localhost
+        rabbit_mq_password:  
+```
+2) filter - this section of the pipeline defines an optional template for keeping/droping messages based on their contents. 
+```
+filter:
+    template: >-
+              {{if (eq .type "alert.watchlist.hit.query.binary") -}}
+                KEEP
+              {{- else -}}
+                DROP
+              {{- end}}
+```
+
+3) output - this section defines a number of outputs, which can be of differing types (file,socket, etc)  and formats (json,LEEF, custom)
+```
+output:
+    - file:
+        path: "output-json.txt"
+        format:
+            type: json 
+    - file:
+        path: "output-leef.txt"
+        format:
+            type: leef 
+    - file:
+        path: "output-yaml.txt"
+        format:
+            type: template 
+            template: "{{YamlFormat .}}"
+```
 ## Support
 
 The pre-built RPM is supported via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
@@ -85,7 +111,7 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing raw sensor events then you also need to edit the `DatastoreBroadcastEventTypes` option in 
 `/etc/cb/cb.conf` to enable broadcast of the raw sensor events you wish to export.
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
-`/etc/cb/cb.conf` and set it to `True`.
+`/etc/cb/cb.conf` and set it to true.
 
 Cb Response needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
 `service cb-enterprise restart`. 
@@ -129,7 +155,7 @@ For more information on the LEEF format, see the [Events documentation](EVENTS.m
 The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder`. An example of a successful startup log:
 
 ```
-2015/12/07 12:57:26 cb-event-forwarder version 3.0.0 starting
+2015/12/07 12:57:26 cb-event-forwarder version 4.0.0 starting
 2015/12/07 12:57:26 Interface address 172.22.10.7
 2015/12/07 12:57:26 Interface address fe80::20c:29ff:fe85:bcd0
 2015/12/07 12:57:26 Configured to capture events: [watchlist.hit.# watchlist.storage.hit.# feed.ingress.hit.# 
@@ -219,7 +245,9 @@ output from the JSON status is shown below:
 
 ## Building from source
 
-It is recommended to use golang 1.6.4.
+It is recommended to use the latest avialable golang toolchain for your environment
+
+Go-Plugin support is crucial to the plugin implementation and is subject to bugs in MacOSX, therefore plugins can not be at present supported on that system. (Although the forwarder as a whole, and the standard outoputs will work just fine)
 
 Setup your GOPATH environment variable.
 See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
@@ -232,38 +260,3 @@ go get ./...
 go build
 ```
 
-## Event Filtering
-
-The 4.X event forwarder supports custom filter defintions via golang's templating language to filter the stream of Cb Event Messages coming over the event-forwarder.
-
-```
-filter:
-    enabled: true
-    template: >-
-              {{if (eq .type "alert.watchlist.hit.query.binary") -}}
-                KEEP
-              {{- else -}}
-                DROP
-              {{- end}}
-```
-
-##Encoders / Formating Events with Templates
-
-The 4.X event forwarder supports custom event formatting defintions using golang's templating language to format the stream of Cb Event Messages coming over the event-forwarder based on template configured by the user.
-
-Below is an example using the yaml syntax >- to open a whitespace clipped multi-line string sans-quotes. 
-
-```
-output_format: template
-encoder:
-    template: >- 
-              {{$cbmsg := . }}
-              {{- JsonFormat $cbmsg -}  
-```
-
-The templates involve the 
-## Changelog
-
-This connector has been completely rewritten for version 4.0.0 for greatly enhanced reliability, performance, customization and deployment at scale. 
-See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) 
-for more information on new features introduced with each new version and upgrading from cb-event-forwarder 4.x.

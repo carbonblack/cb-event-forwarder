@@ -98,13 +98,13 @@ func (c *Consumer) Consume() {
 			for w := 0; w < numProcessors; w++ {
 				stopchan := make(chan struct{})
 				workersstopchans[w] = stopchan
-				log.Infof("Launching AMQP message processor %d goroutine w/ deliveries = %s", w, c.deliveries)
+				log.Debugf("Launching AMQP message processor %d goroutine w/ deliveries = %s", w, c.deliveries)
 				go func() {
 					defer wg.Done()
 					for {
 						select {
 						case d := <-c.deliveries:
-							log.Infof("AMQP WORKING PROCESSING DELIVERY")
+							log.Debugf("AMQP WORKING PROCESSING DELIVERY")
 							c.processMessage(d.Body,
 								d.RoutingKey,
 								d.ContentType,
@@ -118,7 +118,7 @@ func (c *Consumer) Consume() {
 				}()
 			}
 
-			log.Infof("AMQP LOOP GOING TO SELECT stopchan is %s", &c.Stopchan)
+			log.Debugf("AMQP LOOP GOING TO SELECT stopchan is %s", &c.Stopchan)
 
 			for {
 				select {
@@ -127,27 +127,27 @@ func (c *Consumer) Consume() {
 					c.status.LastConnectError = closeError.Error()
 					c.status.ErrorTime = time.Now()
 					log.Errorf("Connection closed: %s", closeError.Error())
-					log.Info("Waiting for all workers to exit")
+					log.Debug("Waiting for all workers to exit")
 					wg.Wait()
-					log.Info("All workers have exited")
+					log.Debug("All workers have exited")
 				case <-c.Stopchan:
-					log.Infof("Consumer told to stop - stopping workers")
+					log.Debug("Consumer told to stop - stopping workers")
 					for _, workerstopchan := range workersstopchans {
 						workerstopchan <- struct{}{}
 					}
 					c.Shutdown()
-					log.Info("Consumer - Waiting for workers to complete - ")
+					log.Debug("Consumer - Waiting for workers to complete - ")
 					wg.Wait()
-					log.Info("Consumer - all workers done -  Signalling cbef waitgroup done")
+					log.Debug("Consumer - all workers done -  Signalling cbef waitgroup done")
 					c.wg.Done()
 					return
 				}
 			}
 			//wait and reconnect
-			log.Infof("Loop exited for unknown reason")
+			log.Debug("Loop exited for unknown reason")
 			c.Shutdown()
 			wg.Wait()
-			log.Infof("Loop exited - Will try again in 30 seconds")
+			log.Debug("Loop exited - Will try again in 30 seconds")
 			time.Sleep(30 * time.Second)
 		}
 	}()
@@ -175,6 +175,7 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string, wg sync.WaitGroup) (*Consumer, error) {
 	var consumerTlsCfg *tls.Config = nil
 	if temp, ok := consumerCfg["tls"]; ok {
+		log.Debugf("Trying to get tls config for amqp consumer...")
 		tlsCfg := temp.(map[interface{}]interface{})
 		tls_ca_cert := ""
 		if temp, ok := tlsCfg["ca_cert"]; ok {
@@ -385,14 +386,14 @@ func (c *Consumer) Connect() error {
 	var err error
 
 	if c.tls != nil {
-		log.Info("Connecting to message bus via TLS...")
+		log.Debug("Connecting to message bus via TLS...")
 		c.Conn, err = amqp.DialTLS(c.amqpURI, c.tls)
 
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Info("Connecting to message bus...")
+		log.Debug("Connecting to message bus...")
 		c.Conn, err = amqp.Dial(c.amqpURI)
 
 		if err != nil {
@@ -531,7 +532,6 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 }
 
 func (c *Consumer) processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	log.Infof("In process message!")
 	c.status.InputEventCount.Add(1)
 
 	var err error

@@ -22,7 +22,7 @@ func TestFileOutput(t *testing.T) {
 	outputDir := "../test_output/real_output_file/"
 	os.MkdirAll(outputDir, 0755)
 	testEncoder := encoder.NewJSONEncoder()
-	outputHandler := output.NewFileOutputHandler(outputDir+"file.out", &testEncoder)
+	outputHandler := output.NewFileOutputHandler(outputDir+"file.out", 50000000, time.Duration(50000)*time.Second, &testEncoder)
 	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, nil, nil)
 }
 
@@ -102,7 +102,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func TestHttpOutput(t *testing.T) {
 	testEncoder := encoder.NewJSONEncoder()
 	httpBundleBehavior, _ := output.NewHTTPBehavior("", "http://127.0.0.1:51337/", make(map[string]string, 0), false, false, "", nil)
-	outputHandler, _ := output.NewBundledOutput(".", 500000, 30, false, true, "/tmp", &httpBundleBehavior, &testEncoder)
+	outputHandler, _ := output.NewBundledOutput(".", 5000000, 30, false, true, "/tmp", &httpBundleBehavior, &testEncoder)
 	t.Logf("Starting httpoutput test")
 	outputDir := "../test_output/real_output_http"
 	os.MkdirAll(outputDir, 0755)
@@ -158,7 +158,7 @@ func TestS3Output(t *testing.T) {
 	// "http://127.0.0.1:51337/"
 	testEncoder := encoder.NewJSONEncoder()
 	s3behavior := output.S3Behavior{Out: mocks3}
-	outputHandler, _ := output.NewBundledOutput(".", 500000, 30, false, true, "/tmp", &s3behavior, &testEncoder)
+	outputHandler, _ := output.NewBundledOutput(".", 500000, 300, false, true, "/tmp", &s3behavior, &testEncoder)
 	t.Logf("Starting s3output test")
 	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, &outputHandler, nil, nil)
 }

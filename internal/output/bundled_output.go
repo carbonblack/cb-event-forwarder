@@ -142,7 +142,7 @@ func NewBundledOutput(temp_file_directory string, bundle_size_max, bundle_send_t
 	}
 
 	currentPath := filepath.Join(tempBundledOutput.TempFileDirectory, "event-forwarder")
-	f := NewFileOutputHandler(currentPath, encoder)
+	f := NewFileOutputHandler(currentPath, bundle_size_max, tempBundledOutput.rollOverDuration, encoder)
 	tempBundledOutput.tempFileOutput = &f
 	// find files in the output directory that haven't been uploaded yet and add them to the list
 	// we ignore any errors that may occur during this process

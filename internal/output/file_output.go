@@ -28,12 +28,14 @@ type FileOutput struct {
 	LastRolledOver     time.Time
 	BufferOutput       BufferOutput
 	CompressData       bool
+	RollOverDuration   time.Duration
+	RollOverSizeBytes  int64
 	sync.RWMutex
 	Encoder encoder.Encoder
 }
 
-func NewFileOutputHandler(outputFileName string, e encoder.Encoder) FileOutput {
-	f := FileOutput{Encoder: e, CompressData: strings.HasSuffix(outputFileName, ".gz"), OutputFileName: outputFileName}
+func NewFileOutputHandler(outputFileName string, rolloversize int64, rolloverduration time.Duration, e encoder.Encoder) FileOutput {
+	f := FileOutput{Encoder: e, CompressData: strings.HasSuffix(outputFileName, ".gz"), OutputFileName: outputFileName, RollOverSizeBytes: rolloversize, RollOverDuration: rolloverduration}
 	f.OpenFileForWriting()
 	return f
 }
@@ -123,7 +125,15 @@ func (o *FileOutput) Go(messages <-chan map[string]interface{}, errorChan chan<-
 				}
 
 			case <-refreshTicker.C:
-				if o.LastRolledOver.Day() != time.Now().Day() {
+				if time.Now().Sub(o.LastRolledOver) >= o.RollOverDuration {
+					log.Info("FILEOUTPUT ROLLOVER DUE TO ELAPSED DURATION")
+					if _, err := o.rollOverFile("20060102"); err != nil {
+						errorChan <- err
+						return
+					}
+				}
+				if o.RollOverSizeBytes <= int64(o.BufferOutput.buffer.Len()) {
+					log.Info("FILEOUTPUT ROLLOVER DUE TO BUFFER SIZE")
 					if _, err := o.rollOverFile("20060102"); err != nil {
 						errorChan <- err
 						return

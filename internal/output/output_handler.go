@@ -9,7 +9,9 @@ import (
 	"os"
 	"path"
 	"plugin"
+	"strconv"
 	"sync"
+	"time"
 )
 
 type OutputHandler interface {
@@ -56,7 +58,24 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 					if !ok {
 						return temp, errors.New("Couldn't find path in file output section")
 					}
-					fo := NewFileOutputHandler(path.(string), myencoder)
+					var rolloverSizeBytes int64 = 500000
+					var rolloverDuration time.Duration
+					rollOverDuration, ok := outputMap["rollover_duration"]
+					if ok {
+						rolloverDuration = time.Duration(rollOverDuration.(int)) * time.Second
+
+					} else {
+						rolloverDuration = time.Duration(86400) * time.Second
+					}
+					rollOverSizeBytes, ok := outputMap["rollover_size_bytes"]
+					if ok {
+						s, err := strconv.ParseInt(rollOverSizeBytes.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						rolloverSizeBytes = s
+					}
+					fo := NewFileOutputHandler(path.(string), rolloverSizeBytes, rolloverDuration, myencoder)
 					tempOH = &fo
 				case "syslog":
 					connectionString, ok := outputMap["connection"]
@@ -95,10 +114,18 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						upload_empty_files = b.(bool)
 					}
 					if t, ok := outputMap["bundle_size_max"]; ok {
-						bundle_size_max = t.(int64)
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_size_max = s
 					}
-					if t, ok := outputMap["upload_empty_files"]; ok {
-						bundle_send_timeout = t.(int64)
+					if t, ok := outputMap["bundle_send_timeout"]; ok {
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_send_timeout = s
 					}
 					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
 					if err == nil {
@@ -119,10 +146,18 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						upload_empty_files = b.(bool)
 					}
 					if t, ok := outputMap["bundle_size_max"]; ok {
-						bundle_size_max = t.(int64)
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_size_max = s
 					}
-					if t, ok := outputMap["upload_empty_files"]; ok {
-						bundle_send_timeout = t.(int64)
+					if t, ok := outputMap["bundle_send_timeout"]; ok {
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_send_timeout = s
 					}
 					splunkBundleBehavior, err := SplunkBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
 					if err == nil {
@@ -139,10 +174,18 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						upload_empty_files = b.(bool)
 					}
 					if t, ok := outputMap["bundle_size_max"]; ok {
-						bundle_size_max = t.(int64)
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_size_max = s
 					}
-					if t, ok := outputMap["upload_empty_files"]; ok {
-						bundle_send_timeout = t.(int64)
+					if t, ok := outputMap["bundle_send_timeout"]; ok {
+						s, err := strconv.ParseInt(t.(string), 10, 64)
+						if err != nil {
+							log.Panicf("%v", err)
+						}
+						bundle_send_timeout = s
 					}
 					s3BundleBehavior, err := S3BehaviorFromCfg(outputMap)
 					if err == nil {
@@ -153,7 +196,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						tempOH = &bo
 					}
 				case "plugin":
-					log.Infof("plugin outputmap = %s", outputMap)
+					log.Debugf("plugin outputmap = %s", outputMap)
 					path, ok := outputMap["path"].(string)
 					if !ok {
 						return temp, errors.New("Couldn't find path in plugin output section")
@@ -168,10 +211,10 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						if c, ok := cm.(map[interface{}]interface{}); ok {
 							cfg = c
 						} else {
-							log.Infof("failed to conver plugin config")
+							log.Errorf("failed to convert plugin config")
 							switch t := cm.(type) {
 							default:
-								log.Infof("real type is %T for %s", t, c)
+								log.Errorf("real type is %T for %s", t, c)
 							}
 
 						}

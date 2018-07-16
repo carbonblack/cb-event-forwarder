@@ -325,7 +325,7 @@ func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface
 	reportID, reportIDPresent := msg["report_id"]
 
 	/*
-	:/p			 * First make sure these fields are present
+		:/p			 * First make sure these fields are present
 	*/
 	if feedIDPresent && reportIDPresent {
 		/*
