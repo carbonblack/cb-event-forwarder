@@ -583,8 +583,8 @@ func (c *Consumer) processMessage(body []byte, routingKey, contentType string, h
 
 	for _, msg := range msgs {
 		msg["cb_server"] = c.CbServerName
-        t, ok := msg["type"]
-		if c.PerformFeedPostprocessing && ok && strings.HasPrefix(t.(string),"feed.") {
+		t, ok := msg["type"]
+		if c.PerformFeedPostprocessing && ok && strings.HasPrefix(t.(string), "feed.") {
 			go func(msg map[string]interface{}) {
 				outputMsg := c.Jsmp.PostprocessJSONMessage(msg)
 				c.OutputMessageFunc(outputMsg)

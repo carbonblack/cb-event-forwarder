@@ -37,6 +37,9 @@ import (
 
 var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{}
 var eventMap map[string]interface{} = map[string]interface{}{
+	"watchlist.#":                  true,
+	"feed.#":                       true,
+	"alert.#":                      true,
 	"ingress.event.process":        true,
 	"ingress.event.procstart":      true,
 	"ingress.event.netconn":        true,

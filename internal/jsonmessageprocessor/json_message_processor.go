@@ -81,48 +81,48 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 	parsedQuery = queryArray[0]
 	return
 }
-func handleKeyValues(msg map[string] interface{}) {
+func handleKeyValues(msg map[string]interface{}) {
 
-	var alliance_data_map map[string] map[string] interface{} = make(map[string] map[string] interface{},0)
+	var alliance_data_map map[string]map[string]interface{} = make(map[string]map[string]interface{}, 0)
 	for key, value := range msg {
 		switch {
-		case strings.Contains(key,"alliance_"):
-			alliance_data := strings.Split(key,"_")
+		case strings.Contains(key, "alliance_"):
+			alliance_data := strings.Split(key, "_")
 			alliance_data_source := alliance_data[2]
 			alliance_data_key := alliance_data[1]
 			alliance_map, alreadyexists := alliance_data_map[alliance_data_source]
 			if alreadyexists {
 				alliance_map[alliance_data_key] = value
 			} else {
-				temp := make(map[string] interface{})
+				temp := make(map[string]interface{})
 				temp[alliance_data_key] = value
 				alliance_data_map[alliance_data_source] = temp
 			}
-			delete(msg,key)
+			delete(msg, key)
 		case key == "endpoint":
 			endpointstr := ""
 			switch value.(type) {
-				case string:
-					endpointstr = value.(string)
-				case [] interface{}:
-					endpointstr = value.([]interface{})[0].(string)
+			case string:
+				endpointstr = value.(string)
+			case []interface{}:
+				endpointstr = value.([]interface{})[0].(string)
 			}
-			parts := strings.Split(endpointstr,"|")
+			parts := strings.Split(endpointstr, "|")
 			hostname := parts[0]
 			nodeID := parts[1]
 			msg["hostname"] = hostname
 			msg["node_id"] = nodeID
-			delete(msg,"endpoint")
+			delete(msg, "endpoint")
 		case key == "highlights_by_doc":
-			delete(msg,"highlights_by_doc")
+			delete(msg, "highlights_by_doc")
 		case key == "highlights":
 			delete(msg, "highlights")
 		/*case key == "event_timestamp":
-			msg["timestamp"] = value
-			delete(msg, "event_timestamp")*/
+		msg["timestamp"] = value
+		delete(msg, "event_timestamp")*/
 		case key == "timestamp":
 			msg["event_timestamp"] = value
-			delete(msg,"timestamp")
+			delete(msg, "timestamp")
 		case key == "computer_name":
 			msg["hostname"] = value
 			delete(msg, "computer_name")
@@ -191,7 +191,7 @@ func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string
 					msg["segment_id"] = fmt.Sprintf("%v", segment)
 					hasprocessGUID = true
 				}
-
+				delete(msg, "unique_id")
 			}
 		}
 	}
@@ -205,6 +205,7 @@ func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string
 				msg["segment_id"] = fmt.Sprintf("%v", segment)
 				hasprocessGUID = true
 			}
+			delete(msg, "process_id")
 		}
 	}
 
@@ -215,6 +216,7 @@ func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string
 			msg["parent_guid"] = processGUID
 			msg["parent_segment_id"] = fmt.Sprintf("%v", segment)
 		}
+		delete(msg, "parent_unique_id")
 	}
 
 	// add deep links back into the Cb web UI if configured
@@ -319,49 +321,49 @@ func (jsp *JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, 
  */
 func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
-			feedID, feedIDPresent := msg["feed_id"]
-			reportID, reportIDPresent := msg["report_id"]
+	feedID, feedIDPresent := msg["feed_id"]
+	reportID, reportIDPresent := msg["report_id"]
 
-			/*
-:/p			 * First make sure these fields are present
-			 */
-			if feedIDPresent && reportIDPresent {
+	/*
+	:/p			 * First make sure these fields are present
+	*/
+	if feedIDPresent && reportIDPresent {
+		/*
+		 * feedID should be of type json.Number which is typed as a string
+		 * reportID should be of type string as well
+		 */
+		if reflect.TypeOf(feedID).Kind() == reflect.String &&
+			reflect.TypeOf(reportID).Kind() == reflect.String {
+			iFeedID, err := feedID.(json.Number).Int64()
+			if err == nil {
 				/*
-				 * feedID should be of type json.Number which is typed as a string
-				 * reportID should be of type string as well
+				 * Get the report_title for this feed hit
 				 */
-				if reflect.TypeOf(feedID).Kind() == reflect.String &&
-					reflect.TypeOf(reportID).Kind() == reflect.String {
-					iFeedID, err := feedID.(json.Number).Int64()
-					if err == nil {
-						/*
-						 * Get the report_title for this feed hit
-						 */
-						reportTitle, reportScore, reportLink, err := jsp.CbAPI.GetReport(int(iFeedID), reportID.(string))
-						log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
-						if err == nil {
-							/*
-							 * Finally save the report_title into this message
-							 */
-							msg["report_title"] = reportTitle
-							msg["report_score"] = reportScore
-							msg["report_link"] = reportLink
-							/*
-								log.Infof("report title for id %s:%s == %s\n",
-									feedID.(json.Number).String(),
-									reportID.(string),
-									reportTitle)
-							*/
-						}
-
-					} else {
-						log.Info("Unable to convert feed_id to int64 from json.Number")
-					}
-
-				} else {
-					log.Info("Feed Id was an unexpected type")
+				reportTitle, reportScore, reportLink, err := jsp.CbAPI.GetReport(int(iFeedID), reportID.(string))
+				log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
+				if err == nil {
+					/*
+					 * Finally save the report_title into this message
+					 */
+					msg["report_title"] = reportTitle
+					msg["report_score"] = reportScore
+					msg["report_link"] = reportLink
+					/*
+						log.Infof("report title for id %s:%s == %s\n",
+							feedID.(json.Number).String(),
+							reportID.(string),
+							reportTitle)
+					*/
 				}
+
+			} else {
+				log.Info("Unable to convert feed_id to int64 from json.Number")
 			}
+
+		} else {
+			log.Info("Feed Id was an unexpected type")
+		}
+	}
 	return msg
 }
 

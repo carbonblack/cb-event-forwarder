@@ -8,8 +8,8 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/consumer"
 	"github.com/carbonblack/cb-event-forwarder/internal/filter"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
-	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
+	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"sync"
@@ -34,7 +34,7 @@ type CbEventForwarder struct {
 	AddToOutput       map[string]interface{}
 	RemoveFromOutput  []string
 	OutputErrors      chan error
-	Results           []chan map[string] interface{} 
+	Results           []chan map[string]interface{}
 	Consumers         []*consumer.Consumer
 	Outputs           []output.OutputHandler
 	Filter            *filter.Filter
@@ -230,7 +230,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 		outputconfigs = t.([]interface{})
 	}
 
-	res := make([]chan map[string] interface{}, len(outputconfigs))
+	res := make([]chan map[string]interface{}, len(outputconfigs))
 	outputcontrolchannels := make([]*chan os.Signal, len(outputconfigs))
 	i := 0
 	for i < len(outputconfigs) {
