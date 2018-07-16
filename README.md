@@ -1,5 +1,19 @@
 # Cb Response Event Forwarder
 
+## NEW FOR 4.0
+
+* Yaml Configuration
+    * The configuration format has been changed from .ini to .yaml. use `key: v` rather than `key=value` format.
+* Multilple Forwarders 
+    * Run multiple event forwarders 
+* Modular Output Plugins
+    * Users can write their own modular outputs for the event forwarder, without commiting source upstream.
+    * The existing kafka-output has been removed and replaced with a kafka-output plugin using go-kafka-confluent
+* Template Encoders For Formatting Output 
+    * Users can configure Go-template driven formatting for their Cb Event messages 
+* Event Filtering
+    * Users can configure Go-Template driven filtering for their Cb Event messages
+
 ## Overview
 
 The Cb Response Event Forwarder is a standalone service that will listen on the Cb Response enterprise bus and export
@@ -48,6 +62,8 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
    ```
 
 ### Configure the cb-event-forwarder
+
+Note: The 4.X event forwarder uses Yaml files for configuration. Values will be interpreted as their literal types, rather than using 0,1,T/F to represent booleans `true` or `false` should be used.
 
 1. If installing on a machine *other than* the Cb Response server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
@@ -102,9 +118,9 @@ The Cb Response event forwarder can forward Cb Response events in the LEEF forma
 events to a QRadar server:
 
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
-`udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514)
-2. Change the output format to LEEF in the configuration file: `output_format=leef`.
-3. Change the output type to UDP in the configuration file: `output_type=udp`.
+`udpout: "<qradaripaddress>:<port>"` (NOTE: Port is usually 514)
+2. Change the output format to LEEF in the configuration file: `output_format: leef`.
+3. Change the output type to UDP in the configuration file: `output_type: udp`.
 
 For more information on the LEEF format, see the [Events documentation](EVENTS.md).
 
@@ -216,8 +232,38 @@ go get ./...
 go build
 ```
 
+## Event Filtering
+
+The 4.X event forwarder supports custom filter defintions via golang's templating language to filter the stream of Cb Event Messages coming over the event-forwarder.
+
+```
+filter:
+    enabled: true
+    template: >-
+              {{if (eq .type "alert.watchlist.hit.query.binary") -}}
+                KEEP
+              {{- else -}}
+                DROP
+              {{- end}}
+```
+
+##Encoders / Formating Events with Templates
+
+The 4.X event forwarder supports custom event formatting defintions using golang's templating language to format the stream of Cb Event Messages coming over the event-forwarder based on template configured by the user.
+
+Below is an example using the yaml syntax >- to open a whitespace clipped multi-line string sans-quotes. 
+
+```
+output_format: template
+encoder:
+    template: >- 
+              {{$cbmsg := . }}
+              {{- JsonFormat $cbmsg -}  
+```
+
+The templates involve the 
 ## Changelog
 
-This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
+This connector has been completely rewritten for version 4.0.0 for greatly enhanced reliability, performance, customization and deployment at scale. 
 See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) 
-for more information on new features introduced with each new version and upgrading from cb-event-forwarder 2.x.
+for more information on new features introduced with each new version and upgrading from cb-event-forwarder 4.x.

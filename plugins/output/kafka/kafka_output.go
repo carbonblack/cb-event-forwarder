@@ -1,14 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,14 +14,39 @@ import (
 	"time"
 )
 
+// Producer implements a High-level Apache Kafka Producer instance ZE 2018
+// This allows Mocking producers w/o actual contact to kafka broker for testing purposes
+type WrappedProducer interface {
+	String() string
+
+	Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error
+
+	Events() chan kafka.Event
+
+	ProduceChannel() chan *kafka.Message
+
+	Len() int
+
+	Flush(timeoutMs int) int
+
+	Close()
+
+	GetMetadata(topic *string, allTopics bool, timeoutMs int) (*kafka.Metadata, error)
+
+	QueryWatermarkOffsets(topic string, partition int32, timeoutMs int) (low, high int64, err error)
+
+	OffsetsForTimes(times []kafka.TopicPartition, timeoutMs int) (offsets []kafka.TopicPartition, err error)
+}
+
 type KafkaOutput struct {
 	brokers           string
 	topicSuffix       string
-	producer          *kafka.Producer
+	Producer          WrappedProducer
 	deliveryChannel   chan kafka.Event
 	droppedEventCount int64
 	eventSentCount    int64
 	sync.RWMutex
+	Encoder encoder.Encoder
 }
 
 type KafkaStatistics struct {
@@ -31,96 +54,101 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string, config conf.Configuration) error {
-	o.Lock()
-	defer o.Unlock()
+func NewKafkaOutputFromCfg(cfg map[string]interface{}) (KafkaOutput, error) {
+	ko := KafkaOutput{}
 
-	var configMap map[string]interface{}
+	log.Infof("Trying to create kafka output with plugin section: %s", cfg)
 
-	configMap, err := config.GetMap("plugin", "kafkaconfig")
-	if err != nil {
-		log.Info("Error getting pluginconfig")
+	var configMap map[interface{}]interface{} = make(map[interface{}]interface{})
+
+	if configm, ok := cfg["producer"].(map[interface{}]interface{}); ok {
+		configMap = configm
 	}
 
-	log.Infof("Trying to create kafka output with plugin section: %s", configMap)
+	if topicsuffix, ok := cfg["topicSuffix"]; ok {
+		if topicsuffix, ok := topicsuffix.(string); ok {
+			ko.topicSuffix = topicsuffix
+		} else {
+			ko.brokers = ""
+		}
+	}
 
 	kafkaConfigMap := kafka.ConfigMap{}
 
 	for key, value := range configMap {
+		ks := key.(string)
 		switch value.(type) {
 		case string:
-			kafkaConfigMap[key] = value.(string)
+			kafkaConfigMap[ks] = value.(string)
 		case int:
-			kafkaConfigMap[key] = value.(int)
+			kafkaConfigMap[ks] = value.(int)
 		case float32:
-			kafkaConfigMap[key] = value.(float32)
+			kafkaConfigMap[ks] = value.(float32)
 		case float64:
-			kafkaConfigMap[key] = value.(float64)
+			kafkaConfigMap[ks] = value.(float64)
 		case bool:
-			kafkaConfigMap[key] = value.(bool)
+			kafkaConfigMap[ks] = value.(bool)
 		default:
-			kafkaConfigMap[key] = fmt.Sprintf("%s", value)
+			kafkaConfigMap[ks] = fmt.Sprintf("%s", value)
 		}
 	}
 
 	if brokers, ok := configMap["bootstrap.servers"]; ok {
 		if brokers, ok := brokers.(string); ok {
-			o.brokers = brokers
+			ko.brokers = brokers
 		} else {
-			o.brokers = "localhost:9092"
+			ko.brokers = "localhost:9092"
 		}
-	}
-
-	topicSuffix, err := config.GetString("plugin", "topicsuffix")
-
-	if err == nil {
-		o.topicSuffix = topicSuffix
-	} else {
-		o.topicSuffix = ""
 	}
 
 	producer, err := kafka.NewProducer(&kafkaConfigMap)
 
 	if err != nil {
 		log.Infof("Failed to create producer: %s\n", err)
-		return err
+		return ko, err
 	}
 
 	log.Infof("Created Producer %v\n", producer)
 
-	o.producer = producer
+	ko.Producer = producer
 
-	o.deliveryChannel = make(chan kafka.Event)
-
-	return nil
+	ko.deliveryChannel = make(chan kafka.Event)
+	return ko, nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *KafkaOutput) Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error {
+	stoppubchan := make(chan struct{}, 1)
+	var mypubwg sync.WaitGroup
 	go func() {
-		refreshTicker := time.NewTicker(1 * time.Second)
-		defer refreshTicker.Stop()
-
-		hup := make(chan os.Signal, 1)
-
-		signal.Notify(hup, syscall.SIGHUP)
-
-		defer signal.Stop(hup)
-
+		mypubwg.Add(1)
+		defer mypubwg.Done()
 		for {
 			select {
 			case message := <-messages:
-				var parsedMsg map[string]interface{}
-
-				json.Unmarshal([]byte(message), &parsedMsg)
-				topic := parsedMsg["type"]
-				if topicString, ok := topic.(string); ok {
-					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-					topicString += o.topicSuffix
-
-					o.output(topicString, message)
+				if encodedMsg, err := o.Encoder.Encode(message); err == nil {
+					topic := message["type"]
+					if topicString, ok := topic.(string); ok {
+						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+						topicString += o.topicSuffix
+						o.output(topicString, encodedMsg)
+					} else {
+						log.Info("ERROR: Topic was not a string")
+					}
 				} else {
-					log.Info("ERROR: Topic was not a string")
+					errorChan <- err
 				}
+			case <-stoppubchan:
+				log.Info("stop request received ending publishing goroutine")
+				return
+			}
+		}
+	}()
+	go func() {
+		refreshTicker := time.NewTicker(1 * time.Second)
+		defer refreshTicker.Stop()
+		defer wg.Done()
+		for {
+			select {
 			case e := <-o.deliveryChannel:
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
@@ -132,9 +160,17 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
+			case cmsg := <-controlchan:
+				switch cmsg {
+				case syscall.SIGTERM, syscall.SIGINT:
+					// handle exit gracefully
+					log.Info("Received SIGTERM. Exiting")
+					stoppubchan <- struct{}{}
+					mypubwg.Wait()
+					return
+				}
 			}
 		}
-
 	}()
 
 	return nil
@@ -160,25 +196,15 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	o.producer.Produce(&kafka.Message{
+	log.Infof("output got: %s topic %s message ", topic, m)
+	o.Producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
 	}, o.deliveryChannel)
+	log.Infof("o.Producer.Produce returned")
 }
 
-func GetOutputHandler() output.OutputHandler {
-	return &KafkaOutput{}
-}
-
-func main() {
-	messages := make(chan string)
-	errors := make(chan error)
-	var kafkaOutput output.OutputHandler = &KafkaOutput{}
-	c, _ := conf.ParseConfig(os.Args[1])
-	kafkaOutput.Initialize("", c)
-	go func() {
-		kafkaOutput.Go(messages, errors)
-	}()
-	messages <- "{\"type\":\"Lol\"}"
-	log.Infof("%v", <-errors)
+func GetOutputHandler(cfg map[string]interface{}) (output.OutputHandler, error) {
+	ko, err := NewKafkaOutputFromCfg(cfg)
+	return &ko, err
 }
