@@ -22,10 +22,10 @@ var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 	inputFile          = flag.String("inputfile", "", "Enter json file to read for input")
-	httpserverport     = flag.Int("httpserverport", 31337, "Enter port for debugging")
+	httpserverport     = flag.Int("httpserverport", 33706, "Enter port for debugging")
 )
 
-var version = "NOT FOR RELEASE"
+var version = "4.0.0 BETA"
 
 /*
  * Initializations
@@ -45,7 +45,7 @@ func main() {
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage/<cbefinputname> ***",
-			hostname, httpserverport)
+			hostname, *httpserverport)
 	} else {
 		exportedVersion.Set(version)
 	}
@@ -143,7 +143,7 @@ func main() {
 		})
 	}
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", httpserverport), nil)
+	go http.ListenAndServe(fmt.Sprintf(":%d", *httpserverport), nil)
 
 	sigs := make(chan os.Signal)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)

@@ -45,7 +45,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table, deb
 	}
 
 	if len(body) < 4 {
-		log.Info("  Message is less than 4 bytes long; malformed")
+		log.Errorf("  Message is less than 4 bytes long; malformed")
 	} else {
 		log.Info("  First four bytes of message were:")
 		log.Errorf("  %s", hex.Dump(body[0:4]))
@@ -157,6 +157,7 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 	cfg := new(tls.Config)
 	caCert, err := ioutil.ReadFile(tls_ca_cert)
 	if err != nil {
+		log.Warnf("Error building consumer AMQPS tls config: %v",err)
 		return nil, err
 	}
 	caCertPool := x509.NewCertPool()
@@ -165,6 +166,7 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 
 	cert, err := tls.LoadX509KeyPair(tls_client_cert, tls_client_key)
 	if err != nil {
+		log.Warnf("Error building consumer AMQPS tls config: %v",err)
 		return nil, err
 	}
 	cfg.Certificates = []tls.Certificate{cert}
@@ -592,7 +594,7 @@ func (c *Consumer) processMessage(body []byte, routingKey, contentType string, h
 		} else {
 			err = c.OutputMessageFunc(msg)
 			if err != nil {
-				c.reportError(string(body), "Error marshaling message", err)
+				c.reportError(string(body), "Error marshaling message for output: ", err)
 			}
 		}
 	}

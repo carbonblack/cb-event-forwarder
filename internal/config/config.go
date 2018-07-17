@@ -72,6 +72,7 @@ func GetTLSConfigFromCfg(cfg map[interface{}]interface{}) (*tls.Config, error) {
 		log.Infof("Loading client cert/key from %s & %s", tlsClientCert, tlsClientKey)
 		cert, err := tls.LoadX509KeyPair(tlsClientCert, tlsClientKey)
 		if err != nil {
+			log.Errorf("error loading client cert/key from %s & %s : %v",tlsClientCert,tlsClientKey,err)
 			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
@@ -82,6 +83,7 @@ func GetTLSConfigFromCfg(cfg map[interface{}]interface{}) (*tls.Config, error) {
 		log.Infof("Loading valid CAs from file %s", tlsCACert)
 		caCert, err := ioutil.ReadFile(tlsCACert)
 		if err != nil {
+			log.Errorf("error Loading valid CAs from file %s : %v",tlsCACert)
 			return nil, err
 		}
 		caCertPool := x509.NewCertPool()

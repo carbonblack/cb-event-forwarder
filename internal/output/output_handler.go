@@ -13,14 +13,19 @@ import (
 	"sync"
 	"time"
 )
+//Output handler interface
 
 type OutputHandler interface {
+	//messages are the in-flight messages channel - errorchan is a channel overwhich to report errors, controlchan sends signals
+	// the Outputhandler is required to honor the signals sent down by it's controller
+	// The waitgroup will be marked done when the output has finished
 	Go(messages <-chan map[string]interface{}, errorChan chan<- error, controlchan <-chan os.Signal, wg sync.WaitGroup) error
 	String() string
 	Statistics() interface{}
 	Key() string
 }
 
+// Trty to load an pluginName.so at pluginPath w/ cfg configuration and e , the Encoder to use to format output.
 func loadOutputFromPlugin(pluginPath string, pluginName string, cfg map[interface{}]interface{}, e encoder.Encoder) (OutputHandler, error) {
 	log.Infof("loadOutputFromPlugin: Trying to load plugin %s at %s", pluginName, pluginPath)
 	plug, err := plugin.Open(path.Join(pluginPath, pluginName+".so"))
@@ -34,6 +39,12 @@ func loadOutputFromPlugin(pluginPath string, pluginName string, cfg map[interfac
 	return pluginHandlerFuncRaw.(func(map[interface{}]interface{}, encoder.Encoder) (OutputHandler, error))(cfg, e)
 }
 
+/*
+Process the output:
+                  -type-of-input:
+in the configuration file into an array of outputs, or output a relevant error that is encountered
+
+*/
 func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 	var temp []OutputHandler = make([]OutputHandler, len(cfg))
 	var tlsConfig *tls.Config = nil

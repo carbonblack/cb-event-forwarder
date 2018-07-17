@@ -6,6 +6,9 @@ import (
 	"io"
 )
 
+// A consumer (similar to the AMQP consumer, but intended to repeatedly tail files and produce the messages into the cbef
+
+
 type FileConsumer struct {
 	fileName string
 }
@@ -15,7 +18,7 @@ func (f FileConsumer) tailFile(fName string, c chan<- string) error {
 	t, err := tail.TailFile(fName, tail.Config{Follow: true, ReOpen: true, Poll: true, Location: &seekInfo})
 	if err == nil {
 		for line := range t.Lines {
-			log.Debug(line.Text)
+			log.Debugf("Got line from input file: %s ", line.Text)
 			c <- line.Text
 		}
 		return nil
