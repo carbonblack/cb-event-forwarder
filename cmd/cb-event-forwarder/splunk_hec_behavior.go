@@ -82,6 +82,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 	request, err := http.NewRequest("POST", this.dest, reader)
 
 	go func() {
+		defer fp.Close()
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
