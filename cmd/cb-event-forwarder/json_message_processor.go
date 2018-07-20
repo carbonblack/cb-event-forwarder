@@ -312,11 +312,11 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 					}
 
 				} else {
-					log.Info("Unable to convert feed_id to int64 from json.Number")
+					log.Debug("Unable to convert feed_id to int64 from json.Number")
 				}
 
 			} else {
-				log.Info("Feed Id was an unexpected type")
+				log.Debug("Feed Id was an unexpected type")
 			}
 		}
 	}
