@@ -266,52 +266,59 @@ func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 	if val, ok := msg["type"]; ok {
 		messageType := val.(string)
 
-		if strings.HasPrefix(messageType, "feed.") {
-			feedID, feedIDPresent := msg["feed_id"]
-			reportID, reportIDPresent := msg["report_id"]
+		var reportIDString string
 
+		if strings.HasPrefix(messageType, "feed.") {
+			reportIDString = "report_id"
+		} else if strings.HasPrefix(messageType, "alert.") {
+			reportIDString = "watchlist_id"
+		} else {
+			return msg
+		}
+
+		feedID, feedIDPresent := msg["feed_id"]
+		reportID, reportIDPresent := msg[reportIDString]
+
+		/*
+		 * First make sure these fields are present
+		 */
+		if feedIDPresent && reportIDPresent {
 			/*
-			 * First make sure these fields are present
+			 * feedID should be of type json.Number which is typed as a string
+			 * reportID should be of type string as well
 			 */
-			if feedIDPresent && reportIDPresent {
-				/*
-				 * feedID should be of type json.Number which is typed as a string
-				 * reportID should be of type string as well
-				 */
-				if reflect.TypeOf(feedID).Kind() == reflect.String &&
-					reflect.TypeOf(reportID).Kind() == reflect.String {
-					iFeedID, err := feedID.(json.Number).Int64()
+			if reflect.TypeOf(feedID).Kind() == reflect.String &&
+				reflect.TypeOf(reportID).Kind() == reflect.String {
+				iFeedID, err := feedID.(json.Number).Int64()
+				if err == nil && iFeedID != -1 {
+					/*
+					 * Get the report_title for this feed hit
+					 */
+					reportTitle, reportScore, reportLink, err := GetReport(int(iFeedID), reportID.(string))
+					log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
 					if err == nil {
 						/*
-						 * Get the report_title for this feed hit
+						 * Finally save the report_title into this message
 						 */
-						reportTitle, reportScore, reportLink, err := GetReport(int(iFeedID), reportID.(string))
-						log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
-						if err == nil {
-							/*
-							 * Finally save the report_title into this message
-							 */
-							msg["report_title"] = reportTitle
-							msg["report_score"] = reportScore
-							msg["report_link"] = reportLink
-							/*
-								log.Infof("report title for id %s:%s == %s\n",
-									feedID.(json.Number).String(),
-									reportID.(string),
-									reportTitle)
-							*/
-						}
-
-					} else {
-						log.Info("Unable to convert feed_id to int64 from json.Number")
+						msg["report_title"] = reportTitle
+						msg["report_score"] = reportScore
+						msg["report_link"] = reportLink
+						/*
+							log.Infof("report title for id %s:%s == %s\n",
+								feedID.(json.Number).String(),
+								reportID.(string),
+								reportTitle)
+						*/
 					}
 
 				} else {
-					log.Info("Feed Id was an unexpected type")
+					log.Info("Unable to convert feed_id to int64 from json.Number")
 				}
+
+			} else {
+				log.Info("Feed Id was an unexpected type")
 			}
 		}
-
 	}
 	return msg
 }
