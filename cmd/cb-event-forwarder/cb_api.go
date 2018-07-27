@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
 	"zvelo.io/ttlru"
 )
 
@@ -74,7 +75,11 @@ func GetCb(route string) ([]byte, error) {
 		Proxy:           proxyRequest,
 	}
 
-	httpClient := &http.Client{Transport: tr}
+	httpClient := &http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
+
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s", config.CbServerURL, route), nil)
 	if err != nil {
 		return nil, err

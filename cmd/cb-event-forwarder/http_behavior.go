@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"text/template"
+	"time"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
@@ -43,9 +45,14 @@ func (this *HTTPBehavior) Initialize(dest string) error {
 	this.headers["Content-Type"] = *config.HTTPContentType
 
 	transport := &http.Transport{
-		TLSClientConfig: config.TLSConfig,
+		TLSClientConfig:     config.TLSConfig,
+		Dial:                (&net.Dialer{Timeout: 5 * time.Second}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	this.client = &http.Client{Transport: transport}
+	this.client = &http.Client{
+		Transport: transport,
+		Timeout:   120 * time.Second, // default timeout is 2 minutes for the entire exchange
+	}
 
 	return nil
 }
