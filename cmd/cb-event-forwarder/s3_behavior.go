@@ -70,6 +70,10 @@ func (o *S3Behavior) Initialize(connString string) error {
 	}
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
+	if config.S3UseDualStack == true {
+		awsConfig.WithUseDualStack(true)
+	}
+
 	if config.S3CredentialProfileName != nil {
 		parts = strings.SplitN(*config.S3CredentialProfileName, ":", 2)
 		credentialProvider := credentials.SharedCredentialsProvider{}
