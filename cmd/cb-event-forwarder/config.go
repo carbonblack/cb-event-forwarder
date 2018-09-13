@@ -59,6 +59,7 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3UseDualStack          bool
 
 	// SSL/TLS-specific configuration
 	TLSClientKey  *string
@@ -444,6 +445,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			objectPrefix, ok := input.Get("s3", "object_prefix")
 			if ok {
 				config.S3ObjectPrefix = &objectPrefix
+			}
+
+			useDualStack, ok := input.Get("s3", "use_dual_stack")
+			if ok {
+				b, err := strconv.ParseBool(useDualStack)
+				if err == nil {
+					config.S3UseDualStack = b
+				}
 			}
 
 		case "http":
