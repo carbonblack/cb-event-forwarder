@@ -691,7 +691,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "message_processor_count")
 	if ok {
         if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
-		    config.NumProcessors =  numprocessors 
+		    config.NumProcessors =  int(numprocessors)
         } else {
            config.NumProcessors = runtime.NumCPU() * 2 
         }
