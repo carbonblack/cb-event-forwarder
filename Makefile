@@ -69,4 +69,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 6' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 7' -bb cb-event-forwarder.rpm.spec
