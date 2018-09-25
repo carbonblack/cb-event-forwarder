@@ -688,7 +688,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.CbAPIProxyURL = val
 	}
 
-	val, ok = input.Get("bridge", "message_processors")
+	val, ok = input.Get("bridge", "message_processor_count")
 	if ok {
         if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
 		    config.NumProcessors =  numprocessors 
