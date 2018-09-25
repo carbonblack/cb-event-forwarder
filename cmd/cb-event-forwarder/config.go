@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+    "runtime"
 	"errors"
 	_ "expvar"
 	"fmt"
@@ -101,6 +102,7 @@ type Configuration struct {
 
 	RemoveFromOutput []string
 	AuditLog         bool
+    NumProcessors   int
 }
 
 type ConfigurationError struct {
@@ -684,6 +686,15 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "api_proxy_url")
 	if ok {
 		config.CbAPIProxyURL = val
+	}
+
+	val, ok = input.Get("bridge", "message_processors")
+	if ok {
+        if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
+		    config.NumProcessors =  numprocessors 
+        } else {
+           config.NumProcessors = runtime.NumCPU() * 2 
+        }
 	}
 
 	config.parseEventTypes(input)
