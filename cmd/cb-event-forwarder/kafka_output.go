@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Shopify/sarama"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -17,7 +17,8 @@ import (
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
-	producer          sarama.AsyncProducer
+	producer          kafka.Producer
+	deliveryChannel   chan kafka.Event
 	droppedEventCount int64
 	eventSentCount    int64
 
@@ -36,17 +37,14 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.brokers = strings.Split(*config.KafkaBrokers, ",")
 	o.topicSuffix = *config.KafkaTopicSuffix
 
-	kafkaConfig := sarama.NewConfig()
-	sarama.MaxRequestSize = config.KafkaMaxRequestSize
-	kafkaConfig.Producer.Return.Successes = true
-
-	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)
+	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
 
 	if err != nil {
 		panic(err)
 	}
 
-	o.producer = producer
+	o.producer = *p
+	o.deliveryChannel = make(chan kafka.Event)
 
 	return nil
 }
@@ -55,12 +53,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
-
-		defer func() {
-			if err := o.producer.Close(); err != nil {
-				log.Fatalln(err)
-			}
-		}()
+		defer o.producer.Close()
 
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
@@ -71,7 +64,6 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			select {
 			case message := <-messages:
 				var parsedMsg map[string]interface{}
-
 				json.Unmarshal([]byte(message), &parsedMsg)
 				topic := parsedMsg["type"]
 				if topicString, ok := topic.(string); ok {
@@ -82,25 +74,21 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				} else {
 					log.Info("ERROR: Topic was not a string")
 				}
+			case e := <-o.deliveryChannel:
+				m := e.(*kafka.Message)
+				if m.TopicPartition.Error != nil {
+					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
+					atomic.AddInt64(&o.droppedEventCount, 1)
+					errorChan <- m.TopicPartition.Error
+				} else {
+					log.Infof("Delivered message to topic %s [%d] at offset %v\n",
+						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+					atomic.AddInt64(&o.eventSentCount, 1)
+				}
 			}
 		}
 
 	}()
-
-	go func() {
-		for range o.producer.Successes() {
-			atomic.AddInt64(&o.eventSentCount, 1)
-		}
-	}()
-
-	go func() {
-		for err := range o.producer.Errors() {
-			log.Info(err)
-			atomic.AddInt64(&o.droppedEventCount, 1)
-			errorChan <- err
-		}
-	}()
-
 	return nil
 }
 
@@ -126,9 +114,10 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	o.producer.Input() <- &sarama.ProducerMessage{
-		Topic: topic,
-		Key:   nil,
-		Value: sarama.StringEncoder(m),
-	}
+	log.Infof("output got: %s topic %s message ", topic, m)
+	o.producer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(m),
+	}, o.deliveryChannel)
+	log.Infof("o.Producer.Produce returned")
 }

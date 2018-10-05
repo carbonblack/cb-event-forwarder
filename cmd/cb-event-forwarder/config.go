@@ -3,13 +3,13 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-    "runtime"
 	"errors"
 	_ "expvar"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
 	"io/ioutil"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -102,7 +102,7 @@ type Configuration struct {
 
 	RemoveFromOutput []string
 	AuditLog         bool
-    NumProcessors   int
+	NumProcessors    int
 }
 
 type ConfigurationError struct {
@@ -690,11 +690,11 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "message_processor_count")
 	if ok {
-        if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
-		    config.NumProcessors =  int(numprocessors)
-        } else {
-           config.NumProcessors = runtime.NumCPU() * 2 
-        }
+		if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
+			config.NumProcessors = int(numprocessors)
+		} else {
+			config.NumProcessors = runtime.NumCPU() * 2
+		}
 	}
 
 	config.parseEventTypes(input)

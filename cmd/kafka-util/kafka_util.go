@@ -4,31 +4,21 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
-	"github.com/Shopify/sarama"
+	"fmt"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strings"
-	"time"
-	"fmt"
 )
 
 var requestMaxSize = flag.Int("MaxRequestSize", 1000000, "sarama.MaxRequestSize")
 var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs (required)")
 var topicSuffix = flag.String("TopicSuffix", "", "Optional topic suffix to use")
 
-func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
-	kafkaConfig := sarama.NewConfig()
-	sarama.MaxRequestSize = int32(*requestMaxSize)
-	kafkaConfig.Producer.Return.Successes = true
-	kafkaConfig.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
-	kafkaConfig.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
-	return sarama.NewAsyncProducer(brokers, kafkaConfig)
-}
-
 func main() {
 	flag.Usage = func() {
-        fmt.Fprintf(os.Stderr, "%s -BrokerList localhost:9092,localhost:9093 [-TopicSuffix suffix -requestMaxSize 9000] files\n", os.Args[0])
-        flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "%s -BrokerList localhost:9092,localhost:9093 [-TopicSuffix suffix -requestMaxSize 9000] files\n", os.Args[0])
+		flag.PrintDefaults()
 	}
 
 	flag.Parse()
@@ -46,8 +36,8 @@ func main() {
 	log.Infof("Brokers: %s", brokers)
 	topic_suffix := *topicSuffix
 	log.Infof("Topic_Suffix: %s", topic_suffix)
-	kafkaProducer, err := NewProducer(brokers)
-
+	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers})
+	deliveryChannel := make(chan kafka.Event)
 	if err != nil {
 		log.Fatalf("Error setting up kafka producer: %v", err)
 	} else {
@@ -75,11 +65,21 @@ func main() {
 				t, _ := m["type"].(string)
 				topic := strings.Replace(t, "ingress.event.", "", -1)
 				topic = topic + topic_suffix
+				kafkaProducer.Produce(&kafka.Message{
+					TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+					Value:          []byte(t),
+				}, deliveryChannel)
 				select {
-				case kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: nil, Value: sarama.ByteEncoder(b)}:
-				case err := <-kafkaProducer.Errors():
-					log.Infof("Failed to produce message", err)
-				case <-kafkaProducer.Successes():
+				case e := <-deliveryChannel:
+					m := e.(*kafka.Message)
+					if m.TopicPartition.Error != nil {
+						log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
+						log.Infof("Error %v", m.TopicPartition.Error)
+
+					} else {
+						log.Infof("Delivered message to topic %s [%d] at offset %v\n",
+							*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+					}
 					log.Debugf("Produced message!")
 				}
 			} else {

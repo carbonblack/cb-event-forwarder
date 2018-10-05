@@ -4,18 +4,25 @@
 GIT_VERSION := 3.4
 VERSION := 3.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
+TARGET_OS=linux
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
 
 .PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
 
-build:
+librdkafka:
+ifeq ($TARGET_OS,"linux")
+	ldconfig -p | grep librdkafka
+endif
+
+build: librdkafka
 	go get -u github.com/golang/protobuf/proto
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
 	dep ensure
-	go build ./cmd/cb-event-forwarder
-	go build ./cmd/kafka-util
+	go build --tags static-all ./cmd/cb-event-forwarder
+	go build --tags static-all ./cmd/kafka-util
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
@@ -51,6 +58,7 @@ clean:
 	rm -rf dist
 	rm -rf build
 	rm -f VERSION
+	rm -rf librdkafka
 
 bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
