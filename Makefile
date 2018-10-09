@@ -21,8 +21,13 @@ build: librdkafka
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
 	dep ensure
-	go build --tags static-all ./cmd/cb-event-forwarder
-	go build --tags static-all ./cmd/kafka-util
+ifeq ($TARGET_OS,"linux")
+	go build -tags static_all ./cmd/cb-event-forwarder
+	go build -tags static_all ./cmd/kafka-util
+else
+	go build -tags static ./cmd/cb-event-forwarder 
+	go build -tags static ./cmd/kafka-util
+endif
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
