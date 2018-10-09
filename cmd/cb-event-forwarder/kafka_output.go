@@ -34,8 +34,11 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	o.brokers = strings.Split(*config.KafkaBrokers, ",")
-	o.topicSuffix = *config.KafkaTopicSuffix
+	log.Info("%v",config)
+	log.Info("%v",config.KafkaBrokers)
+	log.Info("%v",config.KafkaTopicSuffix)
+	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
+	o.topicSuffix = *(config.KafkaTopicSuffix)
 
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
 
