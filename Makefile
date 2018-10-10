@@ -24,11 +24,11 @@ build: librdkafka
 	go build -tags static ./cmd/cb-event-forwarder 
 	go build -tags static ./cmd/kafka-util
 
-rpmbuild:
+rpmbuild: librdkafka
 	go generate ./internal/sensor_events; \
 	dep ensure; \
-	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
-	go build -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
+	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
 
 rpminstall:
