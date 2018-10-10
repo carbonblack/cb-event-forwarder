@@ -34,9 +34,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	log.Info("%v",config)
-	log.Info("%v",config.KafkaBrokers)
-	log.Info("%v",config.KafkaTopicSuffix)
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
 	o.topicSuffix = *(config.KafkaTopicSuffix)
 
@@ -47,7 +44,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	}
 
 	o.producer = *p
-	o.deliveryChannel = make(chan kafka.Event)
 
 	return nil
 }
@@ -77,7 +73,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				} else {
 					log.Info("ERROR: Topic was not a string")
 				}
-			case e := <-o.deliveryChannel:
+			case e := <-o.producer.Events():
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
 					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
@@ -117,10 +113,8 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	log.Infof("output got: %s topic %s message ", topic, m)
-	o.producer.Produce(&kafka.Message{
+	o.producer.ProduceChannel() <- &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
-	}, o.deliveryChannel)
-	log.Infof("o.Producer.Produce returned")
+	}
 }
