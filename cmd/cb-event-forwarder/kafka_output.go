@@ -76,11 +76,11 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case e := <-o.producer.Events():
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
-					log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
+					log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
 					atomic.AddInt64(&o.droppedEventCount, 1)
 					errorChan <- m.TopicPartition.Error
 				} else {
-					log.Infof("Delivered message to topic %s [%d] at offset %v\n",
+					log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 					atomic.AddInt64(&o.eventSentCount, 1)
 				}
