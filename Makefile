@@ -77,8 +77,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-<<<<<<< HEAD
 	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 8' -bb cb-event-forwarder.rpm.spec
-=======
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 14' -bb cb-event-forwarder.rpm.spec
->>>>>>> 745f197... version bump
