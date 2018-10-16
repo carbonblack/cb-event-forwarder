@@ -17,15 +17,7 @@ import (
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
-<<<<<<< HEAD
 	producer          kafka.Producer
-	deliveryChannel   chan kafka.Event
-=======
-	ProduceChannel chan *kafka.Message
-	ProduceStop chan bool
-	Events	chan kafka.Event
-	producers         [] * kafka.Producer
->>>>>>> 326bf51... updates
 	droppedEventCount int64
 	eventSentCount    int64
 
@@ -43,25 +35,10 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
 	o.topicSuffix = *(config.KafkaTopicSuffix)
-<<<<<<< HEAD
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
 
 	if err != nil {
 		panic(err)
-=======
-	o.Events = make(chan kafka.Event)
-	o.ProduceChannel = make(chan *kafka.Message)
-	o.ProduceStop = make(chan bool)
-	o.producers = make([] *kafka.Producer, len(o.brokers))
-	pi := 0
-	for pi < len(o.brokers) {
-		p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
-		if err != nil {
-			panic(err)
-		}
-		o.producers[pi] = p
-		pi = pi + 1
->>>>>>> 326bf51... updates
 	}
 
 	o.producer = *p
