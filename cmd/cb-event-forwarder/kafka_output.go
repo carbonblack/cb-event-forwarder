@@ -36,7 +36,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
 	o.topicSuffix = *(config.KafkaTopicSuffix)
-
 	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
 
 	if err != nil {
