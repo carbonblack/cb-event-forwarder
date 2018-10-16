@@ -40,6 +40,7 @@ type Status struct {
 	InputEventCount  *expvar.Int
 	OutputEventCount *expvar.Int
 	ErrorCount       *expvar.Int
+	OutputEventRate *expvar.Float
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -66,7 +67,7 @@ func init() {
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
-
+	status.OutputEventRate = expvar.NewFloat("output_event_rate")
 	expvar.Publish("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
@@ -592,6 +593,7 @@ func main() {
 
 	for {
 		time.Sleep(30 * time.Second)
+		status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
 	}
 
 	log.Info("cb-event-forwarder exiting")
