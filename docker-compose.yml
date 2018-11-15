@@ -1,0 +1,8 @@
+cb-event-forwadrer:                                                                          
+      #image: cbsdk:latest                                                          
+      build: .                                                                      
+      dockerfile: Dockerfile                                                  
+      ports:                                                                        
+        - "5000:80"                                                                 
+      volumes:                                                                      
+        - ./:/vol/cb-event-forwarder      
