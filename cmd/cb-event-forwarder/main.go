@@ -40,7 +40,7 @@ type Status struct {
 	InputEventCount  *expvar.Int
 	OutputEventCount *expvar.Int
 	ErrorCount       *expvar.Int
-	OutputEventRate *expvar.Float
+	OutputEventRate  *expvar.Float
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -288,7 +288,7 @@ func logFileProcessingLoop() <-chan error {
 		}
 
 		for delivery := range deliveries {
-			log.Debug("Trying to deliver log message %s", delivery)
+			log.Debugf("Trying to deliver log message %s", delivery)
 			msgMap := make(map[string]interface{})
 			msgMap["message"] = strings.TrimSuffix(delivery, "\n")
 			msgMap["type"] = label

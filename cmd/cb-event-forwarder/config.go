@@ -71,9 +71,10 @@ type Configuration struct {
 	TLS12Only     bool
 
 	// HTTP-specific configuration
-	HTTPAuthorizationToken *string
-	HTTPPostTemplate       *template.Template
-	HTTPContentType        *string
+	HTTPAuthorizationToken   *string
+	HTTPPostTemplate         *template.Template
+	HTTPContentType          *string
+	EventTextAsJsonByteArray bool
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -485,6 +486,16 @@ func ParseConfig(fn string) (Configuration, error) {
 			} else {
 				jsonString := "application/json"
 				config.HTTPContentType = &jsonString
+			}
+
+			eventTextAsJsonByteArray, ok := input.Get("http", "event_text_as_json_byte_array")
+			if ok {
+				boolval, err := strconv.ParseBool(eventTextAsJsonByteArray)
+				if err == nil {
+					config.EventTextAsJsonByteArray = boolval
+				} else {
+					errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", eventTextAsJsonByteArray))
+				}
 			}
 		case "syslog":
 			parameterKey = "syslogout"
