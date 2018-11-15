@@ -1,4 +1,4 @@
-cb-event-forwadrer:                                                                          
+cb-event-forwarder:                                                                          
       #image: cbsdk:latest                                                          
       build: .                                                                      
       dockerfile: Dockerfile                                                  
