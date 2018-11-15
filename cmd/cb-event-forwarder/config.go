@@ -74,6 +74,11 @@ type Configuration struct {
 	HTTPAuthorizationToken *string
 	HTTPPostTemplate       *template.Template
 	HTTPContentType        *string
+	OAuthJwtClientEmail    string
+	OAuthJwtPrivateKey     []byte
+	OAuthJwtPrivateKeyId   string
+	OAuthJwtScopes         []string
+	OAuthJwtTokenUrl       string
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -486,6 +491,9 @@ func ParseConfig(fn string) (Configuration, error) {
 				jsonString := "application/json"
 				config.HTTPContentType = &jsonString
 			}
+
+			// Parse OAuth related configuration.
+			parseOAuthConfiguration(&input, &config, &errs)
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
@@ -749,4 +757,88 @@ func configureTLS(config Configuration) *tls.Config {
 	}
 
 	return tlsConfig
+}
+
+// parseOAuthConfiguration parses OAuth related configuration from input and populates config with
+// relevant fields.
+func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *ConfigurationError) {
+	// oAuthFieldsConfigured is used to track OAuth fields that have been configured.
+	oAuthFieldsConfigured := make(map[string]bool)
+
+	if oAuthJwtClientEmail, ok := input.Get("http", "oauth_jwt_client_email"); ok {
+		if len(oAuthJwtClientEmail) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_client_email"] = true
+			config.OAuthJwtClientEmail = oAuthJwtClientEmail
+		} else {
+			errs.addErrorString("Empty value is specified for oauth_jwt_client_email")
+		}
+	}
+
+	if oAuthJwtPrivateKey, ok := input.Get("http", "oauth_jwt_private_key"); ok {
+		if len(oAuthJwtPrivateKey) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_private_key"] = true
+			// Replace the escaped version of a line break character with the non-escaped version.
+			// The OAuth library which reads private key expects non-escaped version of line break
+			// character.
+			oAuthJwtPrivateKey = strings.Replace(oAuthJwtPrivateKey, "\\n", "\n", -1)
+			config.OAuthJwtPrivateKey = []byte(oAuthJwtPrivateKey)
+		} else {
+			errs.addErrorString("Empty value is specified for oauth_jwt_private_key")
+		}
+	}
+
+	if oAuthJwtPrivateKeyId, ok := input.Get("http", "oauth_jwt_private_key_id"); ok {
+		if len(oAuthJwtPrivateKeyId) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_private_key_id"] = true
+			config.OAuthJwtPrivateKeyId = oAuthJwtPrivateKeyId
+		} else {
+			errs.addErrorString("Empty value is specified for oauth_jwt_private_key_id")
+		}
+	}
+
+	if scopesStr, ok := input.Get("http", "oauth_jwt_scopes"); ok {
+		if len(scopesStr) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_scopes"] = true
+
+			var oAuthJwtScopes []string
+			for _, scope := range strings.Split(scopesStr, ",") {
+				scope = strings.TrimSpace(scope)
+				if len(scope) > 0 {
+					oAuthJwtScopes = append(oAuthJwtScopes, scope)
+				} else {
+					errs.addErrorString("Empty scope found")
+				}
+			}
+			config.OAuthJwtScopes = oAuthJwtScopes
+		} else {
+			errs.addErrorString("Empty value is specified for oauth_jwt_scopes")
+		}
+
+	}
+
+	if oAuthJwtTokenUrl, ok := input.Get("http", "oauth_jwt_token_url"); ok {
+		if len(oAuthJwtTokenUrl) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_token_url"] = true
+			config.OAuthJwtTokenUrl = oAuthJwtTokenUrl
+		} else {
+			errs.addErrorString("Empty value is specified for oauth_jwt_token_url")
+		}
+	}
+
+	// requiredOAuthFields contains the fields that must be present if OAuth is configured.
+	requiredOAuthFields := []string{
+		"oauth_jwt_client_email",
+		"oauth_jwt_private_key",
+		"oauth_jwt_token_url",
+	}
+
+	// Check that all required fields present if OAuth is configured.
+	if len(oAuthFieldsConfigured) > 0 {
+		for _, requiredField := range requiredOAuthFields {
+			if !oAuthFieldsConfigured[requiredField] {
+				errs.addErrorString(
+					fmt.Sprintf("Required OAuth field %s is not configured", requiredField))
+			}
+		}
+	}
 }

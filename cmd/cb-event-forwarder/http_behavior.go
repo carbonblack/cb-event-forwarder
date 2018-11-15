@@ -9,6 +9,9 @@ import (
 	"os"
 	"text/template"
 	"time"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/jwt"
 )
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
@@ -44,17 +47,44 @@ func (this *HTTPBehavior) Initialize(dest string) error {
 
 	this.headers["Content-Type"] = *config.HTTPContentType
 
-	transport := &http.Transport{
-		TLSClientConfig:     config.TLSConfig,
-		Dial:                (&net.Dialer{Timeout: 5 * time.Second}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
 	this.client = &http.Client{
-		Transport: transport,
+		Transport: createTransport(config),
 		Timeout:   120 * time.Second, // default timeout is 2 minutes for the entire exchange
 	}
 
 	return nil
+}
+
+// createTransport returns Transport which will be used in http.Client.
+func createTransport(config Configuration) http.RoundTripper {
+	baseTransport := &http.Transport{
+		TLSClientConfig:     config.TLSConfig,
+		Dial:                (&net.Dialer{Timeout: 5 * time.Second}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	// If OAuth is configured, wrap baseTransport in oauth2.Transport.
+	// We identify that OAuth is configured when all required fields for OAuth are configured.
+	// These fields include client email, private key, and token url.
+	if len(config.OAuthJwtClientEmail) > 0 &&
+		len(config.OAuthJwtPrivateKey) > 0 &&
+		len(config.OAuthJwtTokenUrl) > 0 {
+
+		jwtConfig := &jwt.Config{
+			Email:        config.OAuthJwtClientEmail,
+			PrivateKey:   config.OAuthJwtPrivateKey,
+			PrivateKeyID: config.OAuthJwtPrivateKeyId,
+			Scopes:       config.OAuthJwtScopes,
+			TokenURL:     config.OAuthJwtTokenUrl,
+		}
+
+		return &oauth2.Transport{
+			Base:   baseTransport,
+			Source: oauth2.ReuseTokenSource(nil, jwtConfig.TokenSource(nil)),
+		}
+	}
+
+	return baseTransport
 }
 
 func (this *HTTPBehavior) String() string {
