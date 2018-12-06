@@ -17,6 +17,7 @@ ifeq ($TARGET_OS,"linux")
 endif
 
 build-no-static: librdkafka
+	go generate ./internal/sensor_events
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
