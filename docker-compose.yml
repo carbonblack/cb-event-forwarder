@@ -2,7 +2,10 @@ cb-event-forwarder:
       #image: cbsdk:latest                                                          
       build: .                                                                      
       dockerfile: Dockerfile                                                  
+      command: bash
+      stdin_open: true
+      tty: true
       ports:                                                                        
         - "5000:80"                                                                 
       volumes:                                                                      
-        - ./:/vol/cb-event-forwarder      
+        - ./:/go/src/github.com/carbonblack/cb-event-forwarder      
