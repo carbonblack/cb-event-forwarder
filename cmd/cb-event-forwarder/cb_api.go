@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
-
+	"github.com/gregjones/httpcache"
 	"zvelo.io/ttlru"
 )
 
@@ -75,8 +75,12 @@ func GetCb(route string) ([]byte, error) {
 		Proxy:           proxyRequest,
 	}
 
+
+	c := httpcache.NewMemoryCache()
+	httpcachetr := &httpcache.Transport{Cache: c, MarkCachedResponses: true, Transport: tr}
+
 	httpClient := &http.Client{
-		Transport: tr,
+		Transport: httpcachetr,
 		Timeout:   5 * time.Second,
 	}
 
@@ -180,3 +184,5 @@ func GetReport(FeedID int, ReportID string) (string, int, string, error) {
 	return threatReport.Title, threatReport.Score, threatReport.Link, nil
 
 }
+
+

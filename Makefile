@@ -16,6 +16,11 @@ ifeq ($TARGET_OS,"linux")
 	ldconfig -p | grep librdkafka
 endif
 
+build-no-static: librdkafka
+	go generate ./internal/sensor_events
+	go build ./cmd/cb-event-forwarder
+	go build ./cmd/kafka-util
+
 build: librdkafka
 	go get -u github.com/golang/protobuf/proto
 	go get -u github.com/golang/protobuf/protoc-gen-go
@@ -29,7 +34,6 @@ rpmbuild: librdkafka
 	dep ensure; \
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
-
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
