@@ -250,12 +250,15 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	switch {
 	case cbMessage.Process != nil:
 		if _, ok := config.EventMap["ingress.event.process"]; ok {
-			WriteProcessMessage(inmsg, outmsg)
+			retVal = WriteProcessMessage(inmsg, outmsg)
 		} else if _, ok := config.EventMap["ingress.event.procstart"]; ok {
-			WriteProcessMessage(inmsg, outmsg)
+			retVal = WriteProcessMessage(inmsg, outmsg)
 		} else if _, ok := config.EventMap["ingress.event.procend"]; ok {
-			WriteProcessMessage(inmsg, outmsg)
+			retVal = WriteProcessMessage(inmsg, outmsg)
 		} else {
+			return nil, nil
+		}
+		if retVal != nil {
 			return nil, nil
 		}
 	case cbMessage.Modload != nil:
@@ -377,7 +380,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	return outmsg, nil
 }
 
-func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
+func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{}) error {
 	kv["event_type"] = "proc"
 
 	filePath, _ := message.getStringByGUID(message.OriginalMessage.Header.GetFilepathStringGuid())
@@ -394,8 +397,16 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 		if message.OriginalMessage.Process.Sha256Hash != nil {
 			kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Process.GetSha256Hash())
 		}
-	} else {
+
+	} else if _, ok := config.EventMap["ingress.event.procend"]; ok {
+		/*
+		 * We don't want procends to be generated if procends are not in the config map
+		 * Since this function handles all three cases (process, procstart, procend) we need
+		 * to check again prior to outputting this event type
+		 */
 		kv["type"] = "ingress.event.procend"
+	} else {
+		return errors.New("ingress.event.procend not specified in config map")
 	}
 
 	kv["command_line"] = GetUnicodeFromUTF8(message.OriginalMessage.Process.GetCommandline())
@@ -438,7 +449,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	if message.OriginalMessage.Process.Uid != nil {
 		kv["uid"] = message.OriginalMessage.Process.GetUid()
 	}
-
+	return nil
 }
 
 func WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
