@@ -6,6 +6,7 @@ VERSION := 3.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 TARGET_OS=linux
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
+export GO111MODULE=on
 
 .PHONY: clean test rpmbuild rpminstall build rpm
 
@@ -17,21 +18,20 @@ ifeq ($TARGET_OS,"linux")
 endif
 
 build-no-static: librdkafka
+	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
 build: librdkafka
-	go get -u github.com/golang/protobuf/proto
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
-	dep ensure
 	go build -tags static ./cmd/cb-event-forwarder 
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild: librdkafka
-	go generate ./internal/sensor_events; \
-	dep ensure; \
+	go get -u github.com/golang/protobuf/protoc-gen-go
+	go generate ./internal/sensor_events 
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
@@ -68,10 +68,9 @@ bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
 
 sdist:
-	dep ensure
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp Makefile Gopkg.toml cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp Makefile go.mod cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
 	sleep 1
@@ -81,4 +80,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 8' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 9' -bb cb-event-forwarder.rpm.spec
