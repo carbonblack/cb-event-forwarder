@@ -247,8 +247,10 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	gotNetworkV2Message := false
 	gotNetblockV2Message := false
 
+
 	switch {
 	case cbMessage.Process != nil:
+		var retVal error = nil
 		if _, ok := config.EventMap["ingress.event.process"]; ok {
 			retVal = WriteProcessMessage(inmsg, outmsg)
 		} else if _, ok := config.EventMap["ingress.event.procstart"]; ok {
