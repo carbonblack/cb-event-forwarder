@@ -17,6 +17,7 @@ import (
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
+	topic			  string
 	producer          kafka.Producer
 	droppedEventCount int64
 	eventSentCount    int64
@@ -34,14 +35,27 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	defer o.Unlock()
 
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
-	o.topicSuffix = *(config.KafkaTopicSuffix)
-	p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
+	o.topicSuffix = config.KafkaTopicSuffix
+	o.topic = config.KafkaTopic
+	// You'll probably need the other opts when protocol is set
+	if config.KafkaProtocol != "" {
+	    p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+                                                    "security.protocol": config.KafkaProtocol,
+                                                    "sasl.mechanism": config.KafkaMechanism,
+                                                    "sasl.username": config.KafkaUsername,
+                                                    "sasl.password": config.KafkaPassword})
+		if err != nil {
+	        panic(err)
+		}
+		o.producer = *p
 
-	if err != nil {
-		panic(err)
+	} else {
+		p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
+		if err != nil {
+	        panic(err)
+		}
+		o.producer = *p
 	}
-
-	o.producer = *p
 
 	return nil
 }
@@ -62,15 +76,18 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case message := <-messages:
 				var parsedMsg map[string]interface{}
 				json.Unmarshal([]byte(message), &parsedMsg)
-				topic := parsedMsg["type"]
-				if topicString, ok := topic.(string); ok {
-					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-					topicString += o.topicSuffix
-
-					o.output(topicString, message)
+				if o.topic != "" {
+					o.output(o.topic, message)
 				} else {
-					log.Info("ERROR: Topic was not a string")
-				}
+					topic := parsedMsg["type"]
+					if topicString, ok := topic.(string); ok {
+						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+						topicString += o.topicSuffix
+						o.output(topicString, message)
+					} else {
+						log.Info("ERROR: Topic was not a string")
+					}
+				 }
 			case e := <-o.producer.Events():
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
