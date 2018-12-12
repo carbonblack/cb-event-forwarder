@@ -226,7 +226,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 	outputcontrolchannels := make([]*chan os.Signal, len(outputconfigs))
 	i := 0
 	for i < len(outputconfigs) {
-		res[i] = make(chan map[string]interface{},100)
+		res[i] = make(chan map[string]interface{}, 100)
 		controlchan := make(chan os.Signal, 2)
 		outputcontrolchannels[i] = &controlchan
 		i++
@@ -281,17 +281,17 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 			cbServerURL = t.(string)
 		}
 
-		var cbapihandler * cbapi.CbAPIHandler = nil
+		var cbapihandler *cbapi.CbAPIHandler = nil
 
-		if postprocess, ok := consumerConfMap["post_processing"] ; ok {
+		if postprocess, ok := consumerConfMap["post_processing"]; ok {
 			if ppmap, ok := postprocess.(map[interface{}]interface{}); ok {
-				cbapihandler_temp, err := cbapi.CbAPIHandlerFromCfg(ppmap,cbServerURL)
+				cbapihandler_temp, err := cbapi.CbAPIHandlerFromCfg(ppmap, cbServerURL)
 				if err != nil {
 					log.Panicf("Error getting cbapihandler from configuration: %v", err)
 				} else {
 					cbapihandler = cbapihandler_temp
 				}
-			} else  {
+			} else {
 				log.Panicf("Error getting cbapihandler from configuration: %v", err)
 			}
 		}
@@ -313,6 +313,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 	}
 	return cbef
 }
+
 // The event forwarder GO
 //  The sigs channel should be hooked up to system or similar
 // This controls the event forwarder, and should be used to cause it to gracefully exit/clear output buffers

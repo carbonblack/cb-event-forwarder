@@ -23,7 +23,7 @@ type UploadEvent struct {
 	EventText string
 }
 
-func convertFileIntoTemplate(eventAsBytes,commaSeparateEvents, debugFlag bool, debugStore string, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
+func convertFileIntoTemplate(eventAsBytes, commaSeparateEvents, debugFlag bool, debugStore string, fp *os.File, events chan<- UploadEvent, firstEventTemplate *template.Template, subsequentEventTemplate *template.Template) {
 	defer close(events)
 
 	var fileReader io.ReadCloser

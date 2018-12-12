@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/gregjones/httpcache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
-	"github.com/gregjones/httpcache"
 	"zvelo.io/ttlru"
 )
 
@@ -65,27 +65,27 @@ type CbAPIHandler struct {
 func CbAPIHandlerFromCfg(cfg map[interface{}]interface{}, cbServerURL string) (*CbAPIHandler, error) {
 	var tls *tls.Config = nil
 	var err error
-		if tlsCfgi, ok := cfg["tls"]; ok {
-			tlsCfg, ok := tlsCfgi.(map[interface{}]interface{})
-			if ok {
-				t, e := conf.GetTLSConfigFromCfg(tlsCfg)
-				if e != nil {
-					return nil, e
-				}
-				tls = t
+	if tlsCfgi, ok := cfg["tls"]; ok {
+		tlsCfg, ok := tlsCfgi.(map[interface{}]interface{})
+		if ok {
+			t, e := conf.GetTLSConfigFromCfg(tlsCfg)
+			if e != nil {
+				return nil, e
 			}
+			tls = t
 		}
-		api_proxy_url := ""
-		if t, ok := cfg["proxy_url"]; ok {
-			api_proxy_url = t.(string)
-		}
-		api_token := ""
-		if t, ok := cfg["api_token"]; ok {
-			api_token = t.(string)
-		} else {
-			err = errors.New("Must provide api_token to cbapi post processor")
-		}
-		return NewCbAPIHandler(cbServerURL, api_token, api_proxy_url, tls), err
+	}
+	api_proxy_url := ""
+	if t, ok := cfg["proxy_url"]; ok {
+		api_proxy_url = t.(string)
+	}
+	api_token := ""
+	if t, ok := cfg["api_token"]; ok {
+		api_token = t.(string)
+	} else {
+		err = errors.New("Must provide api_token to cbapi post processor")
+	}
+	return NewCbAPIHandler(cbServerURL, api_token, api_proxy_url, tls), err
 }
 
 func NewCbAPIHandler(cbServerURL, cbAPIToken, cbAPIProxyURL string, tls *tls.Config) *CbAPIHandler {
@@ -113,7 +113,6 @@ func (cbapi *CbAPIHandler) GetCb(route string) ([]byte, error) {
 		TLSClientConfig: cbapi.Tls,
 		Proxy:           proxyRequest,
 	}
-
 
 	c := httpcache.NewMemoryCache()
 	httpcachetr := &httpcache.Transport{Cache: c, MarkCachedResponses: true, Transport: tr}
@@ -223,5 +222,3 @@ func (cbapi *CbAPIHandler) GetReport(FeedID int, ReportID string) (string, int, 
 	return threatReport.Title, threatReport.Score, threatReport.Link, nil
 
 }
-
-

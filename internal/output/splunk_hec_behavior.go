@@ -23,7 +23,7 @@ type SplunkBehavior struct {
 	subsequentEventTemplate *template.Template
 	DebugFlag               bool
 	CommaSeperateEvents     bool
-	OutputAsBytes     bool
+	OutputAsBytes           bool
 	DebugStore              string
 }
 
@@ -32,8 +32,8 @@ type SplunkStatistics struct {
 }
 
 /* Construct the syslog_output.go object */
-func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat,eventAsBytes, debugFlag bool, debugStore string, tlsConfig *tls.Config) (SplunkBehavior, error) {
-    newSplunkBehavior := SplunkBehavior{dest: dest, headers: headers,CommaSeperateEvents: jsonFormat,OutputAsBytes: eventAsBytes, DebugStore: debugStore, DebugFlag: debugFlag}
+func NewSplunkBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, eventAsBytes, debugFlag bool, debugStore string, tlsConfig *tls.Config) (SplunkBehavior, error) {
+	newSplunkBehavior := SplunkBehavior{dest: dest, headers: headers, CommaSeperateEvents: jsonFormat, OutputAsBytes: eventAsBytes, DebugStore: debugStore, DebugFlag: debugFlag}
 	newSplunkBehavior.firstEventTemplate = template.Must(template.New("first_event").Parse("{{.}}"))
 	newSplunkBehavior.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("{{.}}"))
 	newSplunkBehavior.headers = headers
@@ -95,7 +95,7 @@ func (this *SplunkBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(this.CommaSeperateEvents,this.OutputAsBytes, this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.CommaSeperateEvents, this.OutputAsBytes, this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()
 
@@ -152,6 +152,6 @@ func SplunkBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debu
 			headers[k.(string)] = v.(string)
 		}
 	}
-	httpb, err := NewSplunkBehavior(http_post_template, dest, headers, commaSeparate,eventAsBytes, debugFlag, debugStore, tlsConfig)
+	httpb, err := NewSplunkBehavior(http_post_template, dest, headers, commaSeparate, eventAsBytes, debugFlag, debugStore, tlsConfig)
 	return &httpb, err
 }

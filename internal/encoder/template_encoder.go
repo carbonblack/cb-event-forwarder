@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 )
+
 //generic interface for encoders
 type Encoder interface {
 	Encode(msg map[string]interface{}) (string, error)
@@ -18,7 +19,6 @@ type Encoder interface {
 }
 
 // The template encoder implementation - an encoder that uses a golang template provided to structure output mssages
-
 
 type TemplateEncoder struct {
 	EncoderTemplate *template.Template

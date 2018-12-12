@@ -24,7 +24,7 @@ type HTTPBehavior struct {
 	DebugFlag               bool
 	CommaSeperateEvents     bool
 	DebugStore              string
-    OutputAsBytes       bool
+	OutputAsBytes           bool
 }
 
 type HTTPStatistics struct {
@@ -61,13 +61,13 @@ func HTTPBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugS
 			headers[k.(string)] = v.(string)
 		}
 	}
-	httpb, err := NewHTTPBehavior(http_post_template, dest, headers, commaSeparate,outputAsBytes, debugFlag, debugStore, tlsConfig)
+	httpb, err := NewHTTPBehavior(http_post_template, dest, headers, commaSeparate, outputAsBytes, debugFlag, debugStore, tlsConfig)
 	return &httpb, err
 }
 
 /* Construct the HTTPBehavior object */
-func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat,eventasbytes, debugFlag bool, debugStore string, tlsConfig *tls.Config) (HTTPBehavior, error) {
-    temp := HTTPBehavior{DebugFlag: debugFlag, DebugStore: debugStore,CommaSeperateEvents: jsonFormat, OutputAsBytes: eventasbytes, headers: headers, dest: dest}
+func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, eventasbytes, debugFlag bool, debugStore string, tlsConfig *tls.Config) (HTTPBehavior, error) {
+	temp := HTTPBehavior{DebugFlag: debugFlag, DebugStore: debugStore, CommaSeperateEvents: jsonFormat, OutputAsBytes: eventasbytes, headers: headers, dest: dest}
 	temp.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	temp.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
 	HTTPPostTemplate := template.New("http_post_output")
@@ -129,7 +129,7 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer writer.Close()
 
 		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(this.OutputAsBytes,this.CommaSeperateEvents, this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		go convertFileIntoTemplate(this.OutputAsBytes, this.CommaSeperateEvents, this.DebugFlag, this.DebugStore, fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
 		this.HTTPPostTemplate.Execute(writer, uploadData)
 	}()

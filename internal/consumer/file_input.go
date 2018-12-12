@@ -8,7 +8,6 @@ import (
 
 // A consumer (similar to the AMQP consumer, but intended to repeatedly tail files and produce the messages into the cbef
 
-
 type FileConsumer struct {
 	fileName string
 }
