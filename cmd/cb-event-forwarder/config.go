@@ -94,12 +94,12 @@ type Configuration struct {
 
 	// Kafka-specific configuration
 	KafkaBrokers        *string
-	KafkaTopicSuffix    *string
-	KafkaTopic			*string
-    KafkaProtocol       *string
-    KafkaMechanism      *string
-    KafkaUsername       *string
-    KafkaPassword       *string
+	KafkaTopicSuffix    string
+	KafkaTopic			string
+    KafkaProtocol       string
+    KafkaMechanism      string
+    KafkaUsername       string
+    KafkaPassword       string
 	KafkaMaxRequestSize int32
 
 	//Splunkd
@@ -503,27 +503,27 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
 			if ok {
-				config.KafkaTopicSuffix = &kafkaTopicSuffix
+				config.KafkaTopicSuffix = kafkaTopicSuffix
 			}
             kafkaTopic, ok := input.Get("kafka", "topic")
             if ok {
-                config.KafkaTopic = &kafkaTopic
+                config.KafkaTopic = kafkaTopic
             }
             kafkaProtocol, ok := input.Get("kafka", "protocol")
             if ok {
-                config.KafkaProtocol = &kafkaProtocol
+                config.KafkaProtocol = kafkaProtocol
             }
             kafkaMechanism, ok := input.Get("kafka", "mechanism")
             if ok {
-                config.KafkaMechanism = &kafkaMechanism
+                config.KafkaMechanism = kafkaMechanism
             }
             kafkaUsername, ok := input.Get("kafka", "username")
             if ok {
-                config.KafkaUsername = &kafkaUsername
+                config.KafkaUsername = kafkaUsername
             }
             kafkaPassword, ok := input.Get("kafka", "password")
             if ok {
-                config.KafkaPassword = &kafkaPassword
+                config.KafkaPassword = kafkaPassword
             }
 			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
 			if ok {

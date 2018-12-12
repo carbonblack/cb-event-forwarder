@@ -35,19 +35,27 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	defer o.Unlock()
 
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
-	o.topicSuffix = *(config.KafkaTopicSuffix)
-	o.topic = *(config.KafkaTopic)
-    p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-                                                    "security.protocol": *config.KafkaProtocol,
-                                                    "sasl.mechanism": *config.KafkaMechanism,
-                                                    "sasl.username": *config.KafkaUsername,
-                                                    "sasl.password": *config.KafkaPassword})
+	o.topicSuffix = config.KafkaTopicSuffix
+	o.topic = config.KafkaTopic
+	// You'll probably need the other opts when protocol is set
+	if config.KafkaProtocol != "" {
+	    p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+                                                    "security.protocol": config.KafkaProtocol,
+                                                    "sasl.mechanism": config.KafkaMechanism,
+                                                    "sasl.username": config.KafkaUsername,
+                                                    "sasl.password": config.KafkaPassword})
+		if err != nil {
+	        panic(err)
+		}
+		o.producer = *p
 
-	if err != nil {
-		panic(err)
+	} else {
+		p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
+		if err != nil {
+	        panic(err)
+		}
+		o.producer = *p
 	}
-
-	o.producer = *p
 
 	return nil
 }
