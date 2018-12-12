@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	log "github.com/sirupsen/logrus"
+	"encoding/base64"
 	"io"
 	"os"
 	"text/template"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type UploadData struct {
@@ -66,7 +68,7 @@ func convertFileIntoTemplate(fp *os.File, events chan<- UploadEvent, firstEventT
 			log.Debug(err)
 		}
 
-		events <- UploadEvent{EventText: eventText, EventSeq: i}
+		events <- newUploadEvent(i, eventText, config.EventTextAsJsonByteArray)
 		i++
 
 	}
@@ -75,4 +77,16 @@ func convertFileIntoTemplate(fp *os.File, events chan<- UploadEvent, firstEventT
 		log.Debug(err)
 	}
 
+}
+
+// newUploadEvent creates an instance of UploadEvent.
+func newUploadEvent(eventSeq int64, eventText string, eventTextAsJsonByteArray bool) UploadEvent {
+	// If eventTextAsJsonByteArray is true, eventText will be encoded as a base64-encoded string.
+	if eventTextAsJsonByteArray {
+		eventText = base64.StdEncoding.EncodeToString([]byte(eventText))
+	}
+	return UploadEvent{
+		EventSeq:  eventSeq,
+		EventText: eventText,
+	}
 }
