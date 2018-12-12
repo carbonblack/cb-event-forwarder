@@ -95,6 +95,7 @@ type Configuration struct {
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    *string
+	KafkaTopic			*string
     KafkaProtocol       *string
     KafkaMechanism      *string
     KafkaUsername       *string

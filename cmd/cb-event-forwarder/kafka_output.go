@@ -68,7 +68,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case message := <-messages:
 				var parsedMsg map[string]interface{}
 				json.Unmarshal([]byte(message), &parsedMsg)
-				if o.topic != nil {
+				if o.topic != "" {
 					o.output(o.topic, message)
 				} else {
 					topic := parsedMsg["type"]
