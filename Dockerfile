@@ -31,8 +31,9 @@ RUN cd protobuf && git submodule update --init --recursive && ./autogen.sh
 RUN cd protobuf && ./configure
 RUN cd protobuf &&  make && make check && make install && ldconfig 
 
+#TODO: remove dep forever
 #get dep to manage golang dependencies
-RUN go get -u github.com/golang/dep/cmd/dep
+#RUN go get -u github.com/golang/dep/cmd/dep
 
 #Install a specific version of protoc-gen-go
 RUN mkdir -p src/github.com/golang/protobuf

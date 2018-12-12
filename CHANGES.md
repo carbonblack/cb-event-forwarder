@@ -1,5 +1,10 @@
 # Changelog
 
+## cb-event-forwarer 3.5.0
+- kafka SASL support
+- OATH2 JWT optional support for http output
+- Support for sending EventText as bytearary httpoutput 
+
 ## cb-event-forwarder 3.1.2
 
 The 3.1.2 release of cb-event-forwarder adds two features:
