@@ -71,7 +71,6 @@ type Configuration struct {
 	TLS12Only     bool
 
 	// HTTP-specific configuration
-<<<<<<< HEAD
 	HTTPAuthorizationToken *string
 	HTTPPostTemplate       *template.Template
 	HTTPContentType        *string
@@ -80,12 +79,8 @@ type Configuration struct {
 	OAuthJwtPrivateKeyId   string
 	OAuthJwtScopes         []string
 	OAuthJwtTokenUrl       string
-=======
-	HTTPAuthorizationToken   *string
-	HTTPPostTemplate         *template.Template
-	HTTPContentType          *string
+
 	EventTextAsJsonByteArray bool
->>>>>>> 2ca416139f2d73b47b1616a621f58a61e83d8a2a
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -499,10 +494,8 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.HTTPContentType = &jsonString
 			}
 
-<<<<<<< HEAD
 			// Parse OAuth related configuration.
 			parseOAuthConfiguration(&input, &config, &errs)
-=======
 			eventTextAsJsonByteArray, ok := input.Get("http", "event_text_as_json_byte_array")
 			if ok {
 				boolval, err := strconv.ParseBool(eventTextAsJsonByteArray)
@@ -512,7 +505,7 @@ func ParseConfig(fn string) (Configuration, error) {
 					errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", eventTextAsJsonByteArray))
 				}
 			}
->>>>>>> 2ca416139f2d73b47b1616a621f58a61e83d8a2a
+
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType

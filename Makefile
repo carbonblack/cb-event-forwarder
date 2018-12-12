@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.4
-VERSION := 3.4
+GIT_VERSION := 3.5
+VERSION := 3.5
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 TARGET_OS=linux
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
@@ -80,4 +80,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 9' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 0' -bb cb-event-forwarder.rpm.spec
