@@ -1,5 +1,27 @@
 # Changelog
 
+## cb-event-forwader 4.0.0 beta
+
+The 4.0.0 release of the cb-event-forwarder retains the features of 3x and: 
+- enhanced architecture - specify multiple CbR servers for input and multiple outputs 
+- enhanced configuration - configuration format changed from .ini to yaml 
+- templated outputs format - users can marshal output messages in arbitrary formats using golang templates
+    - Fully compatible with existing outputs**
+- output plugins - users can write their own output plugins to support output types not supported currently, w/o contributing code upstream (but we hope you still do) 
+    - The plugin architecture is meant for advanced users and is subject to artibtrary change as the CbEF evolves
+- filtering - Users can filter events during processing in the event forwarder, specifing a keep-or-drop template in the relevant config section
+    - filtering happens to all events, from all inputs
+- enhancements to existing outputs
+    - more graceful management of temporary files by BundledOutputs ( splunk-hec, s3, http)
+- Kafa Output changed to output-plugin
+    - 'standard-plugin' will be provided with the CbR EF
+        - makes a wonderful template for other output plugins 
+    - the kafka-output has been enhanced :
+        - uses librdkafka/go-confluent-kafka instead of sarama
+            -better protocol compliance/support
+        - users can now specify arbitrary kafka-producer configs (at their own peril - consider how your broker(s) are configured too) 
+
+
 ## cb-event-forwarer 3.5.0
 - kafka SASL support
 - OATH2 JWT optional support for http output

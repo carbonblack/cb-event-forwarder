@@ -3,6 +3,7 @@ module github.com/carbonblack/cb-event-forwarder
 require (
 	github.com/RackSec/srslog v0.0.0-20180514150917-1f7cff998e92
 	github.com/aws/aws-sdk-go v1.13.49
+	github.com/colinmarc/hdfs v1.1.3 // indirect
 	github.com/confluentinc/confluent-kafka-go v0.11.4
 	github.com/eapache/go-xerial-snappy v0.0.0-20160609142408-bb955e01b934
 	github.com/go-ini/ini v1.36.0
@@ -24,5 +25,6 @@ require (
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/h2non/filetype.v1 v1.0.5
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
+	gopkg.in/yaml.v2 v2.2.2
 	zvelo.io/ttlru v1.0.2
 )

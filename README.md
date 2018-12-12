@@ -7,9 +7,154 @@ events (both watchlist/feed hits as well as raw endpoint events, if configured) 
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
+##Configuration 
+
+The 4.0 Cb Response Event Forwarder has a three part processing pipeline which is specified:
+in YAML format - with two crucicial parts - input and output.
+
+1) input - this section defines a number of consumers each reading from a specific CbR server messaging bus
 The list of events to collect is configurable.
 By default all feed and watchlist hits, alerts, binary notifications, and raw sensor events are exported into JSON.  The
-configuration file for the connector is stored in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf`.
+```
+input: 
+    cbserver1:
+        cb_server_url: https://zestep-centos-cbresponseserver 
+        # rabbitmq options are opitional, /etc/cb/.conf is used by default
+        # if the folling are ommited
+        rabbit_mq_username: cb
+        rabbit_mq_hostname: localhost
+        rabbit_mq_password:  
+```
+#Use this boolean option to control the use of the raw sensor exchange
+#defaults to false
+`use_raw_exchange : true`
+
+## Subscribed Events 
+The 4.0 event forwarder subcribes to `all-events` by default though the user
+can specify explicit options for which events to listen to as so:
+(within each individual input element)
+event_map:
+    events_watchlist:
+        - watchlist.#
+    events_feed:
+        - feed.#
+    events_alert:
+        - alert.#
+    events_raw_sensor:
+        - ingress.event.process 
+        - ingress.event.procstart
+        - ingress.event.netconn
+        - ingerss.event.procend
+        - ingress.event.childproc
+        - ingress.event.moduleload
+        - ingress.event.module
+        - ingress.event.filemod
+        - ingress.event.regmod
+        - ingress.event.tamper
+        - ingress.event.crossprocopen
+        - ingress.event.remotethread
+        - ingress.event.processblock
+        - ingress.event.emetmitigation
+    events_binary_observed:
+        - binaryinfo.#
+    events_binary_upload:    
+        - binarystore.#
+    events_storage_parition:
+        - events.partition.#
+
+AMQPs tls can be configured by providing a `tls:` stanza within an individual input: 
+```
+tls:    
+    client_cert: yourcert
+    client_key: yourkey
+    ca_cert: cacert
+    tls_insecure: true # defaults false 
+```
+
+There are optional post processing arguments to enhance messages w/ api
+callbacks (currently just report information)
+```
+post_processing:
+    tls: 
+        #slightly different than other TLS stanzas found in input/output
+        verify: false # defaults to true
+        tls_12_only: false # defaults to true 
+        client_cert: client.cert
+        client_key: client.key
+        ca_cert: ca.cert
+    api_proxy_url: proxyurl
+    api_token: apitoken
+```
+Just specify the post processing options within an individual input element.
+    
+2) filter - this section of the pipeline defines an optional template for keeping/droping messages based on their contents. 
+This is a top-level option, along side input: and output: 
+```
+filter:
+    template: >-
+              {{if (eq .type "alert.watchlist.hit.query.binary") -}}
+                KEEP
+              {{- else -}}
+                DROP
+              {{- end}}
+```
+
+3) output - this section defines a number of outputs, which can be of differing types (file,socket, etc)  and formats (json,LEEF, custom)
+```
+output:
+    - file:
+        path: "output-json.txt"
+        format:
+            type: json 
+    - file:
+        path: "output-leef.txt"
+        format:
+            type: leef 
+    - file:
+        path: "output-yaml.txt"
+        format:
+            type: template 
+            template: "{{YamlFormat .}}"
+```
+## Supported Output Types in 4.0
+The 4.0.0 CbR event-forwarder supports the same output options as 3.X:
+Each output must provide path/connection information, other configuration options
+specific to that output type and a format (like the old `output_format`) like so:
+
+output formats
+```
+format: 
+    type: json # leef, cef, template are the possible options
+```
+output options
+```
+file: 
+    path: path/to/your/desiredoutput.type
+    format:
+        type: json
+http:
+    destination: https://myserver:51337
+    # overide the default template ... http_post_template: 
+    #upload_empty_files: false    
+    #bundle_size_max: "50000000"
+    #bundle_send_timeout: "500"
+    #comma_seperate_events: false 
+    # defaults to false 
+    #headers:
+    #   header: headervalue
+    tls:
+        #tls options
+    format:
+        type: json
+socket:
+   connection: tpc://host-or-ip:port 
+   format: 
+        type: json
+splunk:
+syslog:
+    connection: tcp://host-or-ip:port 
+
+```
 
 ## Support
 
@@ -49,6 +194,8 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
 
 ### Configure the cb-event-forwarder
 
+Note: The 4.X event forwarder uses Yaml files for configuration. Values will be interpreted as their literal types, rather than using 0,1,T/F to represent booleans `true` or `false` should be used.
+
 1. If installing on a machine *other than* the Cb Response server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
 file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Cb Response server can be reached.
@@ -69,7 +216,7 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing raw sensor events then you also need to edit the `DatastoreBroadcastEventTypes` option in 
 `/etc/cb/cb.conf` to enable broadcast of the raw sensor events you wish to export.
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
-`/etc/cb/cb.conf` and set it to `True`.
+`/etc/cb/cb.conf` and set it to true.
 
 Cb Response needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
 `service cb-enterprise restart`. 
@@ -102,9 +249,9 @@ The Cb Response event forwarder can forward Cb Response events in the LEEF forma
 events to a QRadar server:
 
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 
-`udpout=<qradaripaddress>:<port>` (NOTE: Port is usually 514)
-2. Change the output format to LEEF in the configuration file: `output_format=leef`.
-3. Change the output type to UDP in the configuration file: `output_type=udp`.
+`udpout: "<qradaripaddress>:<port>"` (NOTE: Port is usually 514)
+2. Change the output format to LEEF in the configuration file: `output_format: leef`.
+3. Change the output type to UDP in the configuration file: `output_type: udp`.
 
 For more information on the LEEF format, see the [Events documentation](EVENTS.md).
 
@@ -113,7 +260,7 @@ For more information on the LEEF format, see the [Events documentation](EVENTS.m
 The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder`. An example of a successful startup log:
 
 ```
-2015/12/07 12:57:26 cb-event-forwarder version 3.0.0 starting
+2015/12/07 12:57:26 cb-event-forwarder version 4.0.0 starting
 2015/12/07 12:57:26 Interface address 172.22.10.7
 2015/12/07 12:57:26 Interface address fe80::20c:29ff:fe85:bcd0
 2015/12/07 12:57:26 Configured to capture events: [watchlist.hit.# watchlist.storage.hit.# feed.ingress.hit.# 
@@ -200,10 +347,11 @@ output from the JSON status is shown below:
   ]
 }
 ```
-
 ## Building from source
 
-It is recommended to use golang 1.6.4.
+It is recommended to use the latest avialable golang toolchain for your environment
+
+Go-Plugin support is crucial to the plugin implementation and is subject to bugs in MacOSX, therefore plugins can not be at present supported on that system. (Although the forwarder as a whole, and the standard outoputs will work just fine)
 
 Setup your GOPATH environment variable.
 See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
@@ -216,8 +364,3 @@ go get ./...
 go build
 ```
 
-## Changelog
-
-This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
-See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) 
-for more information on new features introduced with each new version and upgrading from cb-event-forwarder 2.x.
