@@ -9,7 +9,12 @@ import (
 	"net/http"
 	"os"
 	"text/template"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/jwt"
+	"time"
+	"net"
 )
+
 
 /* This is the HTTP implementation of the OutputHandler interface defined in main.go */
 type HTTPBehavior struct {
@@ -31,7 +36,7 @@ type HTTPStatistics struct {
 	Destination string `json:"destination"`
 }
 
-func HTTPBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugStore string, tlsConfig *tls.Config) (*HTTPBehavior, error) {
+func HTTPBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugStore string,jwtConfig * jwt.Config, tlsConfig *tls.Config) (*HTTPBehavior, error) {
 	http_post_template := ""
 	if temp, ok := cfg["http_post_template"]; ok {
 		http_post_template, _ = temp.(string)
@@ -61,12 +66,12 @@ func HTTPBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugS
 			headers[k.(string)] = v.(string)
 		}
 	}
-	httpb, err := NewHTTPBehavior(http_post_template, dest, headers, commaSeparate, outputAsBytes, debugFlag, debugStore, tlsConfig)
+	httpb, err := NewHTTPBehavior(http_post_template, dest, headers, commaSeparate, outputAsBytes, debugFlag, debugStore,jwtConfig, tlsConfig)
 	return &httpb, err
 }
 
 /* Construct the HTTPBehavior object */
-func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, eventasbytes, debugFlag bool, debugStore string, tlsConfig *tls.Config) (HTTPBehavior, error) {
+func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, eventasbytes, debugFlag bool, debugStore string,jwtConfig * jwt.Config, tlsConfig *tls.Config) (HTTPBehavior, error) {
 	temp := HTTPBehavior{DebugFlag: debugFlag, DebugStore: debugStore, CommaSeperateEvents: jsonFormat, OutputAsBytes: eventasbytes, headers: headers, dest: dest}
 	temp.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	temp.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))
@@ -83,13 +88,31 @@ func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, j
 	}
 	temp.HTTPPostTemplate = HTTPPostTemplate
 
-	transport := &http.Transport{
-		TLSClientConfig: tlsConfig,
+	temp.client = &http.Client{
+		Transport: createTransport(jwtConfig,tlsConfig),
+		Timeout:   120 * time.Second, // default timeout is 2 minutes for the entire exchange
 	}
 
-	temp.client = &http.Client{Transport: transport}
-
 	return temp, nil
+}
+
+
+func createTransport(jwtConfig * jwt.Config,tlsCfg * tls.Config) http.RoundTripper {
+	baseTransport := &http.Transport{
+		TLSClientConfig:     tlsCfg,
+		Dial:                (&net.Dialer{Timeout: 5 * time.Second}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	// If OAuth is configured, wrap baseTransport in oauth2.Transport.
+	if jwtConfig != nil {
+		return &oauth2.Transport{
+			Base:   baseTransport,
+			Source: oauth2.ReuseTokenSource(nil, jwtConfig.TokenSource(nil)),
+		}
+	}
+
+	return baseTransport
 }
 
 func (this *HTTPBehavior) String() string {

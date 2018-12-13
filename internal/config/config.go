@@ -8,6 +8,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"errors"
+	"golang.org/x/oauth2/jwt"
+	"strings"
 )
 
 func LoadFile(filename string) (map[string]interface{}, error) {
@@ -106,4 +109,125 @@ func GetTLSConfigFromCfg(cfg map[interface{}]interface{}) (*tls.Config, error) {
 	}
 
 	return tlsConfig, nil
+}
+
+// jwt cfg getter
+// jwt:
+//	email:
+//	privatekey:
+//	privatekeyid:
+//	scopes:
+//	tokenurl:
+/*
+OAuthJwtClientEmail    string
+	OAuthJwtPrivateKey     []byte
+	OAuthJwtPrivateKeyId   string
+	OAuthJwtScopes         []string
+	OAuthJwtTokenUrl       string
+*/
+// parseOAuthConfiguration parses OAuth related configuration from input and populates config with
+// relevant fields.
+/*
+jwt:
+    client_email: bafdafasf
+    private_key: afdasfdsa
+    private_key_id: afdasf
+    scopes: afdas,afdsafdas,fdas
+    token_url: afdasfdsa.cafdsa
+
+ */
+func GetJWTConfigFromCfg(cfg map[interface{}] interface{}) (* jwt.Config, error) {
+
+	// oAuthFieldsConfigured is used to track OAuth fields that have been configured.
+	oAuthFieldsConfigured := make(map[string]bool)
+	var err error = nil
+	var oAuthJwtScopes []string = make([]string,0)
+	var oAuthJwtClientEmail string = ""
+	var oAuthJwtPrivateKey string = ""
+	var oAuthJwtPrivateKeyId string = ""
+	var oAuthJwtTokenUrl string = ""
+
+	if oAuthJwtClientEmail, ok := cfg["client_email"].(string); ok {
+		if len(oAuthJwtClientEmail) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_client_email"] = true
+		} else {
+			err = errors.New("Empty value is specified for oauth_jwt_client_email")
+		}
+	}
+
+	if oAuthJwtPrivateKey, ok := cfg["private_key"].(string); ok {
+		if len(oAuthJwtPrivateKey) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_private_key"] = true
+			// Replace the escaped version of a line break character with the non-escaped version.
+			// The OAuth library which reads private key expects non-escaped version of line break
+			// character.
+			oAuthJwtPrivateKey = strings.Replace(oAuthJwtPrivateKey, "\\n", "\n", -1)
+			//config.OAuthJwtPrivateKey = []byte(oAuthJwtPrivateKey)
+		} else {
+			err = errors.New("Empty value is specified for oauth_jwt_private_key")
+		}
+	}
+
+	if oAuthJwtPrivateKeyId, ok := cfg["private_key_id"].(string); ok {
+		if len(oAuthJwtPrivateKeyId) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_private_key_id"] = true
+		} else {
+			err = errors.New("Empty value is specified for oauth_jwt_private_key_id")
+		}
+	}
+
+	if scopesStr, ok := cfg["scopes"].(string); ok {
+		if len(scopesStr) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_scopes"] = true
+
+			for _, scope := range strings.Split(scopesStr, ",") {
+				scope = strings.TrimSpace(scope)
+				if len(scope) > 0 {
+					oAuthJwtScopes = append(oAuthJwtScopes, scope)
+				} else {
+					err = errors.New("Empty scope found")
+				}
+			}
+		} else {
+			err = errors.New("Empty value is specified for oauth_jwt_scopes")
+		}
+
+	}
+
+	if oAuthJwtTokenUrl, ok := cfg["token_url"].(string); ok {
+		if len(oAuthJwtTokenUrl) > 0 {
+			oAuthFieldsConfigured["oauth_jwt_token_url"] = true
+		} else {
+			err = errors.New("Empty value is specified for oauth_jwt_token_url")
+		}
+	}
+
+	// requiredOAuthFields contains the fields that must be present if OAuth is configured.
+	requiredOAuthFields := []string{
+		"oauth_jwt_client_email",
+		"oauth_jwt_private_key",
+		"oauth_jwt_token_url",
+	}
+
+	// Check that all required fields present if OAuth is configured.
+	if len(oAuthFieldsConfigured) > 0 {
+		for _, requiredField := range requiredOAuthFields {
+			errstr := ""
+			if !oAuthFieldsConfigured[requiredField] {
+				errstr += fmt.Sprintf("\nRequired OAuth field %s is not configured", requiredField)
+				err = errors.New(errstr)
+			}
+
+		}
+	}
+
+	jwtConfig := &jwt.Config{
+		Email:        oAuthJwtClientEmail,
+		PrivateKey:   [] byte(oAuthJwtPrivateKey),
+		PrivateKeyID: oAuthJwtPrivateKeyId,
+		Scopes:       oAuthJwtScopes,
+		TokenURL:     oAuthJwtTokenUrl,
+	}
+
+	return jwtConfig,err
 }

@@ -12,7 +12,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"golang.org/x/oauth2/jwt"
 )
+
 //Output handler interface
 
 type OutputHandler interface {
@@ -48,6 +50,7 @@ in the configuration file into an array of outputs, or output a relevant error t
 func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 	var temp []OutputHandler = make([]OutputHandler, len(cfg))
 	var tlsConfig *tls.Config = nil
+	var jwtConfig *jwt.Config = nil
 	var count int = 0
 	for _, outputI := range cfg {
 		if outputCfg, ok := outputI.(map[interface{}]interface{}); ok {
@@ -118,6 +121,9 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 					if tlsCfg, ok := outputMap["tls"]; ok {
 						tlsConfig, _ = conf.GetTLSConfigFromCfg(tlsCfg.(map[interface{}]interface{}))
 					}
+					if jwtCfg, ok := outputMap["jwt"]; ok {
+						jwtConfig, _ = conf.GetJWTConfigFromCfg(jwtCfg.(map[interface{}] interface{}))
+					}
 					//bundle_size_max,bundle_send_timeout, upload_empty_files
 					var bundle_size_max, bundle_send_timeout int64
 					var upload_empty_files bool
@@ -138,7 +144,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						}
 						bundle_send_timeout = s
 					}
-					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
+					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", jwtConfig,tlsConfig)
 					if err == nil {
 						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
 						if err != nil {

@@ -41,7 +41,7 @@ func main() {
 	}
 
 	exportedVersion := expvar.NewString("version")
-	log.Infof("Debug is %s", *debug)
+	log.Infof("Debug is %t", *debug)
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage/<cbefinputname> ***",

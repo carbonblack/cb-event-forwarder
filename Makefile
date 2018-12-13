@@ -51,12 +51,13 @@ rpminstall:
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
+	mkdir -p test_output
 	rm -rf test_output/gold_output
 	rm -rf test_output/go_output
 	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
-	go test -tags static ./cmd/cb-event-forwarder
+	cd gotests ; go test ; cd .. 
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
