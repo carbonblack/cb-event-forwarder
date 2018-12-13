@@ -101,7 +101,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func TestHttpOutput(t *testing.T) {
 	testEncoder := encoder.NewJSONEncoder()
-	httpBundleBehavior, _ := output.NewHTTPBehavior("", "http://127.0.0.1:51337/", make(map[string]string, 0), false, false, "", nil)
+	httpBundleBehavior, _ := output.NewHTTPBehavior("", "http://127.0.0.1:51337/", make(map[string]string, 0),false, false, false, "",nil, nil)
 	outputHandler, _ := output.NewBundledOutput(".", 5000000, 30, false, true, "/tmp", &httpBundleBehavior, &testEncoder)
 	t.Logf("Starting httpoutput test")
 	outputDir := "../test_output/real_output_http"
