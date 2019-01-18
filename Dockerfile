@@ -3,6 +3,7 @@ WORKDIR /go
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
+ENV GO111MODULE=on
 
 #update pkgs 
 RUN apt-get update -q
@@ -38,13 +39,13 @@ RUN cd protobuf &&  make && make check && make install && ldconfig
 #Install a specific version of protoc-gen-go
 RUN mkdir -p src/github.com/golang/protobuf
 RUN cd src/github.com/golang && git clone https://github.com/golang/protobuf.git 
-RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout v1.2.0 -b v120 && go install
+RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout master && go install
 
 #install cb-event-forwarder from source
-RUN mkdir -p src/github.com/carbonblack
-RUN cd src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
-RUN cd src/github.com/carbonblack/cb-event-forwarder && git checkout 3.4.x-maintenance
-RUN cd src/github.com/carbonblack/cb-event-forwarder && make build-no-static 
+RUN mkdir -p /go/src/github.com/carbonblack/cb-event-forwarder
+RUN cd /go/src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && git checkout dockerbuild 
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build 
 
 #SET PYTHONPATH
 #
