@@ -3,19 +3,31 @@ WORKDIR /go
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
-ENV GO111MODULE=on
+ENV CGO_ENABLED 0
 
 #update pkgs 
 RUN apt-get update -q
 RUN apt-get install -y apt-utils wget gnupg2 software-properties-common
 
 #get confluent repo
-RUN  wget -qO - http://packages.confluent.io/deb/5.0/archive.key | apt-key add -
+RUN wget -qO - http://packages.confluent.io/deb/5.0/archive.key | apt-key add -
 RUN add-apt-repository "deb [arch=amd64] http://packages.confluent.io/deb/5.0 stable main"
 
 #update packages and get librdkafka,golang
 RUN apt-get update -q
-RUN apt-get install -y git librdkafka1 librdkafka-dev golang-go 
+RUN apt-get install -y git librdkafka1 librdkafka-dev  
+RUN apt-get install -y curl
+
+#install golang 111+ from source
+RUN curl -kO https://dl.google.com/go/go1.11.4.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.11.4.linux-amd64.tar.gz
+ENV PATH $PATH:/usr/local/go/bin
+#RUN mkdir -p go/src
+#RUN cd go/src ; git clone https://go.googlesource.com/go
+#RUN cd go/src/go ; git checkout master   
+#RUN cd go/src/go/src ; ./all.bash
+
+ENV GO111MODULE=on
 
 #install python3, pip
 RUN apt-get install -y python3 python3-pip
@@ -45,7 +57,9 @@ RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout mast
 RUN mkdir -p /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && git checkout dockerbuild 
-RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build-no-static 
+ENV GOARCH amd64
+ENV GOOS linux
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && go build  
 
 #SET PYTHONPATH
 #
