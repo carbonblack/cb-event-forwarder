@@ -39,11 +39,12 @@ RUN pip3 install git+https://github.com/Supervisor/supervisor@master
 RUN apt-get -y install autoconf automake libtool curl make g++ unzip
 
 #checkout protobuf and build from source
-RUN git clone https://github.com/protocolbuffers/protobuf.git
-RUN cd protobuf && git submodule update --init --recursive && ./autogen.sh
-RUN cd protobuf && ./configure
-RUN cd protobuf &&  make && make check && make install && ldconfig 
-
+#RUN git clone https://github.com/protocolbuffers/protobuf.git
+#RUN cd protobuf && git submodule update --init --recursive && ./autogen.sh
+#RUN cd protobuf && ./configure
+#RUN cd protobuf &&  make && make check && make install && ldconfig 
+RUN apt-get install -y libprotobuf-dev 
+RUN apt-get install -y protobuf-compiler
 #TODO: remove dep forever
 #get dep to manage golang dependencies
 #RUN go get -u github.com/golang/dep/cmd/dep
@@ -53,13 +54,12 @@ RUN mkdir -p src/github.com/golang/protobuf
 RUN cd src/github.com/golang && git clone https://github.com/golang/protobuf.git 
 RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout master && go install
 
+
 #install cb-event-forwarder from source
 RUN mkdir -p /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && git checkout dockerbuild 
-ENV GOARCH amd64
-ENV GOOS linux
-RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && go build  
+#RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && go build  
 
 #SET PYTHONPATH
 #
