@@ -59,7 +59,7 @@ RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout mast
 RUN mkdir -p /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && git checkout dockerbuild 
-#RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && go build  
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && make build
 
 #SET PYTHONPATH
 #
