@@ -20,7 +20,7 @@ endif
 go-fmt:
 	go fmt github.com/carbonblack/cb-event-forwarder/...
 
-build-plugins: 
+build-plugins: librdkafka 
 	go build -buildmode=plugin -tags static -o plugins/output/kafka/kafka_output.so plugins/output/kafka/kafka_output.go     
 	go build -buildmode=plugin -o plugins/encoder/basic/basic_encoder.so plugins/encoder/basic/basic_encoder.go     
 	go build -buildmode=plugin -o plugins/filter/basic/basic_filter.so plugins/filter/basic/basic_filter.go     
@@ -30,15 +30,14 @@ build-plugins:
 	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
-build: build-plugins 
-	go get -u github.com/golang/protobuf/proto
-	go get -u github.com/golang/protobuf/protoc-gen-go
+build: build-plugins
+	go mod tidy
 	go generate ./internal/sensor_events
-	go build ./cmd/cb-event-forwarder 
+	go get -u github.com/golang/protobuf/protoc-gen-go
 
 rpmbuild:
-		go generate ./internal/sensor_events; \
-	    go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+	go generate ./internal/sensor_events; \
+    go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
