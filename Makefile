@@ -18,14 +18,17 @@ ifeq ($TARGET_OS,"linux")
 endif
 
 build-no-static: librdkafka
+	go mod tidy
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go generate ./internal/sensor_events
+	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
 build: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
+	go mod tidy
 	go generate ./internal/sensor_events
+	go get -u github.com/golang/protobuf/protoc-gen-go
 	go build -tags static ./cmd/cb-event-forwarder 
 	go build -tags static ./cmd/kafka-util
 
