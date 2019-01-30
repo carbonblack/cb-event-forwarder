@@ -16,6 +16,7 @@ require (
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
 	golang.org/x/oauth2 v0.0.0-20190130055435-99b60b757ec1
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
+	gopkg.in/h2non/filetype.v1 v1.0.5
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 	zvelo.io/ttlru v1.0.4
