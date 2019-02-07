@@ -3,11 +3,12 @@ WORKDIR /go
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
-ENV CGO_ENABLED 0
+ENV GO111MODULE=on
 
 #update pkgs 
 RUN apt-get update -q
 RUN apt-get install -y apt-utils wget gnupg2 software-properties-common
+ENV GO111MODULE=on
 
 #get confluent repo
 RUN wget -qO - http://packages.confluent.io/deb/5.0/archive.key | apt-key add -
@@ -18,7 +19,7 @@ RUN apt-get update -q
 RUN apt-get install -y git librdkafka1 librdkafka-dev  
 RUN apt-get install -y curl
 
-#install golang 111+ from source
+#install golang 111+ for gomod support 
 RUN curl -kO https://dl.google.com/go/go1.11.4.linux-amd64.tar.gz
 RUN tar -C /usr/local -xzf go1.11.4.linux-amd64.tar.gz
 ENV PATH $PATH:/usr/local/go/bin
@@ -50,16 +51,16 @@ RUN apt-get install -y protobuf-compiler
 #RUN go get -u github.com/golang/dep/cmd/dep
 
 #Install a specific version of protoc-gen-go
-RUN mkdir -p src/github.com/golang/protobuf
-RUN cd src/github.com/golang && git clone https://github.com/golang/protobuf.git 
-RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout master && go install
+#RUN mkdir -p src/github.com/golang/protobuf
+#RUN cd src/github.com/golang && git clone https://github.com/golang/protobuf.git 
+#RUN cd $GOPATH/src/github.com/golang/protobuf/protoc-gen-go && git checkout master && go install
 
 
 #install cb-event-forwarder from source
 RUN mkdir -p /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack && git clone https://github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && git checkout dockerbuild 
-RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && cd cmd/cb-event-forwarder && make build
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build
 
 #SET PYTHONPATH
 #
