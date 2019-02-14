@@ -30,10 +30,10 @@ build-plugins: librdkafka
 	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
-build: build-plugins
+build: build-plugins librdkafka
+	go get -u github.com/golang/protobuf/protoc-gen-go
 	go mod tidy
 	go generate ./internal/sensor_events
-	go get -u github.com/golang/protobuf/protoc-gen-go
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
@@ -45,7 +45,9 @@ rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
+	mkdir -p ${RPM_BUILD_ROOT}/etc/systemd/system
 	cp -p init-scripts/cb-event-forwarder.conf ${RPM_BUILD_ROOT}/etc/init/cb-event-forwarder.conf
+	cp -p cb-event-forwarder.service ${RPM_BUILD_ROOT}/etc/systemd/system/cb-event-forwarder.service
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 

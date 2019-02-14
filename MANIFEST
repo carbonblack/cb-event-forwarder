@@ -1,4 +1,5 @@
 /usr/share/cb/integrations/event-forwarder/cb-event-forwarder
 /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+/etc/systemd/system/cb-event-forwarder.service
 /etc/init/cb-event-forwarder.conf
 /usr/share/cb/integrations/event-forwarder/content/*
