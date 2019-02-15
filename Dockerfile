@@ -4,7 +4,7 @@ ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
 ENV GO111MODULE=on
-VOLUME /vol
+RUN mkdir /vol
 
 COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder  
 
