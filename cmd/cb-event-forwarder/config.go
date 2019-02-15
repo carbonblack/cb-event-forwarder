@@ -115,6 +115,8 @@ type Configuration struct {
 	RemoveFromOutput []string
 	AuditLog         bool
 	NumProcessors    int
+
+    UseTimeFloat    bool
 }
 
 type ConfigurationError struct {
@@ -740,6 +742,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.NumProcessors = runtime.NumCPU() * 2
 		}
 	}
+
+    val, ok = input.Get("bridge","use_time_float")
+    if ok {
+        usetimefloat,err := strconv.ParseBool(val)
+        config.UseTimeFloat = usetimefloat
+    } else { 
+       config.UseTimeFloat = false 
+    }
 
 	config.parseEventTypes(input)
 
