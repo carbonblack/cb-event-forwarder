@@ -30,10 +30,11 @@ build-plugins: librdkafka
 	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
-build: build-plugins librdkafka
+build: librdkafka
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go mod tidy
 	go generate ./internal/sensor_events
+	go build ./cmd/cb-event-forwarder
 
 rpmbuild:
 	go generate ./internal/sensor_events; \
