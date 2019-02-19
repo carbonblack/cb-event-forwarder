@@ -18,23 +18,24 @@ ifeq ($TARGET_OS,"linux")
 endif
 
 build-no-static: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	go generate ./internal/sensor_events
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
 build: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	go generate ./internal/sensor_events
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
+	go mod verify
 	go build -tags static ./cmd/cb-event-forwarder 
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
-	go generate ./internal/sensor_events 
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
@@ -57,7 +58,7 @@ test:
 	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
-	go test -tags static ./cmd/cb-event-forwarder
+	go test ./cmd/cb-event-forwarder
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
