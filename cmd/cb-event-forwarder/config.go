@@ -745,7 +745,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
     val, ok = input.Get("bridge","use_time_float")
     if ok {
-        usetimefloat,err := strconv.ParseBool(val)
+        usetimefloat,_ := strconv.ParseBool(val)
         config.UseTimeFloat = usetimefloat
     } else { 
        config.UseTimeFloat = false 
