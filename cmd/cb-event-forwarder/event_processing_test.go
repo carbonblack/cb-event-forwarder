@@ -11,6 +11,7 @@ import (
 )
 
 func processJSON(routingKey string, indata []byte) ([]map[string]interface{}, error) {
+    config.UseTimeFloat = false
 	var msg map[string]interface{}
 
 	decoder := json.NewDecoder(bytes.NewReader(indata))

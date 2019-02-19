@@ -79,8 +79,22 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 		case key == "highlights":
 			delete(msg, "highlights")
 		case key == "event_timestamp":
-			msg["timestamp"] = value
+			if config.UseTimeFloat {
+				msg["timestamp"] = value
+			} else {
+				if fv,ok := value.(json.Number); ok {
+					msg["timestamp"] = fv.String()
+				}
+			}
 			delete(msg, "event_timestamp")
+		case key == "timestamp":
+			if config.UseTimeFloat {
+				msg["timestamp"] = value
+			} else {
+				if fv,ok := value.(json.Number); ok {
+					msg["timestamp"] = fv.String()
+				}
+			}
 		case key == "hostname":
 			msg["computer_name"] = value
 		case key == "md5" || key == "parent_md5" || key == "process_md5":

@@ -237,7 +237,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
     if config.UseTimeFloat {
 	    outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
     } else {
-	    outmsg["timestamp"] = WindowsTimeToUnixTime(inmsg.OriginalMessage.Header.GetTimestamp())
+	    outmsg["timestamp"] = fmt.Sprintf("%f",WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
     }
 	outmsg["type"] = routingKey
 
@@ -426,7 +426,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
     if config.UseTimeFloat {
 	    kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
     } else {
-	    kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+	    kv["parent_create_time"] = fmt.Sprintf("%f",WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime()))
     }
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
