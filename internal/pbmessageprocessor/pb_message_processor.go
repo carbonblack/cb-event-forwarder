@@ -179,7 +179,7 @@ func parseIntFromHeader(src interface{}) (int64, error) {
 }
 
 // TODO: This is currently called for *every* protobuf message in a bundle. This should be called only once *per bundle*.
-func createEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, error) {
+func CreateEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, error) {
 	endpointMsg := &sensor_events.CbEndpointEnvironmentMsg{}
 	if hostID, ok := headers["hostId"]; ok {
 		val, err := parseIntFromHeader(hostID)
@@ -230,7 +230,7 @@ func  (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []
 	if cbMessage.Env == nil {
 		// if the Env is nil, try to fill it in using the headers from the AMQP message
 		// (the raw sensor exchange does not fill in the SensorEnv or ServerEnv messages)
-		cbMessage.Env, err = createEnvMessage(headers)
+		cbMessage.Env, err = CreateEnvMessage(headers)
 		if err != nil {
 			return nil, err
 		}
@@ -527,7 +527,7 @@ func (pb *PbMessageProcessor) WriteChildprocMessage(message *ConvertedCbMessage,
 		// convert the pid to int32
 		pid32 := int32(pid & 0xffffffff)
 
-		kv["child_process_guid"] =util. MakeGUID(SensorId, pid32, createTime)
+		kv["child_process_guid"] = util.MakeGUID(SensorId, pid32, createTime)
 	} else {
 		kv["child_process_guid"] = om.Childproc.GetChildGuid()
 	}
@@ -891,7 +891,7 @@ func (pb *PbMessageProcessor) WriteProcessBlockedMsg(message *ConvertedCbMessage
 		kv["process_create_time"] = block.GetBlockedProcCreateTime()
 
 		om := message.OriginalMessage
-		kv["process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
+		kv["process_guid"] = util.MakeGUID(om.Env.Endpoint.GetSensorId(), int32(block.GetBlockedPid()), int64(block.GetBlockedProcCreateTime()))
 		// add link to process in the Cb UI if the Cb hostname is set
 		if pb.CbServerURL != "" {
 			kv["link_target"] = fmt.Sprintf("%s#analyze/%s/1", pb.CbServerURL, kv["target_process_guid"])
@@ -965,4 +965,16 @@ func (pb *PbMessageProcessor) WriteNetconn2BlockMessage(message *ConvertedCbMess
 	} else {
 		kv["proxy"] = false
 	}
+}
+
+func (pbm *PbMessageProcessor) ProcessProtobuf(routingKey string, indata []byte) ([]map[string]interface{}, error) {
+	emptyHeaders := new(amqp.Table)
+
+	msg, err := pbm.ProcessProtobufMessage(routingKey, indata, *emptyHeaders)
+	if err != nil {
+		return nil, err
+	}
+	msgs := make([]map[string]interface{}, 0, 0)
+	msgs = append(msgs, msg)
+	return msgs, nil
 }

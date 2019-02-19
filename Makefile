@@ -36,6 +36,12 @@ build: librdkafka
 	go generate ./internal/sensor_events
 	go build ./cmd/cb-event-forwarder
 
+build-ng: librdkafka
+	go get -u github.com/golang/protobuf/protoc-gen-go
+	go mod tidy
+	protoc --gogo_out=.  ./internal/sensor_events/sensor_events.proto
+	go build ./cmd/cb-event-forwarder
+
 rpmbuild:
 	go generate ./internal/sensor_events; \
     go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
