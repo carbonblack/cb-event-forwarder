@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.5
-VERSION := 3.5
+GIT_VERSION := 4.0
+VERSION := 4.0
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 TARGET_OS=linux
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
@@ -17,32 +17,32 @@ ifeq ($TARGET_OS,"linux")
 	ldconfig -p | grep librdkafka
 endif
 
-build-no-static: librdkafka
-	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
-	go mod tidy
-	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
-	go mod verify
-	go build ./cmd/cb-event-forwarder
-	go build ./cmd/kafka-util
+go-fmt:
+	go fmt github.com/carbonblack/cb-event-forwarder/...
+
+build-plugins: librdkafka 
+	go build -buildmode=plugin -tags static -o plugins/output/kafka/kafka_output.so plugins/output/kafka/kafka_output.go     
+	go build -buildmode=plugin -o plugins/encoder/basic/basic_encoder.so plugins/encoder/basic/basic_encoder.go     
+	go build -buildmode=plugin -o plugins/filter/basic/basic_filter.so plugins/filter/basic/basic_filter.go     
+	go build -buildmode=plugin -o plugins/output/hdfs/hdfs_output.so plugins/output/hdfs/hdfs_output.go     
+	cp plugins/output/kafka/kafka_output.so .
+	cp plugins/output/hdfs/hdfs_output.so .
+	cp plugins/encoder/basic/basic_encoder.so basic_encoder.so
+	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
 build: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
-	go mod verify
-	go build -tags static ./cmd/cb-event-forwarder 
-	go build -tags static ./cmd/kafka-util
+	go build ./cmd/cb-event-forwarder
 
-rpmbuild: librdkafka
-	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
-	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
+rpmbuild:
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto 
+	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
-	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
@@ -53,12 +53,13 @@ rpminstall:
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
+	mkdir -p test_output
 	rm -rf test_output/gold_output
 	rm -rf test_output/go_output
 	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
-	go test ./cmd/cb-event-forwarder
+	cd gotests ; go test ; cd .. 
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
