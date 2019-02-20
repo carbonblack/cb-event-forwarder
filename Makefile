@@ -53,10 +53,8 @@ rpminstall:
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
 test:
+	rm -rf test_output
 	mkdir -p test_output
-	rm -rf test_output/gold_output
-	rm -rf test_output/go_output
-	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
 	cd gotests ; go test ; cd .. 
