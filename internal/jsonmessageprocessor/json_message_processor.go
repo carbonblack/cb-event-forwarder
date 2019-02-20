@@ -20,6 +20,7 @@ type JsonMessageProcessor struct {
 	DebugFlag   bool
 	DebugStore  string
 	CbServerURL string
+    UseTimeFloat bool
 	EventMap    map[string]interface{}
 	CbAPI       *cbapi.CbAPIHandler
 }
@@ -91,8 +92,22 @@ func (jsp *JsonMessageProcessor)  fixupMessage(messageType string, msg map[strin
 		case key == "highlights":
 			delete(msg, "highlights")
 		case key == "event_timestamp":
-			msg["timestamp"] = value
+			if jsp.UseTimeFloat {
+				msg["timestamp"] = value
+			} else {
+				if fv,ok := value.(json.Number); ok {
+					msg["timestamp"] = fv.String()
+				}
+			}
 			delete(msg, "event_timestamp")
+		case key == "timestamp":
+			if jsp.UseTimeFloat {
+				msg["timestamp"] = value
+			} else {
+				if fv,ok := value.(json.Number); ok {
+					msg["timestamp"] = fv.String()
+				}
+			}
 		case key == "hostname":
 			msg["computer_name"] = value
 		case key == "md5" || key == "parent_md5" || key == "process_md5":

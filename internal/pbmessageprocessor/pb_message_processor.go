@@ -24,8 +24,10 @@ type PbMessageProcessor struct {
 	DebugFlag   bool
 	DebugStore  string
 	CbServerURL string
+    UseTimeFloat bool
 	EventMap    map[string]interface{}
 }
+
 func GetProcessGUID(m *sensor_events.CbEventMsg) string {
 	if m.Header.ProcessPid != nil && m.Header.ProcessCreateTime != nil && m.Env != nil &&
 		m.Env.Endpoint != nil && m.Env.Endpoint.SensorId != nil {
@@ -241,7 +243,11 @@ func  (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []
 	}
 
 	outmsg := make(map[string]interface{})
-	outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+    if pb.UseTimeFloat {
+	    outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+    } else {
+	    outmsg["timestamp"] = fmt.Sprintf("%f",util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
+    }
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
@@ -426,6 +432,11 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 	kv["parent_pid"] = om.Process.GetParentPid()
 	kv["parent_guid"] = om.Process.GetParentGuid()
 	kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
+    if pb.UseTimeFloat {
+	    kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
+    } else {
+	    kv["parent_create_time"] = fmt.Sprintf("%f",util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime()))
+    }
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {

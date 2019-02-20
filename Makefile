@@ -38,7 +38,7 @@ build: librdkafka
 
 rpmbuild:
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto 
-    go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+	go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -77,7 +77,7 @@ bench:
 sdist:
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp Makefile go.mod cmd static conf internal init-scripts vendor plugins  build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-event-forwarder.service  Makefile go.mod cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
 	sleep 1
@@ -87,4 +87,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 0' -bb cb-event-forwarder.rpm.spec
+	rpmbuild --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec

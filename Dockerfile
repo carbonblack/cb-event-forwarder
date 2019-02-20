@@ -4,9 +4,9 @@ ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
 ENV GO111MODULE=on
-VOLUME /vol
+RUN mkdir /vol
 
-COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder  
+
 
 #update pkgs 
 RUN apt-get update -q && apt-get install -y apt-utils
@@ -39,6 +39,8 @@ RUN apt-get update -q && apt-get install -y libprotobuf-dev
 RUN apt-get update -q && apt-get install -y protobuf-compiler
 
 #build forwarder
+#
+COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build-no-static
 
 #

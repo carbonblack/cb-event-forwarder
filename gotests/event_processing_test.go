@@ -41,7 +41,6 @@ func BenchmarkZipBundleProcessing(b *testing.B) {
 	}
 }
 
-type outputMessageFunc func([]map[string]interface{}) (string, error)
 
 func TestEventProcessing(t *testing.T) {
 	t.Log("Generating JSON output to go_output...")
