@@ -127,7 +127,7 @@ output:
 # to allow for output w/ kafka brokers
 # the plugin uses go-confluent-kafka which relies on the librdkafka.so
 # modular plugins allow the forwarder to support this great kafka library
-# w/o tying down non-kafka use cases to requiring librdkafka.so
+# w/o tying down non-kafka use cases to requiring librdkafka1.so
 #
 #
 # general structure of plugin conf
