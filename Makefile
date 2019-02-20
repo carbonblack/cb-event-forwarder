@@ -44,7 +44,7 @@ rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
-	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+	cp -p conf/cb-event-forwarder.example.yaml ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
 	mkdir -p ${RPM_BUILD_ROOT}/etc/systemd/system
 	cp -p init-scripts/cb-event-forwarder.conf ${RPM_BUILD_ROOT}/etc/init/cb-event-forwarder.conf
@@ -75,7 +75,7 @@ bench:
 sdist:
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp cb-event-forwarder.service  Makefile go.mod cmd static conf internal init-scripts vendor build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-event-forwarder.service  Makefile go.mod cmd static conf internal init-scripts  build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
 	sleep 1
