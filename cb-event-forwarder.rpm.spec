@@ -28,7 +28,6 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 %build
 export GOPATH=$PWD
 export PATH=$PATH:$GOPATH/bin
-export GO111MODULE=on
 go get -u github.com/golang/protobuf/proto
 go get -u github.com/golang/protobuf/protoc-gen-go
 cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild
@@ -36,7 +35,6 @@ cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild
 %install
 export GOPATH=$PWD
 export PATH=$PATH:$GOPATH/bin
-export GO111MODULE=on
 cd ./src/github.com/carbonblack/cb-event-forwarder && make rpminstall
 
 %clean
