@@ -6,13 +6,13 @@ import (
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
 	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2/jwt"
 	"os"
 	"path"
 	"plugin"
 	"strconv"
 	"sync"
 	"time"
-	"golang.org/x/oauth2/jwt"
 )
 
 //Output handler interface
@@ -122,7 +122,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						tlsConfig, _ = conf.GetTLSConfigFromCfg(tlsCfg.(map[interface{}]interface{}))
 					}
 					if jwtCfg, ok := outputMap["jwt"]; ok {
-						jwtConfig, _ = conf.GetJWTConfigFromCfg(jwtCfg.(map[interface{}] interface{}))
+						jwtConfig, _ = conf.GetJWTConfigFromCfg(jwtCfg.(map[interface{}]interface{}))
 					}
 					//bundle_size_max,bundle_send_timeout, upload_empty_files
 					var bundle_size_max, bundle_send_timeout int64
@@ -144,7 +144,7 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						}
 						bundle_send_timeout = s
 					}
-					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", jwtConfig,tlsConfig)
+					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", jwtConfig, tlsConfig)
 					if err == nil {
 						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
 						if err != nil {

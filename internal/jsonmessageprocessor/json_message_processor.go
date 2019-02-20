@@ -17,12 +17,12 @@ import (
 )
 
 type JsonMessageProcessor struct {
-	DebugFlag   bool
-	DebugStore  string
-	CbServerURL string
-    	UseTimeFloat bool
-	EventMap    map[string]interface{}
-	CbAPI       *cbapi.CbAPIHandler
+	DebugFlag    bool
+	DebugStore   string
+	CbServerURL  string
+	UseTimeFloat bool
+	EventMap     map[string]interface{}
+	CbAPI        *cbapi.CbAPIHandler
 }
 
 var feedParserRegex = regexp.MustCompile(`^feed\.(\d+)\.(.*)$`)
@@ -83,8 +83,7 @@ func parseQueryString(encodedQuery map[string]string) (queryIndex string, parsed
 	return
 }
 
-
-func (jsp *JsonMessageProcessor)  fixupMessage(messageType string, msg map[string]interface{}) {
+func (jsp *JsonMessageProcessor) fixupMessage(messageType string, msg map[string]interface{}) {
 	// go through each key and fix up as necessary
 
 	for key, value := range msg {
@@ -95,7 +94,7 @@ func (jsp *JsonMessageProcessor)  fixupMessage(messageType string, msg map[strin
 			if jsp.UseTimeFloat {
 				msg["timestamp"] = value
 			} else {
-				if fv,ok := value.(json.Number); ok {
+				if fv, ok := value.(json.Number); ok {
 					msg["timestamp"] = fv.String()
 				}
 			}
@@ -104,7 +103,7 @@ func (jsp *JsonMessageProcessor)  fixupMessage(messageType string, msg map[strin
 			if jsp.UseTimeFloat {
 				msg["timestamp"] = value
 			} else {
-				if fv,ok := value.(json.Number); ok {
+				if fv, ok := value.(json.Number); ok {
 					msg["timestamp"] = fv.String()
 				}
 			}
@@ -255,7 +254,7 @@ func PrettyPrintMap(msg map[string]interface{}) {
 	fmt.Print(string(b))
 }
 
-func (jsp * JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
+func (jsp *JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
 	msg["type"] = fixupMessageType(routingKey)
 	jsp.fixupMessage(routingKey, msg)
 
@@ -288,7 +287,7 @@ func (jsp * JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{},
  * To do this we must query the Cb Response Server's REST API to get the report_title.  NOTE: In order to do this
  * functionality we need the Cb Response Server URL and API Token set within the config.
  */
-func (jsp * JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
+func (jsp *JsonMessageProcessor) PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
 
 	if val, ok := msg["type"]; ok {
 		messageType := val.(string)

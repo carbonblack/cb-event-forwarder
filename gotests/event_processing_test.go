@@ -41,7 +41,6 @@ func BenchmarkZipBundleProcessing(b *testing.B) {
 	}
 }
 
-
 func TestEventProcessing(t *testing.T) {
 	t.Log("Generating JSON output to go_output...")
 	processTestEvents(t, "go_output", jsonmessageprocessor.MarshalJSON)

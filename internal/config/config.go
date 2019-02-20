@@ -3,13 +3,13 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	_ "expvar"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2/jwt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"errors"
-	"golang.org/x/oauth2/jwt"
 	"strings"
 )
 
@@ -135,13 +135,13 @@ jwt:
     scopes: afdas,afdsafdas,fdas
     token_url: afdasfdsa.cafdsa
 
- */
-func GetJWTConfigFromCfg(cfg map[interface{}] interface{}) (* jwt.Config, error) {
+*/
+func GetJWTConfigFromCfg(cfg map[interface{}]interface{}) (*jwt.Config, error) {
 
 	// oAuthFieldsConfigured is used to track OAuth fields that have been configured.
 	oAuthFieldsConfigured := make(map[string]bool)
 	var err error = nil
-	var oAuthJwtScopes []string = make([]string,0)
+	var oAuthJwtScopes []string = make([]string, 0)
 	var oAuthJwtClientEmail string = ""
 	var oAuthJwtPrivateKey string = ""
 	var oAuthJwtPrivateKeyId string = ""
@@ -223,11 +223,11 @@ func GetJWTConfigFromCfg(cfg map[interface{}] interface{}) (* jwt.Config, error)
 
 	jwtConfig := &jwt.Config{
 		Email:        oAuthJwtClientEmail,
-		PrivateKey:   [] byte(oAuthJwtPrivateKey),
+		PrivateKey:   []byte(oAuthJwtPrivateKey),
 		PrivateKeyID: oAuthJwtPrivateKeyId,
 		Scopes:       oAuthJwtScopes,
 		TokenURL:     oAuthJwtTokenUrl,
 	}
 
-	return jwtConfig,err
+	return jwtConfig, err
 }

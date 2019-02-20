@@ -21,11 +21,11 @@ import (
 )
 
 type PbMessageProcessor struct {
-	DebugFlag   bool
-	DebugStore  string
-	CbServerURL string
-    UseTimeFloat bool
-	EventMap    map[string]interface{}
+	DebugFlag    bool
+	DebugStore   string
+	CbServerURL  string
+	UseTimeFloat bool
+	EventMap     map[string]interface{}
 }
 
 func GetProcessGUID(m *sensor_events.CbEventMsg) string {
@@ -222,7 +222,7 @@ func CreateEnvMessage(headers amqp.Table) (*sensor_events.CbEnvironmentMsg, erro
 	}, nil
 }
 
-func  (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) (map[string]interface{}, error) {
+func (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) (map[string]interface{}, error) {
 	cbMessage := new(sensor_events.CbEventMsg)
 	err := proto.Unmarshal(body, cbMessage)
 	if err != nil {
@@ -243,11 +243,11 @@ func  (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []
 	}
 
 	outmsg := make(map[string]interface{})
-    if pb.UseTimeFloat {
-	    outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
-    } else {
-	    outmsg["timestamp"] = fmt.Sprintf("%f",util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
-    }
+	if pb.UseTimeFloat {
+		outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	} else {
+		outmsg["timestamp"] = fmt.Sprintf("%f", util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
+	}
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
@@ -259,7 +259,6 @@ func  (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []
 	// select only one of network or networkv2
 	gotNetworkV2Message := false
 	gotNetblockV2Message := false
-
 
 	switch {
 	case cbMessage.Process != nil:
@@ -432,11 +431,11 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 	kv["parent_pid"] = om.Process.GetParentPid()
 	kv["parent_guid"] = om.Process.GetParentGuid()
 	kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
-    if pb.UseTimeFloat {
-	    kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
-    } else {
-	    kv["parent_create_time"] = fmt.Sprintf("%f",util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime()))
-    }
+	if pb.UseTimeFloat {
+		kv["parent_create_time"] = util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
+	} else {
+		kv["parent_create_time"] = fmt.Sprintf("%f", util.WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime()))
+	}
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {
@@ -472,7 +471,7 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 	return nil
 }
 
-func (pb *PbMessageProcessor)  WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
+func (pb *PbMessageProcessor) WriteModloadMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "modload"
 	kv["type"] = "ingress.event.moduleload"
 
@@ -677,7 +676,7 @@ func (pb *PbMessageProcessor) WriteNetconn2Message(message *ConvertedCbMessage, 
 	kv["local_port"] = util.Ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
 }
 
-func  (pb *PbMessageProcessor) WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
+func (pb *PbMessageProcessor) WriteModinfoMessage(message *ConvertedCbMessage, kv map[string]interface{}) {
 	kv["event_type"] = "binary_info"
 	kv["type"] = "ingress.event.module"
 

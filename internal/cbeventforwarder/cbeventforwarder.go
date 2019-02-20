@@ -56,7 +56,7 @@ func (cbef *CbEventForwarder) OutputMessage(msg map[string]interface{}) error {
 	//
 	// Marshal result into the correct output format
 	//
-    //msg["cb_server"] = cbef.CbServerName
+	//msg["cb_server"] = cbef.CbServerName
 
 	// Add key=value pairs that has been configured to be added
 	for key, val := range cbef.AddToOutput {
