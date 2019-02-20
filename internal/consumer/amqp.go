@@ -325,7 +325,7 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		}
 	}
 
-	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore,usetimefloat)
+	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore, usetimefloat)
 }
 
 type ConsumerStatus struct {
