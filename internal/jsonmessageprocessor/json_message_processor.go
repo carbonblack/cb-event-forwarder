@@ -20,7 +20,7 @@ type JsonMessageProcessor struct {
 	DebugFlag   bool
 	DebugStore  string
 	CbServerURL string
-    UseTimeFloat bool
+    	UseTimeFloat bool
 	EventMap    map[string]interface{}
 	CbAPI       *cbapi.CbAPIHandler
 }
