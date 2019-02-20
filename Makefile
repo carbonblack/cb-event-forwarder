@@ -31,19 +31,13 @@ build-plugins: librdkafka
 	cp plugins/filter/basic/basic_filter.so basic_filter.so
 
 build: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	go generate ./internal/sensor_events
-	go build ./cmd/cb-event-forwarder
-
-build-ng: librdkafka
-	go get -u github.com/golang/protobuf/protoc-gen-go
-	go mod tidy
-	protoc --gogo_out=.  ./internal/sensor_events/sensor_events.proto
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go build ./cmd/cb-event-forwarder
 
 rpmbuild:
-	go generate ./internal/sensor_events; \
+	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto 
     go build -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 
 rpminstall:
