@@ -42,6 +42,7 @@ RUN pip3 install git+https://github.com/Supervisor/supervisor@master
 #RUN apt-get update -q && apt-get install -y protobuf-compiler
 RUN yum install -y  golang
 RUN yum install -y  protobuf-compiler
+RUN yum install -y rpm-build redhat-rpm-config
 
 #build forwarder
 #

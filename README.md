@@ -9,7 +9,7 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 
 ##Configuration 
 
-The 4.0 Cb Response Event Forwarder has a three part processing pipeline which is specified:
+The 3.6 Cb Response Event Forwarder has a three part processing pipeline which is specified:
 in YAML format - with two crucicial parts - input and output.
 
 1) input - this section defines a number of consumers each reading from a specific CbR server messaging bus
@@ -30,7 +30,7 @@ input:
 `use_raw_exchange : true`
 
 ## Subscribed Events 
-The 4.0 event forwarder subcribes to `all-events` by default though the user
+The 3.6 event forwarder subcribes to `all-events` by default though the user
 can specify explicit options for which events to listen to as so:
 (within each individual input element)
 event_map:
@@ -73,6 +73,9 @@ tls:
 
 There are optional post processing arguments to enhance messages w/ api
 callbacks (currently just report information)
+Note these are expensive and over-the network HTTP callbacks,
+and while a cache is used still incures significant overhead and should
+not be attempted at scale.
 ```
 post_processing:
     tls: 
@@ -116,8 +119,8 @@ output:
             type: template 
             template: "{{YamlFormat .}}"
 ```
-## Supported Output Types in 4.0
-The 4.0.0 CbR event-forwarder supports the same output options as 3.X:
+## Supported Output Types in 3.6
+The 3.6.0 CbR event-forwarder supports the same output options as 3.X:
 Each output must provide path/connection information, other configuration options
 specific to that output type and a format (like the old `output_format`) like so:
 
@@ -260,7 +263,7 @@ For more information on the LEEF format, see the [Events documentation](EVENTS.m
 The connector logs to the directory `/var/log/cb/integrations/cb-event-forwarder`. An example of a successful startup log:
 
 ```
-2015/12/07 12:57:26 cb-event-forwarder version 4.0.0 starting
+2015/12/07 12:57:26 cb-event-forwarder version 3.6.0 starting
 2015/12/07 12:57:26 Interface address 172.22.10.7
 2015/12/07 12:57:26 Interface address fe80::20c:29ff:fe85:bcd0
 2015/12/07 12:57:26 Configured to capture events: [watchlist.hit.# watchlist.storage.hit.# feed.ingress.hit.# 
@@ -323,7 +326,7 @@ output from the JSON status is shown below:
     "format": "json",
     "file:/var/cb/data/event_bridge_output.json": {
       "file_name": "/var/cb/data/event_bridge_output.json",
-      "last_open_time": "2015-12-08T00:22:56.430385291-05:00"
+      "last_open_time": "2015-12-08T00:22:56.3.6385291-05:00"
     }
   },
   "subscribed_events": [
