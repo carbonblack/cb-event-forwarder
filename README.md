@@ -359,11 +359,11 @@ Go-Plugin support is crucial to the plugin implementation and is subject to bugs
 Setup your GOPATH environment variable.
 See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
 ```
-go get github.com/carbonblack/cb-event-forwarder
-go get -u github.com/golang/protobuf/proto
-go get -u github.com/golang/protobuf/protoc-gen-go
-go generate ./...
-go get ./...
-go build
 ```
+
+##Running in Docker
+Simply pull down the docker container for the cbr event forwarder and mount a directory
+containing your disired configuration into the running container so it is available for use.
+docker run -it --mount type=bind,source="$PWD",destination=/vol cbdevnetwork/cb-event-forwarder
+
 
