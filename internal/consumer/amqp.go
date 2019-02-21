@@ -218,11 +218,6 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		bindToRawExchange = temp.(bool)
 	}
 
-	usetimefloat := false
-	if temp, ok := consumerCfg["use_time_float"]; ok {
-		usetimefloat = temp.(bool)
-	}
-
 	ctag := "go-event-consumer-" + consumerName
 	if temp, ok := consumerCfg["rabbit_mq_consumer_tag"]; ok {
 		ctag = temp.(string)
@@ -325,7 +320,8 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		}
 	}
 
-	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore, usetimefloat)
+	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore)
+
 }
 
 type ConsumerStatus struct {
@@ -365,7 +361,7 @@ type Consumer struct {
 	AuditLogging              bool
 }
 
-func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string, useTimeFloat bool) (*Consumer, error) {
+func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string) (*Consumer, error) {
 	c := &Consumer{
 		Conn:              nil,
 		Channel:           nil,
@@ -391,11 +387,11 @@ func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{
 	for _, rk := range routingKeys {
 		eventMap[rk] = true
 	}
-	pbmp := pbmessageprocessor.PbMessageProcessor{EventMap: eventMap, UseTimeFloat: useTimeFloat, DebugFlag: debugFlag, DebugStore: debugStore}
-	c.Pbmp = pbmp
+	//pbmp := pbmessageprocessor.PbMessageProcessor{EventMap: eventMap, UseTimeFloat: useTimeFloat, DebugFlag: debugFlag, DebugStore: debugStore}
+	//c.Pbmp = pbmp
 
-	jsmp := jsonmessageprocessor.JsonMessageProcessor{EventMap: eventMap, UseTimeFloat: useTimeFloat, DebugFlag: debugFlag, DebugStore: debugStore}
-	c.Jsmp = jsmp
+	//jsmp := jsonmessageprocessor.JsonMessageProcessor{EventMap: eventMap, UseTimeFloat: useTimeFloat, DebugFlag: debugFlag, DebugStore: debugStore}
+	//c.Jsmp = jsmp
 
 	return c, nil
 }

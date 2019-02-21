@@ -201,6 +201,11 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 		debugStore = t.(string)
 	}
 
+	useTimeFloat := true
+	if t, ok := config["use_time_float"]; ok {
+		useTimeFloat = t.(bool)
+	}
+
 	log.Debugf("Trying to load event forwarder for config: %s", config)
 
 	outputE := make(chan error)
@@ -296,8 +301,8 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 			}
 		}
 
-		myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL}
-		mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL}
+		myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
+		mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
 		c, err := consumer.NewConsumerFromConf(cbef.OutputMessage, cbServerName, cbServerName, consumerConfMap, debugFlag, debugStore, cbef.ConsumerWaitGroup)
 		if err != nil {
 			log.Panicf("Error consturcting consumer from configuration: %v", err)
