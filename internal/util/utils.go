@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/h2non/filetype.v1"
+	"github.com/h2non/filetype"
 	"net"
 	"os"
 	"path"
