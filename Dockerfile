@@ -1,10 +1,10 @@
-FROM centos:7
+FROM centos/go-toolset-7-centos7
 WORKDIR /go
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
 ENV GO111MODULE=on
-RUN mkdir /vol
+USER root
 
 #update pkgs 
 #RUN apt-get update -q && apt-get install -y apt-utils
@@ -33,7 +33,7 @@ RUN yum install -y python36 python36-dev python36-setuptools
 RUN easy_install-3.6 pip
 
 #install supervisord on python3
-RUN pip3 install git+https://github.com/Supervisor/supervisor@master
+#RUN pip3 install git+https://github.com/Supervisor/supervisor@master
 
 #install tools to make protobuf
 #RUN apt-get update -q && apt-get -y install autoconf automake libtool curl make g++ unzip
@@ -46,8 +46,8 @@ RUN yum install -y rpm-build redhat-rpm-config
 
 #build forwarder
 #
-COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder
-RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build
+#COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder
+#RUN cd /go/src/github.com/carbonblack/cb-event-forwarder && make build
 
 #
 #create supervisor user
@@ -62,4 +62,4 @@ RUN chown -R supervisor:supervisor /var/log
 #
 #
 
-CMD ["supervisord", "-c", "/go/src/github.com/carbonblack/cb-event-forwarder/supervisord.conf"]
+#CMD ["supervisord", "-c", "/go/src/github.com/carbonblack/cb-event-forwarder/supervisord.conf"]

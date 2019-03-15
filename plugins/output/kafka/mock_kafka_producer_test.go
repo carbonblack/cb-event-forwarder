@@ -66,7 +66,7 @@ type MockedProducer struct {
 }
 
 func (mp *MockedProducer) Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error {
-	log.Info("MockProducer::Producer called with %s %s", msg, deliveryChan)
+	log.Infof("MockProducer::Producer called with %s %v", msg, deliveryChan)
 	topic := "topic"
 	deliveryChan <- &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -121,16 +121,17 @@ func TestKafkaOutput(t *testing.T) {
 	outputDir := "../../../test_output/real_output_kafka"
 	os.MkdirAll(outputDir, 0755)
 
-	outputFile, err := os.Create(path.Join(outputDir, "/kafkaoutput")) // For read access.
+	/*outputFile, err := os.Create(path.Join(outputDir, "/kafkaoutput")) // For read access.
 	if err != nil {
 		t.Errorf("Coudln't open httpoutput file %v", err)
 		t.FailNow()
 		return
-	}
-	mockProducer := new(MockedProducer)
-	mockProducer.outfile = outputFile
+	}*/
+	//mockProducer := new(MockedProducer)
+	//mockProducer.outfile = outputFile
+	producer, _ := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092","linger.ms":100})
 	testEncoder := encoder.NewJSONEncoder()
-	var outputHandler output.OutputHandler = &KafkaOutput{Producer: mockProducer, Encoder: &testEncoder, deliveryChannel: make(chan kafka.Event)}
+	var outputHandler output.OutputHandler = &KafkaOutput{Producer: producer, Encoder: &testEncoder, deliveryChannel: make(chan kafka.Event)}
 
 	processTestEventsWithRealHandler(t, outputDir, jsonmessageprocessor.MarshalJSON, outputHandler)
 
@@ -150,81 +151,82 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 	wg.Add(1)
 
 	oh.Go(messages, errors, controlchan, wg)
-
-	for _, format := range formats {
-		pathname := path.Join("../../../test/raw_data", format.formatType)
-		fp, err := os.Open(pathname)
-		if err != nil {
-			t.Logf("Could not open %s", pathname)
-			t.FailNow()
-		}
-
-		infos, err := fp.Readdir(0)
-		if err != nil {
-			t.Logf("Could not enumerate directory %s", pathname)
-			t.FailNow()
-		}
-
-		fp.Close()
-
-		for _, info := range infos {
-			if !info.IsDir() {
-				continue
-			}
-
-			routingKey := info.Name()
-			os.MkdirAll(outputDir, 0755)
-
-			// process all files inside this directory
-			routingDir := path.Join(pathname, info.Name())
-			fp, err := os.Open(routingDir)
+	for (true) {
+		for _, format := range formats {
+			pathname := path.Join("../../../test/raw_data", format.formatType)
+			fp, err := os.Open(pathname)
 			if err != nil {
-				t.Logf("Could not open directory %s", routingDir)
+				t.Logf("Could not open %s", pathname)
 				t.FailNow()
 			}
 
-			files, err := fp.Readdir(0)
+			infos, err := fp.Readdir(0)
 			if err != nil {
-				t.Errorf("Could not enumerate directory %s; continuing", routingDir)
-				continue
+				t.Logf("Could not enumerate directory %s", pathname)
+				t.FailNow()
 			}
 
 			fp.Close()
 
-			for _, fn := range files {
-				if fn.IsDir() {
+			for _, info := range infos {
+				if !info.IsDir() {
 					continue
 				}
 
-				fp, err := os.Open(path.Join(routingDir, fn.Name()))
+				routingKey := info.Name()
+				os.MkdirAll(outputDir, 0755)
+
+				// process all files inside this directory
+				routingDir := path.Join(pathname, info.Name())
+				fp, err := os.Open(routingDir)
 				if err != nil {
-					t.Errorf("Could not open %s for reading", path.Join(routingDir, fn.Name()))
-					continue
+					t.Logf("Could not open directory %s", routingDir)
+					t.FailNow()
 				}
-				b, err := ioutil.ReadAll(fp)
+
+				files, err := fp.Readdir(0)
 				if err != nil {
-					t.Errorf("Could not read %s", path.Join(routingDir, fn.Name()))
+					t.Errorf("Could not enumerate directory %s; continuing", routingDir)
 					continue
 				}
 
 				fp.Close()
 
-				msgs, err := format.process(routingKey, b)
-				if err != nil {
-					t.Errorf("Error processing %s: %s", path.Join(routingDir, fn.Name()), err)
-					continue
-				}
-				if len(msgs[0]) == 0 {
-					t.Errorf("got zero messages out of: %s/%s", routingDir, fn.Name())
-					continue
-				}
-				for _, msg := range msgs {
-					messages <- msg
-				}
-				_, err = outputFunc(msgs)
-				if err != nil {
-					t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
-					continue
+				for _, fn := range files {
+					if fn.IsDir() {
+						continue
+					}
+
+					fp, err := os.Open(path.Join(routingDir, fn.Name()))
+					if err != nil {
+						t.Errorf("Could not open %s for reading", path.Join(routingDir, fn.Name()))
+						continue
+					}
+					b, err := ioutil.ReadAll(fp)
+					if err != nil {
+						t.Errorf("Could not read %s", path.Join(routingDir, fn.Name()))
+						continue
+					}
+
+					fp.Close()
+
+					msgs, err := format.process(routingKey, b)
+					if err != nil {
+						t.Errorf("Error processing %s: %s", path.Join(routingDir, fn.Name()), err)
+						continue
+					}
+					if len(msgs[0]) == 0 {
+						t.Errorf("got zero messages out of: %s/%s", routingDir, fn.Name())
+						continue
+					}
+					for _, msg := range msgs {
+						messages <- msg
+					}
+					_, err = outputFunc(msgs)
+					if err != nil {
+						t.Errorf("Error serializing %s: %s", path.Join(routingDir, fn.Name()), err)
+						continue
+					}
 				}
 			}
 		}

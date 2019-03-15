@@ -32,7 +32,6 @@ build-plugins: librdkafka
 
 build: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
-	go mod tidy
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go build ./cmd/cb-event-forwarder
 

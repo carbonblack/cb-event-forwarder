@@ -197,11 +197,16 @@ func (o *KafkaOutput) Key() string {
 
 func (o *KafkaOutput) output(topic string, m string) {
 	log.Infof("output got: %s topic %s message ", topic, m)
-	o.Producer.Produce(&kafka.Message{
+	err := o.Producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
 	}, o.deliveryChannel)
-	log.Infof("o.Producer.Produce returned")
+	if (err == nil) {
+		log.Infof("o.Producer.Produce returned ok")
+	} else {
+		log.Errorf("Failed to produce: %v",err)
+	}
+	o.Producer.Flush(1)
 }
 
 func GetOutputHandler(cfg map[string]interface{}) (output.OutputHandler, error) {
