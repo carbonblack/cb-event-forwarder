@@ -40,7 +40,6 @@ rpmbuild: librdkafka
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
 rpminstall:
-    ls .
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
 	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
