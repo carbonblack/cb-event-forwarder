@@ -129,7 +129,7 @@ func TestKafkaOutput(t *testing.T) {
 	}*/
 	//mockProducer := new(MockedProducer)
 	//mockProducer.outfile = outputFile
-	producer, _ := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092","linger.ms":100})
+	producer, _ := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092"})
 	testEncoder := encoder.NewJSONEncoder()
 	var outputHandler output.OutputHandler = &KafkaOutput{Producer: producer, Encoder: &testEncoder, deliveryChannel: make(chan kafka.Event)}
 
@@ -139,10 +139,17 @@ func TestKafkaOutput(t *testing.T) {
 
 func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc outputMessageFunc, oh output.OutputHandler) {
 	t.Logf("Tring to preform test with %v %s", oh, oh)
-	formats := [...]struct {
+
+	/*formats := [...]struct {
 		formatType string
 		process    func(string, []byte) ([]map[string]interface{}, error)
 	}{{"json", jsmp.ProcessJSON}, {"protobuf", pbmp.ProcessProtobuf}}
+	*/
+
+	formats := [...]struct {
+		formatType string
+		process    func(string, []byte) ([]map[string]interface{}, error)
+	}{{"protobuf", pbmp.ProcessProtobuf}}
 
 	messages := make(chan map[string]interface{}, 100)
 	errors := make(chan error)
@@ -151,7 +158,7 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 	wg.Add(1)
 
 	oh.Go(messages, errors, controlchan, wg)
-	for (true) {
+	for true {
 		for _, format := range formats {
 			pathname := path.Join("../../../test/raw_data", format.formatType)
 			fp, err := os.Open(pathname)
@@ -191,7 +198,6 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 				}
 
 				fp.Close()
-
 				for _, fn := range files {
 					if fn.IsDir() {
 						continue
@@ -229,7 +235,8 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 					}
 				}
 			}
-		}
+		    }
+
 	}
 	t.Logf("Done with test for %s ", oh)
 	controlchan <- syscall.SIGTERM

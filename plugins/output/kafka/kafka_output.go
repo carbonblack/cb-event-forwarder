@@ -1,6 +1,7 @@
 package main
 
 import (
+    "errors"
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/encoder"
 	"github.com/carbonblack/cb-event-forwarder/internal/output"
@@ -196,17 +197,18 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	log.Infof("output got: %s topic %s message ", topic, m)
-	err := o.Producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(m),
-	}, o.deliveryChannel)
-	if (err == nil) {
-		log.Infof("o.Producer.Produce returned ok")
-	} else {
-		log.Errorf("Failed to produce: %v",err)
-	}
-	o.Producer.Flush(1)
+    //log.Infof("output got a message ")
+    err := errors.New("")
+    for err != nil {
+        err = o.Producer.Produce(&kafka.Message{
+            TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+            Value:          []byte(m),
+        }, nil)
+        if (err != nil) {
+           log.Debugf("got error at production...flushing")
+           o.Producer.Flush(1)
+        }
+    }
 }
 
 func GetOutputHandler(cfg map[string]interface{}) (output.OutputHandler, error) {
