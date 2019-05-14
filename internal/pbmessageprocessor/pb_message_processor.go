@@ -246,7 +246,7 @@ func (pb *PbMessageProcessor) ProcessProtobufMessage(routingKey string, body []b
 	if pb.UseTimeFloat {
 		outmsg["timestamp"] = util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
 	} else {
-		outmsg["timestamp"] = fmt.Sprintf("%f", util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
+		outmsg["timestamp"] = fmt.Sprintf("%.2f", util.WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp()))
 	}
 	outmsg["type"] = routingKey
 

@@ -31,4 +31,4 @@ var eventMap map[string]interface{} = map[string]interface{}{
 	"binarystore.#":                true,
 	"events.partition.#":           true,
 }
-var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{EventMap: eventMap}
+var pbmp pbmessageprocessor.PbMessageProcessor = pbmessageprocessor.PbMessageProcessor{EventMap: eventMap, UseTimeFloat: false}
