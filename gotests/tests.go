@@ -11,7 +11,7 @@ import (
 //var config conf.Configuration = conf.Configuration{UploadEmptyFiles: false, BundleSizeMax: 1024 * 1024 * 1024, BundleSendTimeout: time.Duration(30) * time.Second, CbServerURL: "https://cbtests/", HTTPPostTemplate: configHTTPTemplate, DebugStore: ".", DebugFlag: true, EventMap: make(map[string]bool)}
 
 var cbapihandler cbapi.CbAPIHandler = cbapi.CbAPIHandler{}
-var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{}
+var jsmp jsonmessageprocessor.JsonMessageProcessor = jsonmessageprocessor.JsonMessageProcessor{UseTimeFloat: true}
 var eventMap map[string]interface{} = map[string]interface{}{
 	"ingress.event.process":        true,
 	"ingress.event.procstart":      true,
