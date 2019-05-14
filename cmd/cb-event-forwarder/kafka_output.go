@@ -128,8 +128,11 @@ func (o *KafkaOutput) Key() string {
 }
 
 func (o *KafkaOutput) output(topic string, m string) {
-	o.producer.ProduceChannel() <- &kafka.Message{
+	kafkamsg := &kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
+	}
+	for o.producer.Produce(kafkamsg,nil) != nil {
+		o.producer.Flush(1)
 	}
 }
