@@ -435,7 +435,7 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	}
 
 	if message.OriginalMessage.Process.ParentSha256 != nil {
-		kv["parent_sha256"] = GetSha256Hexdigest(om.Process.GetSha256Hash())
+		kv["parent_sha256"] = GetSha256Hexdigest(om.Process.GetParentSha256())
 	}
 
 	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
