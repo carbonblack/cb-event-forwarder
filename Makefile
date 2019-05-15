@@ -59,7 +59,7 @@ test:
 	cd gotests ; go test ; cd .. 
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
-clean:
+clean: go-fmt
 	rm -f cb-event-forwarder
 	rm -rf test_output/gold_output
 	rm -rf test_output/go_output

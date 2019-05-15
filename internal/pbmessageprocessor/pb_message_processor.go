@@ -10,7 +10,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"github.com/NeowayLabs/wabbit/amqp"
+	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
 	"os"
@@ -443,7 +443,7 @@ func (pb *PbMessageProcessor) WriteProcessMessage(message *ConvertedCbMessage, k
 	}
 
 	if message.OriginalMessage.Process.ParentSha256 != nil {
-		kv["parent_sha256"] = util.GetSha256Hexdigest(om.Process.GetSha256Hash())
+		kv["parent_sha256"] = util.GetSha256Hexdigest(om.Process.GetParentSha256())
 	}
 
 	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()

@@ -268,7 +268,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 
 	cbef := CbEventForwarder{Controlchans: outputcontrolchannels, AddToOutput: addToOutput, RemoveFromOutput: removeFromOutput, Name: name, Outputs: outputs, Filter: myfilter, OutputErrors: outputE, Results: res, Config: config, Status: Status{ErrorCount: expvar.NewInt("cbef_error_count"), FilteredEventCount: expvar.NewInt("filtered_event_count"), OutputEventCount: expvar.NewInt("output_event_count")}}
 
-	log.Infof("Starting Cb Event Forwarder %s", cbef.Name)
+	log.Infof("Configurign Cb Event Forwarder %s", cbef.Name)
 	log.Infof("Configured to remove keys: %s", cbef.RemoveFromOutput)
 	log.Infof("Configured to add k-vs to output: %s", cbef.AddToOutput)
 
@@ -303,19 +303,25 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 
 		myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
 		mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
+
 		c, err := consumer.NewConsumerFromConf(cbef.OutputMessage, cbServerName, cbServerName, consumerConfMap, debugFlag, debugStore, cbef.ConsumerWaitGroup)
 		if err != nil {
 			log.Panicf("Error consturcting consumer from configuration: %v", err)
 		}
+
 		eventMap := make(map[string]interface{})
 		for _, e := range c.RoutingKeys {
 			eventMap[e] = true
 		}
+
 		mypbmp.EventMap = eventMap
 		c.Jsmp = myjsmp
 		c.Pbmp = mypbmp
 		cbef.Consumers = append(cbef.Consumers, c)
 	}
+
+	log.Infof("Configuration success")
+
 	return cbef
 }
 

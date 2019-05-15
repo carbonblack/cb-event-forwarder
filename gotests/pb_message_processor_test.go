@@ -81,7 +81,7 @@ func TestPbProcessing(t *testing.T) {
 				"binarystore.#":                true,
 				"events.partition.#":           true,
 			}
-            pbmp := pbmessageprocessor.PbMessageProcessor{EventMap: eventMap, UseTimeFloat: false}
+			pbmp := pbmessageprocessor.PbMessageProcessor{EventMap: eventMap, UseTimeFloat: false}
 			msgs, err := pbmp.ProcessProtobuf(routingKey, d)
 			if err == nil && len(msgs) > 0 {
 				//t.Logf("%s",msgs)

@@ -235,7 +235,7 @@ func processTestEventsWithRealHandler(t *testing.T, outputDir string, outputFunc
 					}
 				}
 			}
-		    }
+		}
 
 	}
 	t.Logf("Done with test for %s ", oh)
