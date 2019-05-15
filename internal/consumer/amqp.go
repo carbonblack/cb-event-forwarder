@@ -14,7 +14,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
+	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"path"

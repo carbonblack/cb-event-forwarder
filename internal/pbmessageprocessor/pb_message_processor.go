@@ -10,7 +10,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/util"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
+	"github.com/NeowayLabs/wabbit/amqp"
 	"io/ioutil"
 	"net"
 	"os"
