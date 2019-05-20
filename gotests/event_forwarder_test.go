@@ -138,6 +138,26 @@ func TestHttpOutputReal(t *testing.T) {
 	}
 	processTestEventsWithRealForwarder(t, conf, outputDir, &background, &shutdown)
 }
+/* Need to expose way to DI the mocks3 to s3 behavior
+func TestS3OutputReal(t * testing.T) {
+	mocks3 := new(MockS3)
+	outputDir := "../test_output/real_output_s3_real"
+	os.MkdirAll(outputDir, 0755)
+	outFile, err := os.Create(path.Join(outputDir, "/s3output")) // For read access.
+	if err != nil {
+		t.Errorf("Coudln't open s3output file %v", err)
+		t.FailNow()
+		return
+	}
+	mocks3.outfile = outFile
+	t.Logf("Starting s3output test")
+	conf := map[string]interface{}{"debug": false,
+		"use_time_float": true,
+		"input":          map[interface{}]interface{}{"cbresponse": map[interface{}]interface{}{"cb_server_url": "https://cbresponseserver", "bind_raw_exchange": true, "rabbit_mq_password": "lol", "rabbit_mq_port": 5672}},
+		"output":         []interface{}{map[interface{}]interface{}{"s3": map[interface{}]interface{}{"bundle_directory": "/tmp", "bucket_name":"bucket", "region":"east","format": map[interface{}]interface{}{"type": "json"}}}},
+	}
+	processTestEventsWithRealForwarder(t, conf, outputDir,nil,nil)
+} */
 
 func processTestEventsWithRealForwarder(t *testing.T, conf map[string]interface{}, outputDir string, backgroundfunc *func(), shutdown *func()) {
 
