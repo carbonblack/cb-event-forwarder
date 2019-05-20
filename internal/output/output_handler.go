@@ -48,12 +48,12 @@ in the configuration file into an array of outputs, or output a relevant error t
 
 */
 func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
-	var temp []OutputHandler = make([]OutputHandler, len(cfg))
+	var temp []OutputHandler = make([]OutputHandler, 0)
 	var tlsConfig *tls.Config = nil
 	var jwtConfig *jwt.Config = nil
-	var count int = 0
 	for _, outputI := range cfg {
 		if outputCfg, ok := outputI.(map[interface{}]interface{}); ok {
+			log.Infof("trying to process output with cfg %s", outputCfg)
 			for outputtype, output := range outputCfg {
 				tlsConfig = nil
 				outputMap, _ := output.(map[interface{}]interface{})
@@ -144,13 +144,20 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						}
 						bundle_send_timeout = s
 					}
+					bundleLocation := "/var/cb/data/event-forwarder"
+					if t, ok := outputMap["bundle_directory"]; ok {
+						bundleLocation, _ = t.(string)
+					}
 					httpBundleBehavior, err := HTTPBehaviorFromCfg(outputMap, true, "/tmp", jwtConfig, tlsConfig)
 					if err == nil {
-						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
+						bo, err := NewBundledOutput(bundleLocation, bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", httpBundleBehavior, myencoder)
 						if err != nil {
+							log.Infof("Error making BO for HTTP %s", err)
 							return temp, err
 						}
 						tempOH = &bo
+					} else {
+						log.Panicf("Couldn't create bundled output for HTTP out... %s", err)
 					}
 				case "splunk":
 					if tlsCfg, ok := outputMap["tls"]; ok {
@@ -176,13 +183,19 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						}
 						bundle_send_timeout = s
 					}
+					bundleLocation := "/var/cb/data/event-forwarder"
+					if t, ok := outputMap["bundle_directory"]; ok {
+						bundleLocation, _ = t.(string)
+					}
 					splunkBundleBehavior, err := SplunkBehaviorFromCfg(outputMap, true, "/tmp", tlsConfig)
 					if err == nil {
-						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", splunkBundleBehavior, myencoder)
+						bo, err := NewBundledOutput(bundleLocation, bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", splunkBundleBehavior, myencoder)
 						if err != nil {
 							return temp, err
 						}
 						tempOH = &bo
+					} else {
+						log.Panicf("Couldn't create bundled output for Splunk %s", err)
 					}
 				case "s3":
 					var bundle_size_max, bundle_send_timeout int64
@@ -205,12 +218,18 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 						bundle_send_timeout = s
 					}
 					s3BundleBehavior, err := S3BehaviorFromCfg(outputMap)
+					bundleLocation := "/var/cb/data/event-forwarder"
+					if t, ok := outputMap["bundle_directory"]; ok {
+						bundleLocation, _ = t.(string)
+					}
 					if err == nil {
-						bo, err := NewBundledOutput("/var/cb/data/event-forwarder", bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", &s3BundleBehavior, myencoder)
+						bo, err := NewBundledOutput(bundleLocation, bundle_size_max, bundle_send_timeout, upload_empty_files, true, "/tmp", &s3BundleBehavior, myencoder)
 						if err != nil {
 							return temp, err
 						}
 						tempOH = &bo
+					} else {
+						log.Panicf("Coudln't create Bundled output for s3")
 					}
 				case "plugin":
 					log.Debugf("plugin outputmap = %s", outputMap)
@@ -235,14 +254,15 @@ func GetOutputsFromCfg(cfg []interface{}) ([]OutputHandler, error) {
 							}
 
 						}
+					} else {
+						log.Panicf("Coudln't create Bundled Output for plugin %s")
 					}
 					ohp, _ := loadOutputFromPlugin(path, name, cfg, myencoder)
 					tempOH = ohp
 				default:
-					return temp, nil
+					return temp, errors.New("No output detected...check documentation and configuration")
 				}
-				temp[count] = tempOH
-				count++
+				temp = append(temp, tempOH)
 				break
 			}
 		}

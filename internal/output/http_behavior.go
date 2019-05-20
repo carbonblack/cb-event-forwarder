@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"io"
@@ -71,6 +72,7 @@ func HTTPBehaviorFromCfg(cfg map[interface{}]interface{}, debugFlag bool, debugS
 
 /* Construct the HTTPBehavior object */
 func NewHTTPBehavior(httpPostTemplate, dest string, headers map[string]string, jsonFormat, eventasbytes, debugFlag bool, debugStore string, jwtConfig *jwt.Config, tlsConfig *tls.Config) (HTTPBehavior, error) {
+	log.Infof("New HTTPBehavior with %s %s", httpPostTemplate, dest)
 	temp := HTTPBehavior{DebugFlag: debugFlag, DebugStore: debugStore, CommaSeperateEvents: jsonFormat, OutputAsBytes: eventasbytes, headers: headers, dest: dest}
 	temp.firstEventTemplate = template.Must(template.New("first_event").Parse(`{{.}}`))
 	temp.subsequentEventTemplate = template.Must(template.New("subsequent_event").Parse("\n, {{.}}"))

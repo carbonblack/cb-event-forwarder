@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/cbeventforwarder"
 	conf "github.com/carbonblack/cb-event-forwarder/internal/config"
+	"github.com/carbonblack/cb-event-forwarder/internal/consumer"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
@@ -80,7 +81,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cbef := cbeventforwarder.GetCbEventForwarderFromCfg(config)
+	cbef := cbeventforwarder.GetCbEventForwarderFromCfg(config, consumer.StreadwayAMQPDialer{})
 
 	addrs, err := net.InterfaceAddrs()
 

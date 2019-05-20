@@ -189,11 +189,15 @@ func conversionFailure(i interface{}) {
 	}
 }
 
-func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder {
+func GetCbEventForwarderFromCfg(config map[string]interface{}, dialer consumer.AMQPDialer) CbEventForwarder {
 
 	debugFlag := false
 	if t, ok := config["debug"]; ok {
 		debugFlag = t.(bool)
+	}
+	if debugFlag {
+		log.Infof("Setting log level to debug")
+		log.SetLevel(log.DebugLevel)
 	}
 
 	debugStore := "/tmp"
@@ -241,7 +245,10 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 	if err != nil {
 		log.Panicf("ERROR PROCESSING OUTPUT CONFIGURATIONS %v", err)
 	} else {
-		log.Infof("Found %d ouputs...", len(outputs))
+		if len(outputs) == 0 {
+			log.Panicf("NO OUTPUTS CONFIGURED!")
+		}
+		log.Infof("Found %d ouputs...%s", len(outputs), outputs)
 	}
 
 	addToOutput := make(map[string]interface{})
@@ -304,7 +311,7 @@ func GetCbEventForwarderFromCfg(config map[string]interface{}) CbEventForwarder 
 		myjsmp := jsonmessageprocessor.JsonMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbAPI: cbapihandler, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
 		mypbmp := pbmessageprocessor.PbMessageProcessor{DebugFlag: debugFlag, DebugStore: debugStore, CbServerURL: cbServerURL, UseTimeFloat: useTimeFloat}
 
-		c, err := consumer.NewConsumerFromConf(cbef.OutputMessage, cbServerName, cbServerName, consumerConfMap, debugFlag, debugStore, cbef.ConsumerWaitGroup)
+		c, err := consumer.NewConsumerFromConf(cbef.OutputMessage, cbServerName, cbServerName, consumerConfMap, debugFlag, debugStore, cbef.ConsumerWaitGroup, dialer)
 		if err != nil {
 			log.Panicf("Error consturcting consumer from configuration: %v", err)
 		}

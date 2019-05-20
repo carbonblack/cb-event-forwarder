@@ -10,19 +10,124 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
-	"github.com/streadway/amqp"
 	"github.com/carbonblack/cb-event-forwarder/internal/jsonmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/pbmessageprocessor"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"path"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
 )
+
+type AMQPConnection interface {
+	Close() error
+	NotifyClose(receiver chan *amqp.Error) chan *amqp.Error
+	Channel() (AMQPChannel, error)
+}
+
+type MockAMQPConnection struct {
+	AMQPURL  string
+	AMQPCHAN *MockAMQPChannel
+}
+
+func (mock MockAMQPConnection) Close() error {
+	return nil
+}
+
+func (mock MockAMQPConnection) NotifyClose(receiver chan *amqp.Error) chan *amqp.Error {
+	return receiver
+}
+
+func (mock *MockAMQPConnection) Channel() (AMQPChannel, error) {
+	if mock.AMQPCHAN == nil {
+		mock.AMQPCHAN = &MockAMQPChannel{}
+	}
+	return mock.AMQPCHAN, nil
+}
+
+type AMQPChannel interface {
+	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
+	Cancel(consumer string, noWait bool) error
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+}
+
+type MockAMQPQueue struct {
+	Name           string
+	Deliveries     chan amqp.Delivery
+	BoundExchanges map[string][]string
+}
+
+type MockAMQPChannel struct {
+	Queues []MockAMQPQueue
+}
+
+func (mock *MockAMQPChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	log.Infof("MOCK AMQP Publish - %s %s", exchange, key)
+
+	for _, queue := range mock.Queues {
+		if _, ok := queue.BoundExchanges[exchange]; ok {
+			log.Infof("amqp.Publishing types: %s ", msg.ContentType)
+			queue.Deliveries <- amqp.Delivery{Exchange: exchange, RoutingKey: key, Body: msg.Body, ContentType: msg.ContentType}
+		}
+	}
+	return nil
+}
+
+func (mock *MockAMQPChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+	mock.Queues = append(mock.Queues, MockAMQPQueue{Deliveries: make(chan amqp.Delivery), Name: name, BoundExchanges: make(map[string][]string, 0)})
+	log.Infof("Created a mock queue")
+	log.Infof("Mock.queues  = %s", mock.Queues)
+	return amqp.Queue{Name: name, Messages: 0, Consumers: 0}, nil
+}
+
+func (mock *MockAMQPChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
+
+	log.Infof("Trying to bind mock queue - %s %s %s", name, key, exchange)
+	for i, queue := range mock.Queues {
+		if queue.Name == name {
+			existingKeys, ok := queue.BoundExchanges[exchange]
+			if ok {
+				mock.Queues[i].BoundExchanges[exchange] = append(existingKeys, key)
+			} else {
+				mock.Queues[i].BoundExchanges[exchange] = []string{key}
+			}
+		}
+	}
+	return nil
+}
+
+func (mock MockAMQPChannel) Cancel(consumer string, noWait bool) error {
+	return nil
+}
+
+func (mock MockAMQPChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+	for _, q := range mock.Queues {
+		//log.InfoF("Looking for %s , on queue %s",q.Name,queue)
+		if q.Name == queue {
+			return q.Deliveries, nil
+		}
+	}
+	return nil, errors.New("Couldn't find queue by name")
+}
+
+type WrappedAMQPConnection struct {
+	*amqp.Connection
+}
+
+type WrappedAMQPChannel struct {
+	*amqp.Channel
+}
+
+func (wrappedcon WrappedAMQPConnection) Channel() (AMQPChannel, error) {
+	channel, err := wrappedcon.Connection.Channel()
+	return WrappedAMQPChannel{channel}, err
+}
 
 /*
  * AMQP bookkeeping
@@ -75,6 +180,7 @@ func (c *Consumer) Consume() {
 				err := c.Connect()
 				if err != nil {
 					log.Infof("Consumer couldn't connect - Will try again in 30 seconds")
+					log.Infof("%s %v", err, err)
 					//time.Sleep(30 * time.Second)
 					select {
 					case <-c.Stopchan:
@@ -89,11 +195,11 @@ func (c *Consumer) Consume() {
 				}
 			}
 
-			numProcessors := runtime.NumCPU() * 2
-			numProcessors = 1
+			numProcessors := 1
 			log.Infof("Starting %d message processors\n", numProcessors)
 			var wg sync.WaitGroup
 			wg.Add(numProcessors)
+
 			workersstopchans := make([]chan struct{}, numProcessors)
 			for w := 0; w < numProcessors; w++ {
 				stopchan := make(chan struct{})
@@ -174,8 +280,9 @@ func GetAMQPTLSConfig(tls_ca_cert, tls_client_cert, tls_client_key string, tls_i
 	return cfg, nil
 }
 
-func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string, wg sync.WaitGroup) (*Consumer, error) {
+func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, serverName, consumerName string, consumerCfg map[interface{}]interface{}, debugFlag bool, debugStore string, wg sync.WaitGroup, dialer AMQPDialer) (*Consumer, error) {
 	var consumerTlsCfg *tls.Config = nil
+	log.Infof("New Consumer called with %s", consumerCfg)
 	if temp, ok := consumerCfg["tls"]; ok {
 		log.Debugf("Trying to get tls config for amqp consumer...")
 		tlsCfg := temp.(map[interface{}]interface{})
@@ -320,8 +427,7 @@ func NewConsumerFromConf(outputMessageFunc func(map[string]interface{}) error, s
 		}
 	}
 
-	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore)
-
+	return NewConsumer(wg, outputMessageFunc, serverName, cbServerURL, consumerTlsCfg, auditLogging, durableQueues, automaticAcking, bindToRawExchange, amqpURI, ctag, eventNames, debugFlag, debugStore, dialer)
 }
 
 type ConsumerStatus struct {
@@ -335,9 +441,39 @@ type ConsumerStatus struct {
 	sync.RWMutex
 }
 
+type AMQPDialer interface {
+	Dial(string) (AMQPConnection, error)
+	DialTLS(string, *tls.Config) (AMQPConnection, error)
+}
+
+type MockAMQPDialer struct {
+	Connection MockAMQPConnection
+}
+
+func (mdial MockAMQPDialer) Dial(s string) (AMQPConnection, error) {
+	return &mdial.Connection, nil
+}
+
+func (mdial MockAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnection, error) {
+	return &mdial.Connection, nil
+}
+
+type StreadwayAMQPDialer struct {
+}
+
+func (sdial StreadwayAMQPDialer) Dial(s string) (AMQPConnection, error) {
+	conn, err := amqp.Dial(s)
+	return WrappedAMQPConnection{conn}, err
+}
+
+func (sdial StreadwayAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnection, error) {
+	conn, err := amqp.DialTLS(s, tlscfg)
+	return WrappedAMQPConnection{conn}, err
+}
+
 type Consumer struct {
-	Conn                      *amqp.Connection
-	Channel                   *amqp.Channel
+	Conn                      AMQPConnection
+	Channel                   AMQPChannel
 	Tag                       string
 	Stopchan                  chan struct{}
 	CbServerName              string
@@ -359,9 +495,10 @@ type Consumer struct {
 	bindToRawExchange         bool
 	amqpURI                   string
 	AuditLogging              bool
+	Dialer                    AMQPDialer
 }
 
-func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string) (*Consumer, error) {
+func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{}) error, serverName, serverURL string, tlsCfg *tls.Config, auditLogging, durableQueues, automaticAcking, bindToRawExchange bool, amqpURI, ctag string, routingKeys []string, debugFlag bool, debugStore string, dialer AMQPDialer) (*Consumer, error) {
 	c := &Consumer{
 		Conn:              nil,
 		Channel:           nil,
@@ -382,6 +519,7 @@ func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{
 		Stopchan:          make(chan struct{}),
 		wg:                wg,
 		status:            ConsumerStatus{InputEventCount: expvar.NewInt(fmt.Sprintf("%_input_event_count", serverName)), ErrorCount: expvar.NewInt(fmt.Sprintf("%_error_count", serverName))},
+		Dialer:            dialer,
 	}
 	eventMap := make(map[string]interface{})
 	for _, rk := range routingKeys {
@@ -396,25 +534,28 @@ func NewConsumer(wg sync.WaitGroup, outputMessageFunc func(map[string]interface{
 	return c, nil
 }
 
-func (c *Consumer) Connect() error {
-
-	var err error
-
+func (c *Consumer) DialAMQP() error {
+	var err error = nil
 	if c.tls != nil {
 		log.Debug("Connecting to message bus via TLS...")
-		c.Conn, err = amqp.DialTLS(c.amqpURI, c.tls)
-
+		c.Conn, err = c.Dialer.DialTLS(c.amqpURI, c.tls)
 		if err != nil {
 			return err
 		}
 	} else {
 		log.Debug("Connecting to message bus...")
-		c.Conn, err = amqp.Dial(c.amqpURI)
-
+		c.Conn, err = c.Dialer.Dial(c.amqpURI)
 		if err != nil {
 			return err
 		}
+
 	}
+	return err
+}
+
+func (c *Consumer) Connect() error {
+
+	var err error = c.DialAMQP()
 
 	c.Channel, err = c.Conn.Channel()
 	if err != nil {
@@ -462,6 +603,7 @@ func (c *Consumer) Connect() error {
 	if err != nil {
 		return err
 	}
+
 	c.deliveries = deliveries
 	c.Conn.NotifyClose(c.ConnectionErrors)
 	return nil
@@ -535,7 +677,7 @@ func (c *Consumer) startExpvarPublish() {
 func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	input, err := ini.LoadFile("/etc/cb/cb.conf")
 	if err != nil {
-		return username, password, err
+		return "error", "error", err
 	}
 	username, _ = input.Get("cb", "RabbitMQUser")
 	password, _ = input.Get("", "RabbitMQPassword")
