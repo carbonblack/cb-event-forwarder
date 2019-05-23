@@ -200,7 +200,7 @@ func AddLinksToMessage(messageType, serverURL string, msg map[string]interface{}
 		if segmentID, ok := msg["segment_id"]; ok {
 			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGUID, segmentID)
 		} else {
-			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGUID, 1)
+			msg["link_process"] = fmt.Sprintf("%s#analyze/%v/%v", serverURL, processGUID, 0)
 		}
 	}
 

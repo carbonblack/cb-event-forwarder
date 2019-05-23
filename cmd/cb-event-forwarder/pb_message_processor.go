@@ -376,7 +376,7 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 		if config.CbServerURL != "" {
 
 			outmsg["link_process"] = FastStringConcat(
-				config.CbServerURL, "#analyze/", processGUID, "/1")
+				config.CbServerURL, "#analyze/", processGUID, "/0")
 
 			outmsg["link_sensor"] = FastStringConcat(
 				config.CbServerURL, "#/host/", strconv.Itoa(int(cbMessage.Env.Endpoint.GetSensorId())))
