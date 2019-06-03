@@ -25,6 +25,7 @@ const (
 	HTTPOutputType
 	SplunkOutputType
 	KafkaOutputType
+	HumioOutputType
 )
 
 const (
@@ -115,6 +116,9 @@ type Configuration struct {
 	RemoveFromOutput []string
 	AuditLog         bool
 	NumProcessors    int
+
+	// Humio config
+	HumioToken	*string
 
     UseTimeFloat    bool
 }
@@ -584,6 +588,36 @@ func ParseConfig(fn string) (Configuration, error) {
 				jsonString := "application/json"
 				config.HTTPContentType = &jsonString
 			}
+
+                case "humio":
+                        parameterKey = "humioout"
+                        config.OutputType = HumioOutputType
+
+                        token, ok := input.Get("humio", "ingest_token")
+                        if ok {
+                                config.HumioToken = &token
+                        }
+
+                        postTemplate, ok := input.Get("humio", "http_post_template")
+                        config.HTTPPostTemplate = template.New("http_post_output")
+                        if ok {
+                                config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
+                        } else {
+                                if config.OutputFormat == JSONOutputFormat {
+                                        config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
+                                                `{{range .Events}}{"sourcetype":"cb-event-forwarder","event":{{.EventText}}}{{end}}`))
+                                } else {
+                                        config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+                                }
+                        }
+
+                        contentType, ok := input.Get("http", "content_type")
+                        if ok {
+                                config.HTTPContentType = &contentType
+                        } else {
+                                jsonString := "application/json"
+                                config.HTTPContentType = &jsonString
+                        }
 
 		default:
 			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))

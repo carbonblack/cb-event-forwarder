@@ -341,7 +341,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			log.Errorf("ERROR during output: %s", outputError.Error())
 
 			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType {
+			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType || config.OutputType == HumioOutputType {
 				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
@@ -393,6 +393,8 @@ func startOutputs() error {
 		outputHandler = &BundledOutput{behavior: &SplunkBehavior{}}
 	case KafkaOutputType:
 		outputHandler = &KafkaOutput{}
+	case HumioOutputType:
+		outputHandler = &BundledOutput{behavior: &HumioBehavior{}}
 	default:
 		return fmt.Errorf("No valid output handler found (%d)", config.OutputType)
 	}
@@ -426,6 +428,8 @@ func startOutputs() error {
 			ret["type"] = "http"
 		case SplunkOutputType:
 			ret["type"] = "splunk"
+		case HumioOutputType:
+			ret["type"] = "humio"
 		}
 
 		return ret
