@@ -45,7 +45,7 @@ func marshalJSON(msgs []map[string]interface{}) (string, error) {
 }
 
 func processProtobuf(routingKey string, indata []byte) ([]map[string]interface{}, error) {
-    config.UseTimeFloat = false
+	config.UseTimeFloat = false
 	emptyHeaders := new(amqp.Table)
 
 	msg, err := ProcessProtobufMessage(routingKey, indata, *emptyHeaders)

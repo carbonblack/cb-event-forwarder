@@ -61,8 +61,26 @@ var (
 /*
  * Initializations
  */
+
+type bufwriter chan []byte
+
+func (bw bufwriter) Write(p []byte) (int, error) {
+    bw <- p
+    return len(p), nil
+}
+func NewBufwriter(n int) bufwriter {
+    w := make(bufwriter, n)
+    go func() {
+        for p := range w {
+            os.Stdout.Write(p)
+        }
+    }()
+    return w
+}
+
 func init() {
 	flag.Parse()
+	log.SetOutput(NewBufwriter(10000))
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
@@ -478,6 +496,8 @@ func main() {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
 			hostname, config.HTTPServerPort)
+		log.SetLevel(log.DebugLevel)
+
 	} else {
 		exportedVersion.Set(version)
 	}

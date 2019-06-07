@@ -16,8 +16,8 @@ import (
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
-	topic			  string
-	producers         [] * kafka.Producer
+	topic             string
+	producers         []*kafka.Producer
 	droppedEventCount int64
 	eventSentCount    int64
 
@@ -36,26 +36,26 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
 	o.topicSuffix = config.KafkaTopicSuffix
 	o.topic = config.KafkaTopic
-        o.producers = make([] * kafka.Producer,len(o.brokers))
+	o.producers = make([]*kafka.Producer, len(o.brokers))
 	// You'll probably need the other opts when protocol is set
 
-    var kafkaConfig kafka.ConfigMap = nil;
+	var kafkaConfig kafka.ConfigMap = nil
 	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-	switch (config.KafkaProtocol) {
+	switch config.KafkaProtocol {
 	case "PLAINTEXT":
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
 	case "SASL":
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-				       "security.protocol": config.KafkaProtocol,
-				       "sasl.mechanism": config.KafkaMechanism,
-				       "sasl.username": config.KafkaUsername,
-				       "sasl.password": config.KafkaPassword}
+			"security.protocol": config.KafkaProtocol,
+			"sasl.mechanism":    config.KafkaMechanism,
+			"sasl.username":     config.KafkaUsername,
+			"sasl.password":     config.KafkaPassword}
 	case "SASL+SSL":
-		kafkaConfig = kafka.ConfigMap{"boostrap.servers":*config.KafkaBrokers,
-			"security.protocol":config.KafkaProtocol,
-			"sasl.mechanism": config.KafkaMechanism,
-			"sasl.username": config.KafkaUsername,
-			"sasl.password": config.KafkaPassword}
+		kafkaConfig = kafka.ConfigMap{"boostrap.servers": *config.KafkaBrokers,
+			"security.protocol": config.KafkaProtocol,
+			"sasl.mechanism":    config.KafkaMechanism,
+			"sasl.username":     config.KafkaUsername,
+			"sasl.password":     config.KafkaPassword}
 		if config.KafkaSSLTrustStoreLocation != nil {
 			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
 			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
@@ -71,8 +71,8 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
 		}
 	case "SSL":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers":*config.KafkaBrokers,
-			"security.protocol":config.KafkaProtocol}
+		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+			"security.protocol": config.KafkaProtocol}
 		if config.KafkaSSLTrustStoreLocation != nil {
 			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
 			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
@@ -94,95 +94,95 @@ func (o *KafkaOutput) Initialize(unused string) error {
 		kafkaConfig["compression.type"] = config.KafkaCompressionType
 	}
 
-        for index,_ := range o.brokers {
-	   p, err := kafka.NewProducer(&kafkaConfig)
-	   if err != nil {
-	       log.Panicf("%v",err)
-	   }
-	   o.producers[index] = p
-        }
+	for index, _ := range o.brokers {
+		p, err := kafka.NewProducer(&kafkaConfig)
+		if err != nil {
+			log.Panicf("%v", err)
+		}
+		o.producers[index] = p
+	}
 	return nil
 }
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
-    joinEventsChan := make(chan(kafka.Event))
-    sigs := make(chan os.Signal, 1)
-     stopProdChans := make([] chan struct{},len(o.producers))
+	joinEventsChan := make(chan (kafka.Event))
+	sigs := make(chan os.Signal, 1)
+	stopProdChans := make([]chan struct{}, len(o.producers))
 
-    signal.Notify(sigs, syscall.SIGHUP)
-    signal.Notify(sigs, syscall.SIGTERM)
-    signal.Notify(sigs, syscall.SIGINT)
+	signal.Notify(sigs, syscall.SIGHUP)
+	signal.Notify(sigs, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT)
 
-    defer signal.Stop(sigs)
+	defer signal.Stop(sigs)
 
-    for workernum, producer := range o.producers {
-	    stopProdChans[workernum] = make(chan struct{},1)
-        go func(workernum int32, producer * kafka.Producer,stopProdChan <- chan struct{}) {
+	for workernum, producer := range o.producers {
+		stopProdChans[workernum] = make(chan struct{}, 1)
+		go func(workernum int32, producer *kafka.Producer, stopProdChan <-chan struct{}) {
 
-            defer producer.Close()
+			defer producer.Close()
 
-	    partition := kafka.PartitionAny
-	    shouldStop := false
-	    if (len(o.producers)) > 0 {
-		    partition = workernum
-	    }
+			partition := kafka.PartitionAny
+			shouldStop := false
+			if (len(o.producers)) > 0 {
+				partition = workernum
+			}
 
-            for {
-                select {
-                case message := <-messages:
-			var topic string = config.KafkaTopic
-			if topic == "" {
-				var parsedMsg map[string]interface{}
-				json.Unmarshal([]byte(message), &parsedMsg)
-				topicRaw := parsedMsg["type"]
-				if topicString, ok := topicRaw.(string); ok {
-					topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-					topicString += o.topicSuffix
-					topic = topicString
-				} else {
-					log.Info("ERROR: Topic was not a string")
+			for {
+				select {
+				case message := <-messages:
+					var topic string = config.KafkaTopic
+					if topic == "" {
+						var parsedMsg map[string]interface{}
+						json.Unmarshal([]byte(message), &parsedMsg)
+						topicRaw := parsedMsg["type"]
+						if topicString, ok := topicRaw.(string); ok {
+							topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+							topicString += o.topicSuffix
+							topic = topicString
+						} else {
+							log.Info("ERROR: Topic was not a string")
+						}
+					}
+					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
+					output(message, o.producers[workernum], partition)
+				case <-stopProdChan:
+					shouldStop = true
+				case e := <-producer.Events():
+					joinEventsChan <- e
+				default:
+					if shouldStop {
+						return
+					}
 				}
 			}
-			partition := kafka.TopicPartition{Topic: &topic, Partition : partition}
-			output(message,o.producers[workernum],partition)
-	        case <- stopProdChan:
-			shouldStop = true
-                case e := <-producer.Events():
-                      joinEventsChan <- e
-		default:
-			if shouldStop {
-				return
+		}(int32(workernum), producer, stopProdChans[workernum])
+	}
+	for {
+		select {
+		case e := <-joinEventsChan:
+			m := e.(*kafka.Message)
+			if m.TopicPartition.Error != nil {
+				log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
+				atomic.AddInt64(&o.droppedEventCount, 1)
+				errorChan <- m.TopicPartition.Error
+			} else {
+				log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
+					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+				atomic.AddInt64(&o.eventSentCount, 1)
 			}
-                }
-            }
-        }(int32(workernum),producer,stopProdChans[workernum])
-    }
-    for {
-        select {
-            case e := <-joinEventsChan:
-                m := e.(*kafka.Message)
-                if m.TopicPartition.Error != nil {
-                    log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
-                    atomic.AddInt64(&o.droppedEventCount, 1)
-                    errorChan <- m.TopicPartition.Error
-                } else {
-                    log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
-                        *m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
-                    atomic.AddInt64(&o.eventSentCount, 1)
-                }
-            case sig := <- sigs: 
-		    switch (sig) {
-		    	case syscall.SIGTERM, syscall.SIGINT:
-			    for _, stopChan := range stopProdChans {
-				    stopChan <- struct{}{}
-			    }
-			    return nil
-	 		default:
-			     log.Debugf("Signal was %s",sig)
-		    }
-        }
-    }
+		case sig := <-sigs:
+			switch sig {
+			case syscall.SIGTERM, syscall.SIGINT:
+				for _, stopChan := range stopProdChans {
+					stopChan <- struct{}{}
+				}
+				return nil
+			default:
+				log.Debugf("Signal was %s", sig)
+			}
+		}
+	}
 	return nil
 }
 
@@ -207,12 +207,12 @@ func (o *KafkaOutput) Key() string {
 	return fmt.Sprintf("brokers:%s", o.brokers)
 }
 
-func output(m string, producer * kafka.Producer, partition kafka.TopicPartition) {
+func output(m string, producer *kafka.Producer, partition kafka.TopicPartition) {
 	kafkamsg := &kafka.Message{
 		TopicPartition: partition,
 		Value:          []byte(m),
 	}
-	for producer.Produce(kafkamsg,nil) != nil {
+	for producer.Produce(kafkamsg, nil) != nil {
 		producer.Flush(1)
 	}
 }
