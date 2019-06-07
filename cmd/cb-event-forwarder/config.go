@@ -109,14 +109,21 @@ type Configuration struct {
 	KafkaPassword       string
 	KafkaMaxRequestSize int32
 
+	KafkaCompressionType *string
+	KafkaSSLKeyPassword *string
+	KafkaSSLKeystoreLocation *string
+	KafkaSSLKeystorePassword *string
+	KafkaSSLTrustStoreLocation *string
+	KafkaSSLTrustStorePassword *string
+	KafkaSSLEnabledProtocols [] string
+
 	//Splunkd
 	SplunkToken *string
 
 	RemoveFromOutput []string
 	AuditLog         bool
 	NumProcessors    int
-
-    UseTimeFloat    bool
+    	UseTimeFloat    bool
 }
 
 type ConfigurationError struct {
@@ -555,6 +562,42 @@ func ParseConfig(fn string) (Configuration, error) {
 			} else {
 				config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
 			}
+			kafkaCompressionType, ok := input.Get("kafka","compression_type")
+			if ok {
+				config.KafkaCompressionType = &kafkaCompressionType
+			}
+			kafkaSSLKeystoreLocation, ok := input.Get("kafka","ssl_keystore_location")
+			if ok {
+				config.KafkaSSLKeystoreLocation = &kafkaSSLKeystoreLocation
+			}
+
+			kafkaSSLKeystorePassword, ok := input.Get("kafka", "ssl_keystore_password")
+			if ok {
+				config.KafkaSSLKeystorePassword = &kafkaSSLKeystorePassword
+			}
+
+			kafkaSSLKeyPassword , ok := input.Get("kafka","ssl_key_password")
+			if ok {
+				config.KafkaSSLKeyPassword = &kafkaSSLKeyPassword
+			}
+
+			kafkaSSLTrustStoreLocation, ok := input.Get("kafka","ssl_truststore_location")
+			if ok {
+				config.KafkaSSLTrustStoreLocation = &kafkaSSLTrustStoreLocation
+			}
+
+			kafkaSSLTrustStorePassword, ok := input.Get("kafka","ssl_truststore_password")
+			if ok {
+				config.KafkaSSLTrustStorePassword = &kafkaSSLTrustStorePassword
+			}
+
+			kafkaSSLEnabledPasswords, ok := input.Get("kafka","ssl_enabled_protocols")
+			if ok {
+				config.KafkaSSLEnabledProtocols = strings.Split(kafkaSSLEnabledPasswords,",")
+			} else {
+				config.KafkaSSLEnabledProtocols = make([]string,0)
+			}
+
 		case "splunk":
 			parameterKey = "splunkout"
 			config.OutputType = SplunkOutputType

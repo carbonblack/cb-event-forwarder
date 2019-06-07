@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -553,27 +552,20 @@ func main() {
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
-	numConsumers := 1
-	if runtime.NumCPU() > 1 && config.OutputType == KafkaOutputType {
-		numConsumers = runtime.NumCPU() / 2
-	}
-
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
 	if config.AMQPQueueName != "" {
 		queueName = config.AMQPQueueName
 	}
 
-	for i := 0; i < numConsumers; i++ {
-		go func(consumerNumber int) {
-			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-			for {
-				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
-				time.Sleep(30 * time.Second)
-			}
-		}(i)
-	}
+	go func() {
+		log.Infof("Starting AMQP loop to %s on queue %s", config.AMQPURL(), queueName)
+		for {
+			err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d"))
+			log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", err)
+			time.Sleep(30 * time.Second)
+		}
+	}()
 
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")
