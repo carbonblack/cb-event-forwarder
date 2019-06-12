@@ -158,17 +158,18 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			}
 		}(int32(workernum), producer, stopProdChans[workernum])
 	}
+	go func() {
 	for {
 		select {
 		case e := <-joinEventsChan:
 			m := e.(*kafka.Message)
 			if m.TopicPartition.Error != nil {
-				log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
+				//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
 				atomic.AddInt64(&o.droppedEventCount, 1)
 				errorChan <- m.TopicPartition.Error
 			} else {
-				log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
-					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+				/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
+					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)*/
 				atomic.AddInt64(&o.eventSentCount, 1)
 			}
 		case sig := <-sigs:
@@ -177,12 +178,12 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				for _, stopChan := range stopProdChans {
 					stopChan <- struct{}{}
 				}
-				return nil
+				return
 			default:
 				log.Debugf("Signal was %s", sig)
 			}
 		}
-	}
+	}}()
 	return nil
 }
 
