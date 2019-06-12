@@ -60,7 +60,7 @@ var (
 
 /*
  * Initializations
- */
+ *
 
 type bufwriter chan []byte
 
@@ -77,10 +77,10 @@ func NewBufwriter(n int) bufwriter {
     }()
     return w
 }
-
+*/
 func init() {
 	flag.Parse()
-	log.SetOutput(NewBufwriter(10000))
+    //log.SetOutput(NewBufwriter(10000))
 	status.InputEventCount = expvar.NewInt("input_event_count")
 	status.OutputEventCount = expvar.NewInt("output_event_count")
 	status.ErrorCount = expvar.NewInt("error_count")
@@ -108,7 +108,7 @@ func init() {
 		return config.EventTypes
 	}))
 
-	results = make(chan string, 100)
+	results = make(chan string)
 	outputErrors = make(chan error)
 
 	status.StartTime = time.Now()

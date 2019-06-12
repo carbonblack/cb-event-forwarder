@@ -98,6 +98,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 		p, err := kafka.NewProducer(&kafkaConfig)
 		if err != nil {
 			log.Panicf("%v", err)
+			return err
 		}
 		o.producers[index] = p
 	}

@@ -23,11 +23,12 @@ RUN yum install -y zlib zlib-devel cyrus-sasl-devel openssl-devel
 
 RUN yum install -y lsof
 RUN yum install -y python-devel python-pip
+RUN pip install pika cbapi
 
 #build forwarder
 #
 COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder
-RUN cd /go/src/github.com/carbonblack/cb-event-forwarder
+RUN cd /go/src/github.com/carbonblack/cb-event-forwarder ; make build
 
 ENTRYPOINT ["/bin/bash"]
 CMD ["-c", "top"]
