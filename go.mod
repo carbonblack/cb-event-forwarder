@@ -4,6 +4,7 @@ require (
 	github.com/RackSec/srslog v0.0.0-20180514150917-1f7cff998e92
 	github.com/aws/aws-sdk-go v1.13.49
 	github.com/confluentinc/confluent-kafka-go v0.11.4
+	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-ini/ini v1.36.0 // indirect
 	github.com/gogo/protobuf v1.2.1
@@ -14,6 +15,7 @@ require (
 	github.com/hpcloud/tail v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
+	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/assertions v0.0.0-20190116191733-b6c0e53d7304 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect

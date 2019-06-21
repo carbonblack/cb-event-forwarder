@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	"github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -37,10 +39,9 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount  *expvar.Int
-	OutputEventCount *expvar.Int
-	ErrorCount       *expvar.Int
-	OutputEventRate  *expvar.Float
+	InputEventCount  metrics.Gauge
+	OutputEventCount metrics.Gauge
+	ErrorCount       metrics.GaugeFloat64
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -64,11 +65,11 @@ var (
  */
 func init() {
 	flag.Parse()
-	status.InputEventCount = expvar.NewInt("input_event_count")
-	status.OutputEventCount = expvar.NewInt("output_event_count")
-	status.ErrorCount = expvar.NewInt("error_count")
-	status.OutputEventRate = expvar.NewFloat("output_event_rate")
-	expvar.Publish("connection_status",
+	metrics.Register("input_event_count", status.InputEventCount)
+	metrics.Register("output_event_count", status.OutputEventCount)
+	metrics.Register("error_count", status.ErrorCount)
+	//metrics.Register("output_event_rate", status.OutputEventRate)
+	metrics.Register("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
 			res["last_connect_time"] = status.LastConnectTime
@@ -84,10 +85,10 @@ func init() {
 
 			return res
 		}))
-	expvar.Publish("uptime", expvar.Func(func() interface{} {
+	metrics.Register("uptime", expvar.Func(func() interface{} {
 		return time.Now().Sub(status.StartTime).Seconds()
 	}))
-	expvar.Publish("subscribed_events", expvar.Func(func() interface{} {
+	metrics.Register("subscribed_events", expvar.Func(func() interface{} {
 		return config.EventTypes
 	}))
 
@@ -120,7 +121,7 @@ type OutputHandler interface {
 
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
-	status.ErrorCount.Add(1)
+	status.ErrorCount.Update(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
@@ -155,7 +156,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	status.InputEventCount.Add(1)
+	status.InputEventCount.Update(1)
 
 	var err error
 	var msgs []map[string]interface{}
@@ -248,7 +249,7 @@ func outputMessage(msg map[string]interface{}) error {
 	}
 
 	if len(outmsg) > 0 && err == nil {
-		status.OutputEventCount.Add(1)
+		status.OutputEventCount.Update(1)
 		results <- string(outmsg)
 	} else {
 		return err
@@ -402,7 +403,7 @@ func startOutputs() error {
 		return err
 	}
 
-	expvar.Publish("output_status", expvar.Func(func() interface{} {
+	metrics.Register("output_status", expvar.Func(func() interface{} {
 		ret := make(map[string]interface{})
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
@@ -482,7 +483,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
-	expvar.Publish("debug", expvar.Func(func() interface{} { return *debug }))
+	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -591,9 +592,18 @@ func main() {
 		log.Info("Not starting file processing loop")
 	}
 
+	//Try to send to metrics to carbon if configured to do so
+	if config.CarbonMetricsEndpoint != nil {
+		addr, err := net.ResolveTCPAddr("tcp", *config.CarbonMetricsEndpoint)
+		if err != nil {
+			log.Panicf("%v", err)
+		}
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+	}
+
 	for {
 		time.Sleep(30 * time.Second)
-		status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
+		//status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
 	}
 
 	log.Info("cb-event-forwarder exiting")

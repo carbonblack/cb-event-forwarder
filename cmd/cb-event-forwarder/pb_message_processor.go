@@ -234,11 +234,11 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	}
 
 	outmsg := make(map[string]interface{})
-    if config.UseTimeFloat {
-	    outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
-    } else {
-	    outmsg["timestamp"] = WindowsTimeToUnixTime(inmsg.OriginalMessage.Header.GetTimestamp())
-    }
+	if config.UseTimeFloat {
+		outmsg["timestamp"] = WindowsTimeToUnixTimeFloat(inmsg.OriginalMessage.Header.GetTimestamp())
+	} else {
+		outmsg["timestamp"] = WindowsTimeToUnixTime(inmsg.OriginalMessage.Header.GetTimestamp())
+	}
 	outmsg["type"] = routingKey
 
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
@@ -250,7 +250,6 @@ func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) 
 	// select only one of network or networkv2
 	gotNetworkV2Message := false
 	gotNetblockV2Message := false
-
 
 	switch {
 	case cbMessage.Process != nil:
@@ -423,11 +422,11 @@ func WriteProcessMessage(message *ConvertedCbMessage, kv map[string]interface{})
 	kv["parent_pid"] = om.Process.GetParentPid()
 	kv["parent_guid"] = om.Process.GetParentGuid()
 	kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
-    if config.UseTimeFloat {
-	    kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
-    } else {
-	    kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
-    }
+	if config.UseTimeFloat {
+		kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
+	} else {
+		kv["parent_create_time"] = WindowsTimeToUnixTime(om.Process.GetParentCreateTime())
+	}
 	kv["filtering_known_dlls"] = om.Process.GetBFilteringKnownDlls()
 
 	if message.OriginalMessage.Process.ParentMd5 != nil {

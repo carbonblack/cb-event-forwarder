@@ -17,7 +17,7 @@ import (
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
-	topic			  string
+	topic             string
 	producer          kafka.Producer
 	droppedEventCount int64
 	eventSentCount    int64
@@ -39,20 +39,20 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topic = config.KafkaTopic
 	// You'll probably need the other opts when protocol is set
 	if config.KafkaProtocol != "" {
-	    p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-                                                    "security.protocol": config.KafkaProtocol,
-                                                    "sasl.mechanism": config.KafkaMechanism,
-                                                    "sasl.username": config.KafkaUsername,
-                                                    "sasl.password": config.KafkaPassword})
+		p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+			"security.protocol": config.KafkaProtocol,
+			"sasl.mechanism":    config.KafkaMechanism,
+			"sasl.username":     config.KafkaUsername,
+			"sasl.password":     config.KafkaPassword})
 		if err != nil {
-	        panic(err)
+			panic(err)
 		}
 		o.producer = *p
 
 	} else {
 		p, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers})
 		if err != nil {
-	        panic(err)
+			panic(err)
 		}
 		o.producer = *p
 	}
@@ -87,7 +87,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					} else {
 						log.Info("ERROR: Topic was not a string")
 					}
-				 }
+				}
 			case e := <-o.producer.Events():
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
@@ -132,7 +132,7 @@ func (o *KafkaOutput) output(topic string, m string) {
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(m),
 	}
-	for o.producer.Produce(kafkamsg,nil) != nil {
+	for o.producer.Produce(kafkamsg, nil) != nil {
 		o.producer.Flush(1)
 	}
 }

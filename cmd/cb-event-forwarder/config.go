@@ -102,7 +102,7 @@ type Configuration struct {
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
-	KafkaTopic			string
+	KafkaTopic          string
 	KafkaProtocol       string
 	KafkaMechanism      string
 	KafkaUsername       string
@@ -116,7 +116,10 @@ type Configuration struct {
 	AuditLog         bool
 	NumProcessors    int
 
-    UseTimeFloat    bool
+	UseTimeFloat bool
+
+	//graphite/carbon
+	CarbonMetricsEndpoint *string
 }
 
 type ConfigurationError struct {
@@ -743,13 +746,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-    val, ok = input.Get("bridge","use_time_float")
-    if ok {
-        usetimefloat,_ := strconv.ParseBool(val)
-        config.UseTimeFloat = usetimefloat
-    } else { 
-       config.UseTimeFloat = false 
-    }
+	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
+	if ok {
+		config.CarbonMetricsEndpoint = &val
+	}
+
+	val, ok = input.Get("bridge", "use_time_float")
+	if ok {
+		usetimefloat, _ := strconv.ParseBool(val)
+		config.UseTimeFloat = usetimefloat
+	} else {
+		config.UseTimeFloat = false
+	}
 
 	config.parseEventTypes(input)
 
