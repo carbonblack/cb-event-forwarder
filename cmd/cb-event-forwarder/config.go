@@ -757,14 +757,17 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "graphite_url")
 	if ok {
-		config.GraphiteURL = *val
+		config.GraphiteURL = &val
 	}
 
 	val, ok = input.Get("bridge", "graphite_interval")
 	if ok {
-		config.GraphitePollInterval = time.ParseDuration(val)
+		config.GraphitePollInterval,err = time.ParseDuration(val)
+		if err != nil {
+			return config, err
+		}
 	} else {
-		config.GraphitePollInterval = time.ParseDuration("5s")
+		config.GraphitePollInterval,_ = time.ParseDuration("5s")
 	}
 
 	config.parseEventTypes(input)
