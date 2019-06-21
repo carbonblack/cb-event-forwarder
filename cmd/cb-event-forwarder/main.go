@@ -40,7 +40,9 @@ var config Configuration
 
 type Status struct {
 	InputEventCount  metrics.Gauge
+	InputByteCount   metrics.Guage
 	OutputEventCount metrics.Gauge
+	OutputByteCount  metrics.Guage
 	ErrorCount       metrics.GaugeFloat64
 
 	IsConnected     bool
@@ -157,7 +159,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Update(1)
-
+	status.InputByteCount.Update(len(body))
 	var err error
 	var msgs []map[string]interface{}
 
@@ -250,6 +252,7 @@ func outputMessage(msg map[string]interface{}) error {
 
 	if len(outmsg) > 0 && err == nil {
 		status.OutputEventCount.Update(1)
+		status.OutputByteCount.Update(len(outmsg))
 		results <- string(outmsg)
 	} else {
 		return err
@@ -596,7 +599,7 @@ func main() {
 	if config.CarbonMetricsEndpoint != nil {
 		addr, err := net.ResolveTCPAddr("tcp", *config.CarbonMetricsEndpoint)
 		if err != nil {
-			log.Panicf("%v", err)
+			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
 	}
