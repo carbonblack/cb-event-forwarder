@@ -435,6 +435,10 @@ func startOutputs() error {
 	return outputHandler.Go(results, outputErrors)
 }
 
+func metricsExporterLoop() {
+
+}
+
 func main() {
 	hostname, err := os.Hostname()
 	if err != nil {

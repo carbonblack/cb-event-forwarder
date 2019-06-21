@@ -102,7 +102,7 @@ type Configuration struct {
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
-	KafkaTopic			string
+	KafkaTopic          string
 	KafkaProtocol       string
 	KafkaMechanism      string
 	KafkaUsername       string
@@ -116,7 +116,11 @@ type Configuration struct {
 	AuditLog         bool
 	NumProcessors    int
 
-    UseTimeFloat    bool
+	UseTimeFloat bool
+
+	//graphite endpoint
+	GraphiteURL          *string
+	GraphitePollInterval time.Duration
 }
 
 type ConfigurationError struct {
@@ -743,13 +747,25 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-    val, ok = input.Get("bridge","use_time_float")
-    if ok {
-        usetimefloat,_ := strconv.ParseBool(val)
-        config.UseTimeFloat = usetimefloat
-    } else { 
-       config.UseTimeFloat = false 
-    }
+	val, ok = input.Get("bridge", "use_time_float")
+	if ok {
+		usetimefloat, _ := strconv.ParseBool(val)
+		config.UseTimeFloat = usetimefloat
+	} else {
+		config.UseTimeFloat = false
+	}
+
+	val, ok = input.Get("bridge", "graphite_url")
+	if ok {
+		config.GraphiteURL = *val
+	}
+
+	val, ok = input.Get("bridge", "graphite_interval")
+	if ok {
+		config.GraphitePollInterval = time.ParseDuration(val)
+	} else {
+		config.GraphitePollInterval = time.ParseDuration("5s")
+	}
 
 	config.parseEventTypes(input)
 
@@ -757,6 +773,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		return config, errs
 	}
 	return config, nil
+
 }
 
 func configureTLS(config Configuration) *tls.Config {

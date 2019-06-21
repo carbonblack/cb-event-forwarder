@@ -4,12 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/gregjones/httpcache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
-	"github.com/gregjones/httpcache"
 	"zvelo.io/ttlru"
 )
 
@@ -74,7 +74,6 @@ func GetCb(route string) ([]byte, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: !config.CbAPIVerifySSL, MinVersion: tls.VersionTLS12},
 		Proxy:           proxyRequest,
 	}
-
 
 	c := httpcache.NewMemoryCache()
 	httpcachetr := &httpcache.Transport{Cache: c, MarkCachedResponses: true, Transport: tr}
@@ -184,5 +183,3 @@ func GetReport(FeedID int, ReportID string) (string, int, string, error) {
 	return threatReport.Title, threatReport.Score, threatReport.Link, nil
 
 }
-
-
