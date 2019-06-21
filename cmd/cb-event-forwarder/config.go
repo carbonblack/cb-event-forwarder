@@ -743,7 +743,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
 			config.NumProcessors = int(numprocessors)
 		} else {
-			config.NumProcessors = runtime.NumCPU() * 2
+			config.NumProcessors = runtime.NumCPU()
 		}
 	}
 
