@@ -6,14 +6,15 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vaughan0/go-ini"
 )
 
 const (
@@ -81,6 +82,8 @@ type Configuration struct {
 	OAuthJwtTokenUrl       string
 
 	EventTextAsJsonByteArray bool
+
+	CompressHTTPPayload bool
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -517,6 +520,17 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 
+			config.CompressHTTPPayload = false
+			compressHttpPayload, ok := input.Get("http", "compress_http_payload")
+			if ok {
+				boolval, err := strconv.ParseBool(compressHttpPayload)
+				if err == nil {
+					config.CompressHTTPPayload = boolval
+				} else {
+					errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", compressHttpPayload))
+				}
+			}
+
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
@@ -762,12 +776,12 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "graphite_interval")
 	if ok {
-		config.GraphitePollInterval,err = time.ParseDuration(val)
+		config.GraphitePollInterval, err = time.ParseDuration(val)
 		if err != nil {
 			return config, err
 		}
 	} else {
-		config.GraphitePollInterval,_ = time.ParseDuration("5s")
+		config.GraphitePollInterval, _ = time.ParseDuration("5s")
 	}
 
 	config.parseEventTypes(input)
