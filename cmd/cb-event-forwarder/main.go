@@ -55,8 +55,9 @@ type Status struct {
 var status Status
 
 var (
-	results      chan string
-	outputErrors chan error
+	results          chan string
+	outputErrors     chan error
+	publishedExpVars []string
 )
 
 /*
@@ -64,11 +65,15 @@ var (
  */
 func init() {
 	flag.Parse()
-	status.InputEventCount = expvar.NewInt("input_event_count")
-	status.OutputEventCount = expvar.NewInt("output_event_count")
-	status.ErrorCount = expvar.NewInt("error_count")
-	status.OutputEventRate = expvar.NewFloat("output_event_rate")
-	expvar.Publish("connection_status",
+	status.InputEventCount = &expvar.Int{}
+	expvarPublish("input_event_count", status.InputEventCount)
+	status.OutputEventCount = &expvar.Int{}
+	expvarPublish("output_event_count", status.OutputEventCount)
+	status.ErrorCount = &expvar.Int{} //expvar.NewInt("error_count")
+	expvarPublish("error_count", status.ErrorCount)
+	status.OutputEventRate = &expvar.Float{} //expvar.NewFloat("output_event_rate")
+	expvarPublish("output_event_rate", status.OutputEventRate)
+	expvarPublish("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
 			res["last_connect_time"] = status.LastConnectTime
@@ -84,10 +89,10 @@ func init() {
 
 			return res
 		}))
-	expvar.Publish("uptime", expvar.Func(func() interface{} {
+	expvarPublish("uptime", expvar.Func(func() interface{} {
 		return time.Now().Sub(status.StartTime).Seconds()
 	}))
-	expvar.Publish("subscribed_events", expvar.Func(func() interface{} {
+	expvarPublish("subscribed_events", expvar.Func(func() interface{} {
 		return config.EventTypes
 	}))
 
@@ -402,7 +407,7 @@ func startOutputs() error {
 		return err
 	}
 
-	expvar.Publish("output_status", expvar.Func(func() interface{} {
+	expvarPublish("output_status", expvar.Func(func() interface{} {
 		ret := make(map[string]interface{})
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
@@ -433,6 +438,68 @@ func startOutputs() error {
 
 	log.Infof("Initialized output: %s\n", outputHandler.String())
 	return outputHandler.Go(results, outputErrors)
+}
+
+type GraphiteMetric struct {
+	metric_path string
+	timestamp   int64
+	value       string
+}
+
+func GraphiteMetricFromExpvar(name string) (gm GraphiteMetric, err error) {
+	rawExpvar := expvar.Get(name)
+	if rawExpvar == nil {
+		return gm, fmt.Errorf("expvar %s not published", name)
+	} else {
+		gm.metric_path = name
+		gm.timestamp = -1
+		gm.value = rawExpvar.String()
+		return gm, nil
+	}
+}
+
+func (gm GraphiteMetric) String() string {
+	return fmt.Sprintf("%s %s %s\n", gm.metric_path, gm.value, gm.timestamp)
+}
+
+func expvarPublish(name string, v expvar.Var) {
+	expvar.Publish(name, v)
+	publishedExpVars = append(publishedExpVars,name)
+}
+
+func metricsExporterLoop() {
+	//metric_path value timestamp\n
+	// timestamp = -1 to use injest time :)
+
+	metricsTicker := time.NewTicker(config.GraphitePollInterval)
+	defer metricsTicker.Stop()
+
+	conn, err := net.Dial("udp", *config.GraphiteURL)
+
+	if err != nil {
+		log.Panicf("!!! Couldn't contact carbon to send metrics at %s due to %v !!!", conn, err)
+	}
+
+	//conn.SetWriteDeadline(1 * time.Second)
+
+	for {
+		select {
+		case <-metricsTicker.C:
+			for _,metric := range publishedExpVars {
+				gm, _ := GraphiteMetricFromExpvar(metric)
+				strgm := gm.String()
+				i, err := conn.Write([]byte(gm.String()))
+				if err != nil {
+					log.Panicf("Got write errror writting to carbon %v", err)
+				}
+				if i != len(strgm) {
+					log.Panicf("Failed to write all of %s to %s", strgm, config.GraphiteURL)
+				}
+			}
+
+		}
+	}
+
 }
 
 func main() {
@@ -474,7 +541,8 @@ func main() {
 
 	log.Infof("cb-event-forwarder version %s starting", version)
 
-	exportedVersion := expvar.NewString("version")
+	exportedVersion := &expvar.String{}
+	expvarPublish("version", exportedVersion)
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
@@ -482,7 +550,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
-	expvar.Publish("debug", expvar.Func(func() interface{} { return *debug }))
+	expvarPublish("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {

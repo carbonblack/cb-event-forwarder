@@ -94,10 +94,10 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		queue.Name,
 		c.tag,
 		config.AMQPAutomaticAcking, // automatic or manual acking
-		false, // exclusive
-		false, // noLocal
-		false, // noWait
-		nil,   // arguments
+		false,                      // exclusive
+		false,                      // noLocal
+		false,                      // noWait
+		nil,                        // arguments
 	)
 
 	if err != nil {

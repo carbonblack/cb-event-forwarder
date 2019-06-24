@@ -6,14 +6,15 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vaughan0/go-ini"
 )
 
 const (
@@ -82,6 +83,8 @@ type Configuration struct {
 
 	EventTextAsJsonByteArray bool
 
+	CompressHTTPPayload bool
+
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
 	CommaSeparateEvents bool
@@ -102,7 +105,7 @@ type Configuration struct {
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
-	KafkaTopic			string
+	KafkaTopic          string
 	KafkaProtocol       string
 	KafkaMechanism      string
 	KafkaUsername       string
@@ -116,7 +119,11 @@ type Configuration struct {
 	AuditLog         bool
 	NumProcessors    int
 
-    UseTimeFloat    bool
+	UseTimeFloat bool
+
+	//graphite endpoint
+	GraphiteURL          *string
+	GraphitePollInterval time.Duration
 }
 
 type ConfigurationError struct {
@@ -513,6 +520,17 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 
+			config.CompressHTTPPayload = false
+			compressHttpPayload, ok := input.Get("http", "compress_http_payload")
+			if ok {
+				boolval, err := strconv.ParseBool(compressHttpPayload)
+				if err == nil {
+					config.CompressHTTPPayload = boolval
+				} else {
+					errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", compressHttpPayload))
+				}
+			}
+
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
@@ -739,17 +757,32 @@ func ParseConfig(fn string) (Configuration, error) {
 		if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
 			config.NumProcessors = int(numprocessors)
 		} else {
-			config.NumProcessors = runtime.NumCPU() * 2
+			config.NumProcessors = runtime.NumCPU()
 		}
 	}
 
-    val, ok = input.Get("bridge","use_time_float")
-    if ok {
-        usetimefloat,_ := strconv.ParseBool(val)
-        config.UseTimeFloat = usetimefloat
-    } else { 
-       config.UseTimeFloat = false 
-    }
+	val, ok = input.Get("bridge", "use_time_float")
+	if ok {
+		usetimefloat, _ := strconv.ParseBool(val)
+		config.UseTimeFloat = usetimefloat
+	} else {
+		config.UseTimeFloat = false
+	}
+
+	val, ok = input.Get("bridge", "graphite_url")
+	if ok {
+		config.GraphiteURL = &val
+	}
+
+	val, ok = input.Get("bridge", "graphite_interval")
+	if ok {
+		config.GraphitePollInterval, err = time.ParseDuration(val)
+		if err != nil {
+			return config, err
+		}
+	} else {
+		config.GraphitePollInterval, _ = time.ParseDuration("5s")
+	}
 
 	config.parseEventTypes(input)
 
@@ -757,6 +790,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		return config, errs
 	}
 	return config, nil
+
 }
 
 func configureTLS(config Configuration) *tls.Config {
