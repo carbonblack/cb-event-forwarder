@@ -128,3 +128,17 @@ services:
       KAFKA_JXM_HOSTNAME: kafka-3
       JMX_PORT: 39999
 
+  grafana:
+      image: grafana/grafana
+      container_name: grafana
+      hostname: grafana
+      restart: always
+      ports:
+        - 3000:3000
+
+  graphite:
+      hostname: graphite
+      image: graphiteapp/graphite-statsd
+      container_name: graphite
+      restart: always
+
