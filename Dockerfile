@@ -30,5 +30,8 @@ RUN pip install pika cbapi
 COPY ./ /go/src/github.com/carbonblack/cb-event-forwarder
 RUN cd /go/src/github.com/carbonblack/cb-event-forwarder ; make build
 
+WORKDIR /go/src/github.com/carbonblack/cb-event-forwarder
+
+
 ENTRYPOINT ["/bin/bash"]
-CMD ["-c", "top"]
+CMD ["-c" , "./cb-event-forwarder  cb-event-forwarder.docker.ini "]

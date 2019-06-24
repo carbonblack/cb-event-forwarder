@@ -15,7 +15,6 @@ require (
 	github.com/hpcloud/tail v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
-	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/assertions v0.0.0-20190116191733-b6c0e53d7304 // indirect
@@ -26,9 +25,9 @@ require (
 	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4 // indirect
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/oauth2 v0.0.0-20190212230446-3e8b2be13635
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
 	golang.org/x/sys v0.0.0-20190621203818-d432491b9138 // indirect
 	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190621195816-6e04913cbbac // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/h2non/filetype.v1 v1.0.5
 	gopkg.in/ini.v1 v1.41.0 // indirect
