@@ -13,6 +13,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
+    "github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -159,7 +160,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Update(1)
-	status.InputByteCount.Update(len(body))
+	status.InputByteCount.Update(int64(len(body)))
 	var err error
 	var msgs []map[string]interface{}
 
@@ -252,7 +253,7 @@ func outputMessage(msg map[string]interface{}) error {
 
 	if len(outmsg) > 0 && err == nil {
 		status.OutputEventCount.Update(1)
-		status.OutputByteCount.Update(len(outmsg))
+		status.OutputByteCount.Update(int64(len(outmsg)))
 		results <- string(outmsg)
 	} else {
 		return err
@@ -603,6 +604,8 @@ func main() {
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
 	}
+
+    exp.Exp(metrics.DefaultRegistry)
 
 	for {
 		time.Sleep(30 * time.Second)

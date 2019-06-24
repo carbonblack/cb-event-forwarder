@@ -22,11 +22,12 @@ require (
 	github.com/streadway/amqp v0.0.0-20180315184602-8e4aba63da9f
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
-	golang.org/x/crypto v0.0.0-20190219172222-a4c6cb3142f2 // indirect
-	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd // indirect
+	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4 // indirect
+	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/oauth2 v0.0.0-20190212230446-3e8b2be13635
-	golang.org/x/sys v0.0.0-20190219092855-153ac476189d // indirect
-	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
+	golang.org/x/sys v0.0.0-20190621203818-d432491b9138 // indirect
+	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/h2non/filetype.v1 v1.0.5
 	gopkg.in/ini.v1 v1.41.0 // indirect
