@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -46,6 +47,9 @@ func (this *HTTPBehavior) Initialize(dest string) error {
 	}
 
 	this.headers["Content-Type"] = *config.HTTPContentType
+	if config.CompressHTTPPayload {
+		this.headers["Content-Encoding"] = "gzip"
+	}
 
 	this.client = &http.Client{
 		Transport: createTransport(config),
@@ -123,10 +127,19 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		defer fp.Close()
 		defer writer.Close()
 
+		var httpWriter io.Writer = writer
+
+		// if we are using compression, chain the GzipWriter inline
+		if config.CompressHTTPPayload {
+			gzw := gzip.NewWriter(writer)
+			defer gzw.Close()
+			httpWriter = gzw
+		}
+
 		// spawn goroutine to read from the file
 		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
 
-		this.HTTPPostTemplate.Execute(writer, uploadData)
+		this.HTTPPostTemplate.Execute(httpWriter, uploadData)
 	}()
 
 	/* Set the header values of the post */

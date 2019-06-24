@@ -81,12 +81,6 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
 			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
 		}
-		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.password.key"] = config.KafkaSSLKeystorePassword
-		}
-		if len(config.KafkaSSLEnabledProtocols) > 0 {
-			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-		}
 	default:
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
 	}
@@ -97,8 +91,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	for index, _ := range o.brokers {
 		p, err := kafka.NewProducer(&kafkaConfig)
 		if err != nil {
-			log.Panicf("%v", err)
-			return err
+			panic(err)
 		}
 		o.producers[index] = p
 	}
@@ -160,31 +153,32 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		}(int32(workernum), producer, stopProdChans[workernum])
 	}
 	go func() {
-	for {
-		select {
-		case e := <-joinEventsChan:
-			m := e.(*kafka.Message)
-			if m.TopicPartition.Error != nil {
-				//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
-				atomic.AddInt64(&o.droppedEventCount, 1)
-				errorChan <- m.TopicPartition.Error
-			} else {
-				/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
+		for {
+			select {
+			case e := <-joinEventsChan:
+				m := e.(*kafka.Message)
+				if m.TopicPartition.Error != nil {
+					//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
+					atomic.AddInt64(&o.droppedEventCount, 1)
+					errorChan <- m.TopicPartition.Error
+				} else {
+					/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
 					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)*/
-				atomic.AddInt64(&o.eventSentCount, 1)
-			}
-		case sig := <-sigs:
-			switch sig {
-			case syscall.SIGTERM, syscall.SIGINT:
-				for _, stopChan := range stopProdChans {
-					stopChan <- struct{}{}
+					atomic.AddInt64(&o.eventSentCount, 1)
 				}
-				return
-			default:
-				log.Debugf("Signal was %s", sig)
+			case sig := <-sigs:
+				switch sig {
+				case syscall.SIGTERM, syscall.SIGINT:
+					for _, stopChan := range stopProdChans {
+						stopChan <- struct{}{}
+					}
+					return
+				default:
+					log.Debugf("Signal was %s", sig)
+				}
 			}
 		}
-	}}()
+	}()
 	return nil
 }
 
