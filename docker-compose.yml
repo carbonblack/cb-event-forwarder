@@ -17,7 +17,7 @@ services:
       - kafka-1
       - kafka-2
       - kafka-3
-      - rabbit
+      - rabbitmq
       - grafana
       - graphite
 
@@ -25,7 +25,6 @@ services:
     build: ./kafkamanager
     hostname: kafkamanager
     container_name: kafkamanager
-    restart: always
     tty: true
     command: -c '/kafkamanager/bin/kafka-manager'
     ports:
@@ -163,14 +162,21 @@ services:
       restart: always
 
   rabbitmq:
-    image: "rabbitmq:management"
+    image: "rabbitmq:3.6.5-management"
     hostname: "rabbitmq"
     restart: always
-    environment:
-      RABBITMQ_ERLANG_COOKIE: "hackhackhackaday"
-      RABBITMQ_DEFAULT_USER: "cb"
-      RABBITMQ_DEFAULT_PASS: "cb"
-      RABBITMQ_DEFAULT_VHOST: "/"
+   # environment:
+   #   RABBITMQ_ERLANG_COOKIE: "hackhackhackaday"
+   #   RABBITMQ_DEFAULT_USER: "cb"
+   #   RABBITMQ_DEFAULT_PASS: "cb"
+   #   RABBITMQ_DEFAULT_VHOST: "/"
+   #   RABBITMQ_MANAGEMENT_USERS_user: '{"name":"cb","password":"cb","tags":"administrator"}'
+   #   RABBITMQ_MANAGEMENT_PERMISSIONS_permissions: '{"user":"cb","vhost":"/","configure":".*","write":".*","read":".*"}'
+    volumes:
+      - ./rabbitmq/definitions.json:/opt/definitions.json:ro
+      - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+
+
     ports:
       - "15672:15672"
       - "5672:5672"
