@@ -40,9 +40,9 @@ var config Configuration
 
 type Status struct {
 	InputEventCount  metrics.Gauge
-	InputByteCount   metrics.Guage
+	InputByteCount   metrics.Gauge
 	OutputEventCount metrics.Gauge
-	OutputByteCount  metrics.Guage
+	OutputByteCount  metrics.Gauge
 	ErrorCount       metrics.GaugeFloat64
 
 	IsConnected     bool
