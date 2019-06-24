@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	"github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
+    "github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -18,7 +21,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -37,10 +39,11 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount  *expvar.Int
-	OutputEventCount *expvar.Int
-	ErrorCount       *expvar.Int
-	OutputEventRate  *expvar.Float
+	InputEventCount  metrics.Gauge
+	InputByteCount   metrics.Gauge
+	OutputEventCount metrics.Gauge
+	OutputByteCount  metrics.Gauge
+	ErrorCount       metrics.GaugeFloat64
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -65,15 +68,11 @@ var (
  */
 func init() {
 	flag.Parse()
-	status.InputEventCount = &expvar.Int{}
-	expvarPublish("input_event_count", status.InputEventCount)
-	status.OutputEventCount = &expvar.Int{}
-	expvarPublish("output_event_count", status.OutputEventCount)
-	status.ErrorCount = &expvar.Int{} //expvar.NewInt("error_count")
-	expvarPublish("error_count", status.ErrorCount)
-	status.OutputEventRate = &expvar.Float{} //expvar.NewFloat("output_event_rate")
-	expvarPublish("output_event_rate", status.OutputEventRate)
-	expvarPublish("connection_status",
+	metrics.Register("input_event_count", status.InputEventCount)
+	metrics.Register("output_event_count", status.OutputEventCount)
+	metrics.Register("error_count", status.ErrorCount)
+	//metrics.Register("output_event_rate", status.OutputEventRate)
+	metrics.Register("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
 			res["last_connect_time"] = status.LastConnectTime
@@ -89,10 +88,10 @@ func init() {
 
 			return res
 		}))
-	expvarPublish("uptime", expvar.Func(func() interface{} {
+	metrics.Register("uptime", expvar.Func(func() interface{} {
 		return time.Now().Sub(status.StartTime).Seconds()
 	}))
-	expvarPublish("subscribed_events", expvar.Func(func() interface{} {
+	metrics.Register("subscribed_events", expvar.Func(func() interface{} {
 		return config.EventTypes
 	}))
 
@@ -125,7 +124,7 @@ type OutputHandler interface {
 
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
-	status.ErrorCount.Add(1)
+	status.ErrorCount.Update(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
@@ -160,8 +159,8 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	status.InputEventCount.Add(1)
-
+	status.InputEventCount.Update(1)
+	status.InputByteCount.Update(int64(len(body)))
 	var err error
 	var msgs []map[string]interface{}
 
@@ -253,7 +252,8 @@ func outputMessage(msg map[string]interface{}) error {
 	}
 
 	if len(outmsg) > 0 && err == nil {
-		status.OutputEventCount.Add(1)
+		status.OutputEventCount.Update(1)
+		status.OutputByteCount.Update(int64(len(outmsg)))
 		results <- string(outmsg)
 	} else {
 		return err
@@ -407,7 +407,7 @@ func startOutputs() error {
 		return err
 	}
 
-	expvarPublish("output_status", expvar.Func(func() interface{} {
+	metrics.Register("output_status", expvar.Func(func() interface{} {
 		ret := make(map[string]interface{})
 		ret[outputHandler.Key()] = outputHandler.Statistics()
 
@@ -440,67 +440,6 @@ func startOutputs() error {
 	return outputHandler.Go(results, outputErrors)
 }
 
-type GraphiteMetric struct {
-	metric_path string
-	timestamp   int64
-	value       string
-}
-
-func GraphiteMetricFromExpvar(name string) (gm GraphiteMetric, err error) {
-	rawExpvar := expvar.Get(name)
-	if rawExpvar == nil {
-		return gm, fmt.Errorf("expvar %s not published", name)
-	} else {
-		gm.metric_path = name
-		gm.timestamp = -1
-		gm.value = rawExpvar.String()
-		return gm, nil
-	}
-}
-
-func (gm GraphiteMetric) String() string {
-	return fmt.Sprintf("%s %s %s\n", gm.metric_path, gm.value, gm.timestamp)
-}
-
-func expvarPublish(name string, v expvar.Var) {
-	expvar.Publish(name, v)
-	publishedExpVars = append(publishedExpVars,name)
-}
-
-func metricsExporterLoop() {
-	//metric_path value timestamp\n
-	// timestamp = -1 to use injest time :)
-
-	metricsTicker := time.NewTicker(config.GraphitePollInterval)
-	defer metricsTicker.Stop()
-
-	conn, err := net.Dial("udp", *config.GraphiteURL)
-
-	if err != nil {
-		log.Panicf("!!! Couldn't contact carbon to send metrics at %s due to %v !!!", conn, err)
-	}
-
-	//conn.SetWriteDeadline(1 * time.Second)
-
-	for {
-		select {
-		case <-metricsTicker.C:
-			for _,metric := range publishedExpVars {
-				gm, _ := GraphiteMetricFromExpvar(metric)
-				strgm := gm.String()
-				i, err := conn.Write([]byte(gm.String()))
-				if err != nil {
-					log.Panicf("Got write errror writting to carbon %v", err)
-				}
-				if i != len(strgm) {
-					log.Panicf("Failed to write all of %s to %s", strgm, config.GraphiteURL)
-				}
-			}
-
-		}
-	}
-
-}
 
 func main() {
 	hostname, err := os.Hostname()
@@ -542,7 +481,7 @@ func main() {
 	log.Infof("cb-event-forwarder version %s starting", version)
 
 	exportedVersion := &expvar.String{}
-	expvarPublish("version", exportedVersion)
+	metrics.Register("version", exportedVersion)
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
@@ -550,7 +489,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
-	expvarPublish("debug", expvar.Func(func() interface{} { return *debug }))
+	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -621,27 +560,20 @@ func main() {
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
-	numConsumers := 1
-	if runtime.NumCPU() > 1 && config.OutputType == KafkaOutputType {
-		numConsumers = runtime.NumCPU() / 2
-	}
-
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
 	if config.AMQPQueueName != "" {
 		queueName = config.AMQPQueueName
 	}
 
-	for i := 0; i < numConsumers; i++ {
-		go func(consumerNumber int) {
-			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-			for {
-				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
-				time.Sleep(30 * time.Second)
-			}
-		}(i)
-	}
+    go func(consumerNumber int) {
+        log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
+        for {
+            err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+            log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+            time.Sleep(30 * time.Second)
+        }
+    }(1)
 
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")
@@ -659,9 +591,20 @@ func main() {
 		log.Info("Not starting file processing loop")
 	}
 
+	//Try to send to metrics to carbon if configured to do so
+	if config.CarbonMetricsEndpoint != nil {
+		addr, err := net.ResolveTCPAddr("tcp", *config.CarbonMetricsEndpoint)
+		if err != nil {
+			log.Panicf("Failing resolving carbon endpoint %v", err)
+		}
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+	}
+
+    exp.Exp(metrics.DefaultRegistry)
+
 	for {
 		time.Sleep(30 * time.Second)
-		status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
+		//status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
 	}
 
 	log.Info("cb-event-forwarder exiting")

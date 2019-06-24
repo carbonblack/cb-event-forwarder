@@ -121,9 +121,8 @@ type Configuration struct {
 
 	UseTimeFloat bool
 
-	//graphite endpoint
-	GraphiteURL          *string
-	GraphitePollInterval time.Duration
+	//graphite/carbon
+	CarbonMetricsEndpoint *string
 }
 
 type ConfigurationError struct {
@@ -761,27 +760,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
+	if ok {
+		config.CarbonMetricsEndpoint = &val
+	}
+
 	val, ok = input.Get("bridge", "use_time_float")
 	if ok {
 		usetimefloat, _ := strconv.ParseBool(val)
 		config.UseTimeFloat = usetimefloat
 	} else {
 		config.UseTimeFloat = false
-	}
-
-	val, ok = input.Get("bridge", "graphite_url")
-	if ok {
-		config.GraphiteURL = &val
-	}
-
-	val, ok = input.Get("bridge", "graphite_interval")
-	if ok {
-		config.GraphitePollInterval, err = time.ParseDuration(val)
-		if err != nil {
-			return config, err
-		}
-	} else {
-		config.GraphitePollInterval, _ = time.ParseDuration("5s")
 	}
 
 	config.parseEventTypes(input)
