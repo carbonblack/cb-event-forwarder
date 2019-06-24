@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -59,8 +58,9 @@ type Status struct {
 var status Status
 
 var (
-	results      chan string
-	outputErrors chan error
+	results          chan string
+	outputErrors     chan error
+	publishedExpVars []string
 )
 
 /*
@@ -440,6 +440,7 @@ func startOutputs() error {
 	return outputHandler.Go(results, outputErrors)
 }
 
+
 func main() {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -479,7 +480,8 @@ func main() {
 
 	log.Infof("cb-event-forwarder version %s starting", version)
 
-	exportedVersion := expvar.NewString("version")
+	exportedVersion := &expvar.String{}
+	metrics.Register("version", exportedVersion)
 	if *debug {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
@@ -558,27 +560,20 @@ func main() {
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
-	numConsumers := 1
-	if runtime.NumCPU() > 1 && config.OutputType == KafkaOutputType {
-		numConsumers = runtime.NumCPU() / 2
-	}
-
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
 	if config.AMQPQueueName != "" {
 		queueName = config.AMQPQueueName
 	}
 
-	for i := 0; i < numConsumers; i++ {
-		go func(consumerNumber int) {
-			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-			for {
-				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
-				time.Sleep(30 * time.Second)
-			}
-		}(i)
-	}
+    go func(consumerNumber int) {
+        log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
+        for {
+            err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+            log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+            time.Sleep(30 * time.Second)
+        }
+    }(1)
 
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")

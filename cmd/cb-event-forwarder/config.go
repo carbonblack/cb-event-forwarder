@@ -6,14 +6,15 @@ import (
 	"errors"
 	_ "expvar"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vaughan0/go-ini"
 	"io/ioutil"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vaughan0/go-ini"
 )
 
 const (
@@ -81,6 +82,8 @@ type Configuration struct {
 	OAuthJwtTokenUrl       string
 
 	EventTextAsJsonByteArray bool
+
+	CompressHTTPPayload bool
 
 	// configuration options common to bundled outputs (S3, HTTP)
 	UploadEmptyFiles    bool
@@ -516,6 +519,17 @@ func ParseConfig(fn string) (Configuration, error) {
 				}
 			}
 
+			config.CompressHTTPPayload = false
+			compressHttpPayload, ok := input.Get("http", "compress_http_payload")
+			if ok {
+				boolval, err := strconv.ParseBool(compressHttpPayload)
+				if err == nil {
+					config.CompressHTTPPayload = boolval
+				} else {
+					errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", compressHttpPayload))
+				}
+			}
+
 		case "syslog":
 			parameterKey = "syslogout"
 			config.OutputType = SyslogOutputType
@@ -742,7 +756,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
 			config.NumProcessors = int(numprocessors)
 		} else {
-			config.NumProcessors = runtime.NumCPU() * 2
+			config.NumProcessors = runtime.NumCPU()
 		}
 	}
 
@@ -765,6 +779,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		return config, errs
 	}
 	return config, nil
+
 }
 
 func configureTLS(config Configuration) *tls.Config {
