@@ -806,7 +806,11 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
 	if ok {
+		log.Infof("SETTING CARBONMETRICSENDPOITN TO %s",val)
 		config.CarbonMetricsEndpoint = &val
+	} else {
+		log.Infof("SETTING CARBONMETRICSENDPOINT TO NIL")
+		config.CarbonMetricsEndpoint = nil
 	}
 
 	val, ok = input.Get("bridge", "use_time_float")

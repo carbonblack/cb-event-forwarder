@@ -12,6 +12,8 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	"github.com/rcrowley/go-metrics"
+	"github.com/rcrowley/go-metrics/exp"
+	"github.com/cyberdelia/go-metrics-graphite"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -614,15 +616,16 @@ func main() {
 	}
 
 	//Try to send to metrics to carbon if configured to do so
-	/*if config.CarbonMetricsEndpoint != nil {
+	if config.CarbonMetricsEndpoint != nil {
+		log.Infof("Trying to resolve TCP ADDR for %s\n",*config.CarbonMetricsEndpoint)
 		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
-	}*/
+	}
 
-	//exp.Exp(metrics.DefaultRegistry)
+	exp.Exp(metrics.DefaultRegistry)
 
 	for {
 		time.Sleep(30 * time.Second)
