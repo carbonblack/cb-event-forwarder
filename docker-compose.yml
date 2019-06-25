@@ -26,7 +26,7 @@ services:
     hostname: kafkamanager
     container_name: kafkamanager
     tty: true
-    command: -c 'sleep 30 && /kafkamanager/bin/kafka-manager'
+    command: -c 'sleep 20 && /kafkamanager/bin/kafka-manager'
     ports:
       - "39000:9000"
     depends_on:
@@ -164,19 +164,9 @@ services:
   rabbitmq:
     image: "rabbitmq:3.6.5-management"
     hostname: "rabbitmq"
-    restart: always
-   # environment:
-   #   RABBITMQ_ERLANG_COOKIE: "hackhackhackaday"
-   #   RABBITMQ_DEFAULT_USER: "cb"
-   #   RABBITMQ_DEFAULT_PASS: "cb"
-   #   RABBITMQ_DEFAULT_VHOST: "/"
-   #   RABBITMQ_MANAGEMENT_USERS_user: '{"name":"cb","password":"cb","tags":"administrator"}'
-   #   RABBITMQ_MANAGEMENT_PERMISSIONS_permissions: '{"user":"cb","vhost":"/","configure":".*","write":".*","read":".*"}'
     volumes:
       - ./rabbitmq/definitions.json:/opt/definitions.json:ro
       - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
-
-
     ports:
       - "15672:15672"
       - "5672:5672"
@@ -185,7 +175,6 @@ services:
     build: ./test/stress_rabbit
     hostname: stressrabbit
     container_name: stressrabbit
-    restart: always
     depends_on:
       - rabbitmq
       - eventforwarder

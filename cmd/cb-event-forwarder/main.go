@@ -11,9 +11,7 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
-	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
-	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -26,6 +24,8 @@ import (
 	"time"
 )
 
+//"github.com/rcrowley/go-metrics"
+//	"github.com/rcrowley/go-metrics/exp"
 import _ "net/http/pprof"
 
 var (
@@ -60,7 +60,6 @@ var status Status
 var (
 	results          chan string
 	outputErrors     chan error
-	publishedExpVars []string
 )
 
 /*
@@ -85,6 +84,11 @@ func NewBufwriter(n int) bufwriter {
 */
 func init() {
 	flag.Parse()
+	status.InputEventCount = metrics.NewGauge()
+	status.InputByteCount = metrics.NewGauge()
+	status.OutputEventCount = metrics.NewGauge()
+	status.OutputByteCount = metrics.NewGauge()
+	status.ErrorCount = metrics.NewGaugeFloat64()
 	metrics.Register("input_event_count", status.InputEventCount)
 	metrics.Register("output_event_count", status.OutputEventCount)
 	metrics.Register("error_count", status.ErrorCount)
@@ -610,15 +614,15 @@ func main() {
 	}
 
 	//Try to send to metrics to carbon if configured to do so
-	if config.CarbonMetricsEndpoint != nil {
-		addr, err := net.ResolveTCPAddr("tcp", *config.CarbonMetricsEndpoint)
+	/*if config.CarbonMetricsEndpoint != nil {
+		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
-	}
+	}*/
 
-	exp.Exp(metrics.DefaultRegistry)
+	//exp.Exp(metrics.DefaultRegistry)
 
 	for {
 		time.Sleep(30 * time.Second)

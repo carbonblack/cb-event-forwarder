@@ -8,6 +8,8 @@ def main():
     #creds = cb.credentials
     url = os.environ['AMQPURL']
 
+    print("Trying to connect to rabbit with URL " + url)
+
     #url = "amqp://{0}:{1}@{2}:{3}".format(creds.rabbitmq_user,
                                           #creds.rabbitmq_pass,
                                           #creds.rabbitmq_host,

@@ -34,4 +34,4 @@ WORKDIR /go/src/github.com/carbonblack/cb-event-forwarder
 
 
 ENTRYPOINT ["/bin/bash"]
-CMD ["-c" , "sleep 30 && ./cb-event-forwarder  cb-event-forwarder.docker.ini "]
+CMD ["-c" , "sleep 15 && ./cb-event-forwarder  cb-event-forwarder.docker.ini "]
