@@ -582,36 +582,36 @@ func ParseConfig(fn string) (Configuration, error) {
 			}
 			kafkaCompressionType, ok := input.Get("kafka", "compression_type")
 			if ok {
-				compressionType := fmt.Sprintf("%s",kafkaCompressionType)
+				compressionType := fmt.Sprintf("%s", kafkaCompressionType)
 				config.KafkaCompressionType = &compressionType
 			}
 			kafkaSSLKeystoreLocation, ok := input.Get("kafka", "ssl_keystore_location")
 			if ok {
-				SSLKeystoreLocation := fmt.Sprintf("%s",kafkaSSLKeystoreLocation)
+				SSLKeystoreLocation := fmt.Sprintf("%s", kafkaSSLKeystoreLocation)
 				config.KafkaSSLKeystoreLocation = &SSLKeystoreLocation
 			}
 
 			kafkaSSLKeystorePassword, ok := input.Get("kafka", "ssl_keystore_password")
 			if ok {
-				SSLKeystorePassword := fmt.Sprintf("%s",kafkaSSLKeystorePassword)
+				SSLKeystorePassword := fmt.Sprintf("%s", kafkaSSLKeystorePassword)
 				config.KafkaSSLKeystorePassword = &SSLKeystorePassword
 			}
 
 			kafkaSSLKeyPassword, ok := input.Get("kafka", "ssl_key_password")
 			if ok {
-				SSLKeyPassword := fmt.Sprintf("%s",kafkaSSLKeyPassword)
+				SSLKeyPassword := fmt.Sprintf("%s", kafkaSSLKeyPassword)
 				config.KafkaSSLKeyPassword = &SSLKeyPassword
 			}
 
 			kafkaSSLTrustStoreLocation, ok := input.Get("kafka", "ssl_truststore_location")
 			if ok {
-				SSLTrustStoreLocation := fmt.Sprintf("%s",kafkaSSLTrustStoreLocation)
+				SSLTrustStoreLocation := fmt.Sprintf("%s", kafkaSSLTrustStoreLocation)
 				config.KafkaSSLTrustStoreLocation = &SSLTrustStoreLocation
 			}
 
 			kafkaSSLTrustStorePassword, ok := input.Get("kafka", "ssl_truststore_password")
 			if ok {
-				SSLTrustStorePassword := fmt.Sprintf("%s",kafkaSSLTrustStorePassword)
+				SSLTrustStorePassword := fmt.Sprintf("%s", kafkaSSLTrustStorePassword)
 				config.KafkaSSLTrustStorePassword = &SSLTrustStorePassword
 			}
 
@@ -813,7 +813,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
 	if ok {
 		//log.Infof("SETTING CARBONMETRICSENDPOITN TO %s",val)
-		metricsEndpoint := fmt.Sprintf("%s",val)
+		metricsEndpoint := fmt.Sprintf("%s", val)
 		config.CarbonMetricsEndpoint = &metricsEndpoint
 	} else {
 		//log.Infof("SETTING CARBONMETRICSENDPOINT TO NIL")

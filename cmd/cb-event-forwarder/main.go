@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
-	"github.com/cyberdelia/go-metrics-graphite"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -60,8 +60,8 @@ type Status struct {
 var status Status
 
 var (
-	results          chan string
-	outputErrors     chan error
+	results      chan string
+	outputErrors chan error
 )
 
 /*
@@ -617,7 +617,7 @@ func main() {
 
 	//Try to send to metrics to carbon if configured to do so
 	if config.CarbonMetricsEndpoint != nil {
-		log.Infof("Trying to resolve TCP ADDR for %s\n",*config.CarbonMetricsEndpoint)
+		log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
 		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
