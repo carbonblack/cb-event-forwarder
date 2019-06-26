@@ -92,6 +92,8 @@ func init() {
 	status.OutputByteCount = metrics.NewGauge()
 	status.ErrorCount = metrics.NewGaugeFloat64()
 	metrics.Register("input_event_count", status.InputEventCount)
+	metrics.Register("input_byte_count", status.InputByteCount)
+	metrics.Register("output_byte_count", status.OutputByteCount)
 	metrics.Register("output_event_count", status.OutputEventCount)
 	metrics.Register("error_count", status.ErrorCount)
 	//metrics.Register("output_event_rate", status.OutputEventRate)
