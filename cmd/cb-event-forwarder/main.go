@@ -18,7 +18,6 @@ import (
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -96,6 +95,8 @@ func init() {
 	metrics.Register("output_byte_count", status.OutputByteCount)
 	metrics.Register("output_event_count", status.OutputEventCount)
 	metrics.Register("error_count", status.ErrorCount)
+	metrics.RegisterRuntimeMemStats(metrics.DefaultRegistry)
+	//metrics.RegisterRuntimeDebugGCStats(metrics.DefaultRegistry)
 	//metrics.Register("output_event_rate", status.OutputEventRate)
 	metrics.Register("connection_status",
 		expvar.Func(func() interface{} {
@@ -528,6 +529,7 @@ func main() {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
 
+	/*
 	dirs := [...]string{
 		"/usr/share/cb/integrations/event-forwarder/content",
 		"./static",
@@ -584,7 +586,7 @@ func main() {
 		})
 	}
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
+	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil) */
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
