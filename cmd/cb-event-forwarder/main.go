@@ -621,12 +621,12 @@ func main() {
 
 	//Try to send to metrics to carbon if configured to do so
 	if config.CarbonMetricsEndpoint != nil {
-		log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
+		//log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
 		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
-		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, "cb.eventforwarder", addr)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)
