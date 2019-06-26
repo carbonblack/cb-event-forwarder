@@ -21,9 +21,9 @@ type KafkaOutput struct {
 	producers         []*kafka.Producer
 	droppedEventCount int64
 	eventSentCount    int64
-	EventSentGuage metrics.Gauge
-	EventSentBytes	metrics.Gauge
-	DroppedEventGuage metrics.Gauge
+	EventSent metrics.Meter
+	EventSentBytes	metrics.Meter
+	DroppedEvent metrics.Meter
 	sync.RWMutex
 }
 
@@ -41,13 +41,13 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topic = config.KafkaTopic
 	o.producers = make([]*kafka.Producer, len(o.brokers))
 
-	o.EventSentGuage = metrics.NewGauge()
-	o.DroppedEventGuage = metrics.NewGauge()
-	o.EventSentBytes = metrics.NewGauge()
+	o.EventSent = metrics.NewRegisteredMeter("event_sent",metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("dropped_events",metrics.DefaultRegistry)
+	o.EventSentBytes = metrics.NewRegisteredMeter("event_sent_Bytes",metrics.DefaultRegistry)
 
-	metrics.Register("event_sent_gauge",o.EventSentGuage)
+	/*metrics.Register("event_sent_gauge",o.EventSentGuage)
 	metrics.Register("dropped_event_gauge",o.DroppedEventGuage)
-	metrics.Register("event_sent_bytes",o.EventSentBytes)
+	metrics.Register("event_sent_bytes",o.EventSentBytes)*/
 	// You'll probably need the other opts when protocol is set
 
 	var kafkaConfig kafka.ConfigMap = nil
@@ -151,7 +151,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					}
 					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
 					output(message, o.producers[workernum], partition)
-					o.EventSentBytes.Update(int64(len(message)))
+					o.EventSentBytes.Mark(int64(len(message)))
 				case <-stopProdChan:
 					shouldStop = true
 				case e := <-producer.Events():
@@ -172,13 +172,13 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				if m.TopicPartition.Error != nil {
 					//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
 					atomic.AddInt64(&o.droppedEventCount, 1)
-					o.DroppedEventGuage.Update(1)
+					o.DroppedEvent.Mark(1)
 					errorChan <- m.TopicPartition.Error
 				} else {
 					/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
 					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)*/
 					atomic.AddInt64(&o.eventSentCount, 1)
-					o.EventSentGuage.Update(1)
+					o.EventSent.Mark(1)
 				}
 			case sig := <-sigs:
 				switch sig {

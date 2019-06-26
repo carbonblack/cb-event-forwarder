@@ -40,11 +40,11 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount  metrics.Gauge
-	InputByteCount   metrics.Gauge
-	OutputEventCount metrics.Gauge
-	OutputByteCount  metrics.Gauge
-	ErrorCount       metrics.GaugeFloat64
+	InputEventCount  metrics.Meter
+	InputByteCount   metrics.Meter
+	OutputEventCount metrics.Meter
+	OutputByteCount  metrics.Meter
+	ErrorCount       metrics.Meter
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -85,19 +85,14 @@ func NewBufwriter(n int) bufwriter {
 */
 func init() {
 	flag.Parse()
-	status.InputEventCount = metrics.NewGauge()
-	status.InputByteCount = metrics.NewGauge()
-	status.OutputEventCount = metrics.NewGauge()
-	status.OutputByteCount = metrics.NewGauge()
-	status.ErrorCount = metrics.NewGaugeFloat64()
-	metrics.Register("input_event_count", status.InputEventCount)
-	metrics.Register("input_byte_count", status.InputByteCount)
-	metrics.Register("output_byte_count", status.OutputByteCount)
-	metrics.Register("output_event_count", status.OutputEventCount)
-	metrics.Register("error_count", status.ErrorCount)
+	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count",metrics.DefaultRegistry)
+	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count",metrics.DefaultRegistry)
+	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count",metrics.DefaultRegistry)
+	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count",metrics.DefaultRegistry)
+	status.ErrorCount = metrics.NewRegisteredMeter("error_count",metrics.DefaultRegistry)
+
 	metrics.RegisterRuntimeMemStats(metrics.DefaultRegistry)
-	//metrics.RegisterRuntimeDebugGCStats(metrics.DefaultRegistry)
-	//metrics.Register("output_event_rate", status.OutputEventRate)
+
 	metrics.Register("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
@@ -150,7 +145,7 @@ type OutputHandler interface {
 
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
-	status.ErrorCount.Update(1)
+	status.ErrorCount.Mark(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
@@ -185,8 +180,8 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	status.InputEventCount.Update(1)
-	status.InputByteCount.Update(int64(len(body)))
+	status.InputEventCount.Mark(1)
+	status.InputByteCount.Mark(int64(len(body)))
 	var err error
 	var msgs []map[string]interface{}
 
@@ -278,8 +273,8 @@ func outputMessage(msg map[string]interface{}) error {
 	}
 
 	if len(outmsg) > 0 && err == nil {
-		status.OutputEventCount.Update(1)
-		status.OutputByteCount.Update(int64(len(outmsg)))
+		status.OutputEventCount.Mark(1)
+		status.OutputByteCount.Mark(int64(len(outmsg)))
 		results <- string(outmsg)
 	} else {
 		return err
