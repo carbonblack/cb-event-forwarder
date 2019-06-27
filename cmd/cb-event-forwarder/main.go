@@ -13,7 +13,7 @@ import (
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/rcrowley/go-metrics"
-    "github.com/rcrowley/go-metrics/exp"
+	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"io/ioutil"
@@ -39,11 +39,11 @@ var wg sync.WaitGroup
 var config Configuration
 
 type Status struct {
-	InputEventCount  metrics.Gauge
-	InputByteCount   metrics.Gauge
-	OutputEventCount metrics.Gauge
-	OutputByteCount  metrics.Gauge
-	ErrorCount       metrics.GaugeFloat64
+	InputEventCount  metrics.Meter
+	InputByteCount   metrics.Meter
+	OutputEventCount metrics.Meter
+	OutputByteCount  metrics.Meter
+	ErrorCount       metrics.Meter
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -51,6 +51,7 @@ type Status struct {
 
 	LastConnectError string
 	ErrorTime        time.Time
+	Healthy          metrics.Healthcheck
 
 	sync.RWMutex
 }
@@ -58,20 +59,51 @@ type Status struct {
 var status Status
 
 var (
-	results          chan string
-	outputErrors     chan error
-	publishedExpVars []string
+	results      chan string
+	outputErrors chan error
 )
 
 /*
  * Initializations
- */
+ *
+
+type bufwriter chan []byte
+
+func (bw bufwriter) Write(p []byte) (int, error) {
+    bw <- p
+    return len(p), nil
+}
+func NewBufwriter(n int) bufwriter {
+    w := make(bufwriter, n)
+    go func() {
+        for p := range w {
+            os.Stdout.Write(p)
+        }
+    }()
+    return w
+}
+*/
 func init() {
 	flag.Parse()
-	metrics.Register("input_event_count", status.InputEventCount)
-	metrics.Register("output_event_count", status.OutputEventCount)
-	metrics.Register("error_count", status.ErrorCount)
-	//metrics.Register("output_event_rate", status.OutputEventRate)
+}
+
+func setupMetrics() {
+	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count", metrics.DefaultRegistry)
+	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count", metrics.DefaultRegistry)
+	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count", metrics.DefaultRegistry)
+	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count", metrics.DefaultRegistry)
+	status.ErrorCount = metrics.NewRegisteredMeter("error_count", metrics.DefaultRegistry)
+
+	status.Healthy = metrics.NewHealthcheck(func(h metrics.Healthcheck) {
+		if status.IsConnected {
+			h.Healthy()
+		} else {
+			h.Unhealthy(errors.New("Event Forwarder is not connected"))
+		}
+	})
+
+	metrics.RegisterRuntimeMemStats(metrics.DefaultRegistry)
+
 	metrics.Register("connection_status",
 		expvar.Func(func() interface{} {
 			res := make(map[string]interface{}, 0)
@@ -95,7 +127,7 @@ func init() {
 		return config.EventTypes
 	}))
 
-	results = make(chan string, 100)
+	results = make(chan string)
 	outputErrors = make(chan error)
 
 	status.StartTime = time.Now()
@@ -124,7 +156,7 @@ type OutputHandler interface {
 
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
-	status.ErrorCount.Update(1)
+	status.ErrorCount.Mark(1)
 	log.Errorf("%s when processing %s: %s", errmsg, d, err)
 }
 
@@ -159,8 +191,8 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 }
 
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	status.InputEventCount.Update(1)
-	status.InputByteCount.Update(int64(len(body)))
+	status.InputEventCount.Mark(1)
+	status.InputByteCount.Mark(int64(len(body)))
 	var err error
 	var msgs []map[string]interface{}
 
@@ -252,8 +284,8 @@ func outputMessage(msg map[string]interface{}) error {
 	}
 
 	if len(outmsg) > 0 && err == nil {
-		status.OutputEventCount.Update(1)
-		status.OutputByteCount.Update(int64(len(outmsg)))
+		status.OutputEventCount.Mark(1)
+		status.OutputByteCount.Mark(int64(len(outmsg)))
 		results <- string(outmsg)
 	} else {
 		return err
@@ -440,7 +472,6 @@ func startOutputs() error {
 	return outputHandler.Go(results, outputErrors)
 }
 
-
 func main() {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -455,6 +486,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if config.RunMetrics {
+		log.Infof("Running without metrics")
+		metrics.UseNilMetrics = true
+	} else {
+		metrics.UseNilMetrics = false
+		log.Infof("Running with metrics")
+	}
+
+	setupMetrics()
 
 	if config.PerformFeedPostprocessing {
 		apiVersion, err := GetCbVersion()
@@ -486,6 +527,8 @@ func main() {
 		exportedVersion.Set(version + " (debugging on)")
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
 			hostname, config.HTTPServerPort)
+		log.SetLevel(log.DebugLevel)
+
 	} else {
 		exportedVersion.Set(version)
 	}
@@ -502,22 +545,23 @@ func main() {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
 
-	dirs := [...]string{
-		"/usr/share/cb/integrations/event-forwarder/content",
-		"./static",
-	}
-
-	for _, dirname := range dirs {
-		finfo, err := os.Stat(dirname)
-		if err == nil && finfo.IsDir() {
-			http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
-			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/static/", 301)
-			})
-			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
-			break
+	/*
+		dirs := [...]string{
+			"/usr/share/cb/integrations/event-forwarder/content",
+			"./static",
 		}
-	}
+
+		for _, dirname := range dirs {
+			finfo, err := os.Stat(dirname)
+			if err == nil && finfo.IsDir() {
+				http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
+				http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/static/", 301)
+				})
+				log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+				break
+			}
+		} */
 
 	if *debug {
 		http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
@@ -558,6 +602,16 @@ func main() {
 		})
 	}
 
+	http.HandleFunc("/debug/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		if !status.IsConnected {
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error" : status.LastConnectError})
+			http.Error(w, string(payload), http.StatusNetworkAuthenticationRequired)
+		} else {
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS CONNECTED"})
+			w.Write(payload)
+		}
+	})
+
 	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
@@ -566,14 +620,14 @@ func main() {
 		queueName = config.AMQPQueueName
 	}
 
-    go func(consumerNumber int) {
-        log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-        for {
-            err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-            log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
-            time.Sleep(30 * time.Second)
-        }
-    }(1)
+	go func(consumerNumber int) {
+		log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
+		for {
+			err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+			log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+			time.Sleep(30 * time.Second)
+		}
+	}(1)
 
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")
@@ -592,19 +646,19 @@ func main() {
 	}
 
 	//Try to send to metrics to carbon if configured to do so
-	if config.CarbonMetricsEndpoint != nil {
-		addr, err := net.ResolveTCPAddr("tcp", *config.CarbonMetricsEndpoint)
+	if config.CarbonMetricsEndpoint != nil && config.RunMetrics {
+		//log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
+		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
 	}
 
-    exp.Exp(metrics.DefaultRegistry)
+	exp.Exp(metrics.DefaultRegistry)
 
 	for {
 		time.Sleep(30 * time.Second)
-		//status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
 	}
 
 	log.Info("cb-event-forwarder exiting")

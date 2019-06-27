@@ -1,15 +1,19 @@
 import pika
-from cbapi.response.rest_api import CbResponseAPI
-
+import os
+import time
 
 def main():
-    cb = CbResponseAPI()
+    #cb = CbResponseAPI()
 
-    creds = cb.credentials
-    url = "amqp://{0}:{1}@{2}:{3}".format(creds.rabbitmq_user,
-                                          creds.rabbitmq_pass,
-                                          creds.rabbitmq_host,
-                                          creds.rabbitmq_port)
+    #creds = cb.credentials
+    url = os.environ['AMQPURL']
+
+    print("Trying to connect to rabbit with URL " + url)
+
+    #url = "amqp://{0}:{1}@{2}:{3}".format(creds.rabbitmq_user,
+                                          #creds.rabbitmq_pass,
+                                          #creds.rabbitmq_host,
+                                          #creds.rabbitmq_port)
 
     parameters = pika.URLParameters(url)
 
@@ -31,6 +35,8 @@ def main():
                               properties=pika.BasicProperties(
                                   content_type='application/zip',
                                   delivery_mode=1))
+
+        time.sleep(0.01)
 
     connection.close()
 
