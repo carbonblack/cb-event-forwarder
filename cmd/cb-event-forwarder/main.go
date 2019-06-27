@@ -604,9 +604,10 @@ func main() {
 
 	http.HandleFunc("/debug/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if !status.IsConnected {
-			http.NotFound(w, r)
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error" : status.LastConnectError})
+			http.Error(w, string(payload), http.StatusNetworkAuthenticationRequired)
 		} else {
-			payload, _ := json.Marshal(map[string]interface{}{"status": "OK and connected"})
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS CONNECTED"})
 			w.Write(payload)
 		}
 	})
