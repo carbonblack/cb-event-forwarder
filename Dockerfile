@@ -4,6 +4,8 @@ ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
 ENV GO111MODULE=on
+ARG INIFILE
+ENV INIFILE ${INIFILE:-cb-event-forwarder.docker.ini}
 RUN mkdir /vol
 
 RUN yum install -y make which git curl epel-release 

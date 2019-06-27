@@ -1,7 +1,10 @@
 version: '2.1'
 services:
   eventforwarder:
-    build: .
+    build:
+      context: .
+      args:
+        INIFILE: cb-event-forwarder.docker.ini
     hostname: eventforwarder
     container_name: eventforwarder
     restart: always
@@ -11,141 +14,9 @@ services:
     ports:
       - "33706:33706"
     depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-      - kafka-1
-      - kafka-2
-      - kafka-3
       - rabbitmq
       - grafana
       - graphite
-
-  kafkamanager:
-    build: ./kafkamanager
-    hostname: kafkamanager
-    container_name: kafkamanager
-    tty: true
-    command: -c '/kafkamanager/bin/kafka-manager'
-    ports:
-      - "39000:9000"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-      - kafka-1
-      - kafka-2
-      - kafka-3
-    environment:
-      ZK_HOSTS: zookeeper-1:12181,zookeeper-2:22181,zookeeper-3:32181
-
-  zookeeper-1:
-    image: confluentinc/cp-zookeeper:latest
-    hostname: zookeeper-1
-    restart: always
-    ports:
-      - "12181:12181"
-    environment:
-      ZOOKEEPER_SERVER_ID: 1
-      ZOOKEEPER_CLIENT_PORT: 12181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 5
-      ZOOKEEPER_SYNC_LIMIT: 2
-      ZOOKEEPER_SERVERS: zookeeper-1:12888:13888;zookeeper-2:22888:23888;zookeeper-3:32888:33888
-
-  zookeeper-2:
-    image: confluentinc/cp-zookeeper:latest
-    hostname: zookeeper-2
-    restart: always
-    ports:
-      - "22181:22181"
-    environment:
-      ZOOKEEPER_SERVER_ID: 2
-      ZOOKEEPER_CLIENT_PORT: 22181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 5
-      ZOOKEEPER_SYNC_LIMIT: 2
-      ZOOKEEPER_SERVERS: zookeeper-1:12888:13888;zookeeper-2:22888:23888;zookeeper-3:32888:33888
-
-  zookeeper-3:
-    image: confluentinc/cp-zookeeper:latest
-    hostname: zookeeper-3
-    restart: always
-    ports:
-      - "32181:32181"
-    environment:
-      ZOOKEEPER_SERVER_ID: 3
-      ZOOKEEPER_CLIENT_PORT: 32181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 5
-      ZOOKEEPER_SYNC_LIMIT: 2
-      ZOOKEEPER_SERVERS: zookeeper-1:12888:13888;zookeeper-2:22888:23888;zookeeper-3:32888:33888
-
-  kafka-1:
-    image: confluentinc/cp-kafka:latest
-    hostname: kafka-1
-    restart: always
-    ports:
-      - "19092:19092"
-      - "19999:19999"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:19092
-      KAFKA_DEFAULT_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_JMX_PORT: 19999
-      KAFKA_JXM_HOSTNAME: kafka-1
-      JMX_PORT: 19999
-
-  kafka-2:
-    image: confluentinc/cp-kafka:latest
-    hostname: kafka-2
-    restart: always
-    ports:
-      - "29092:29092"
-      - "29999:29999"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-    environment:
-      KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:29092
-      KAFKA_JMX_PORT: 29999
-      KAFKA_DEFAULT_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_JMX_HOSTNAME: kafka-2
-      JMX_PORT: 29999
-
-  kafka-3:
-    image: confluentinc/cp-kafka:latest
-    hostname: kafka-3
-    restart: always
-    ports:
-      - "39092:39092"
-      - "39999:39999"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-    environment:
-      KAFKA_BROKER_ID: 3
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:39092
-      KAFKA_DEFAULT_TOPIC_REPLICATION_FACTOR: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_JMX_PORT: 39999
-      KAFKA_JXM_HOSTNAME: kafka-3
-      JMX_PORT: 39999
 
   grafana:
       image: grafana/grafana

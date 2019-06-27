@@ -492,6 +492,8 @@ func main() {
 		metrics.UseNilMetrics = true
 	}
 
+	setupMetrics()
+
 	if config.PerformFeedPostprocessing {
 		apiVersion, err := GetCbVersion()
 		if err != nil {
