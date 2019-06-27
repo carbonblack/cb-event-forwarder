@@ -18,6 +18,7 @@ import (
 	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -487,9 +488,11 @@ func main() {
 	}
 
 	if config.RunMetrics {
-		metrics.UseNilMetrics = false
-	} else {
+		log.Infof("Running without metrics")
 		metrics.UseNilMetrics = true
+	} else {
+		metrics.UseNilMetrics = false
+		log.Infof("Running with metrics")
 	}
 
 	setupMetrics()
@@ -558,48 +561,57 @@ func main() {
 				log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
 				break
 			}
-		}
+		} */
 
-		if *debug {
-			http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
-				if r.Method == "POST" {
-					msg := make([]byte, r.ContentLength)
-					_, err := r.Body.Read(msg)
-					var parsedMsg map[string]interface{}
+	if *debug {
+		http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				msg := make([]byte, r.ContentLength)
+				_, err := r.Body.Read(msg)
+				var parsedMsg map[string]interface{}
 
-					err = json.Unmarshal(msg, &parsedMsg)
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-
-					err = outputMessage(parsedMsg)
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-					log.Errorf("Sent test message: %s\n", string(msg))
-				} else {
-					err = outputMessage(map[string]interface{}{
-						"type":    "debug.message",
-						"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
-					})
-					if err != nil {
-						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-						_, _ = w.Write(errMsg)
-						return
-					}
-					log.Info("Sent test debugging message")
+				err = json.Unmarshal(msg, &parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
 				}
 
-				errMsg, _ := json.Marshal(map[string]string{"status": "success"})
-				_, _ = w.Write(errMsg)
-			})
-		}
+				err = outputMessage(parsedMsg)
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+				log.Errorf("Sent test message: %s\n", string(msg))
+			} else {
+				err = outputMessage(map[string]interface{}{
+					"type":    "debug.message",
+					"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
+				})
+				if err != nil {
+					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+					_, _ = w.Write(errMsg)
+					return
+				}
+				log.Info("Sent test debugging message")
+			}
 
-		go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil) */
+			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
+			_, _ = w.Write(errMsg)
+		})
+	}
+
+	http.HandleFunc("/debug/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		if !status.IsConnected {
+			http.NotFound(w, r)
+		} else {
+			payload, _ := json.Marshal(map[string]interface{}{"status": "OK and connected"})
+			w.Write(payload)
+		}
+	})
+
+	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
