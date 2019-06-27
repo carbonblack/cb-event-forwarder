@@ -631,7 +631,7 @@ func main() {
 	}
 
 	//Try to send to metrics to carbon if configured to do so
-	if config.CarbonMetricsEndpoint != nil {
+	if config.CarbonMetricsEndpoint != nil && config.RunMetrics {
 		//log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
 		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
@@ -644,7 +644,6 @@ func main() {
 
 	for {
 		time.Sleep(30 * time.Second)
-		//status.OutputEventRate.Set(float64(status.OutputEventCount.Value()) / float64(time.Now().Sub(status.StartTime)))
 	}
 
 	log.Info("cb-event-forwarder exiting")

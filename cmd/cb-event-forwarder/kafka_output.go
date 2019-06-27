@@ -41,14 +41,9 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topic = config.KafkaTopic
 	o.producers = make([]*kafka.Producer, len(o.brokers))
 
-	o.EventSent = metrics.NewRegisteredMeter("event_sent", metrics.DefaultRegistry)
-	o.DroppedEvent = metrics.NewRegisteredMeter("dropped_events", metrics.DefaultRegistry)
-	o.EventSentBytes = metrics.NewRegisteredMeter("event_sent_Bytes", metrics.DefaultRegistry)
-
-	/*metrics.Register("event_sent_gauge",o.EventSentGuage)
-	metrics.Register("dropped_event_gauge",o.DroppedEventGuage)
-	metrics.Register("event_sent_bytes",o.EventSentBytes)*/
-	// You'll probably need the other opts when protocol is set
+	o.EventSent = metrics.NewRegisteredMeter("kafka_events_sent", metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("kafka_dropped_events", metrics.DefaultRegistry)
+	o.EventSentBytes = metrics.NewRegisteredMeter("kafka_event_sent_Bytes", metrics.DefaultRegistry)
 
 	var kafkaConfig kafka.ConfigMap = nil
 	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
