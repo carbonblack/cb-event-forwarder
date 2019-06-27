@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/rcrowley/go-metrics"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -11,7 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
-	"github.com/rcrowley/go-metrics"
 )
 
 type KafkaOutput struct {
@@ -21,9 +21,9 @@ type KafkaOutput struct {
 	producers         []*kafka.Producer
 	droppedEventCount int64
 	eventSentCount    int64
-	EventSent metrics.Meter
-	EventSentBytes	metrics.Meter
-	DroppedEvent metrics.Meter
+	EventSent         metrics.Meter
+	EventSentBytes    metrics.Meter
+	DroppedEvent      metrics.Meter
 	sync.RWMutex
 }
 
@@ -41,9 +41,9 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topic = config.KafkaTopic
 	o.producers = make([]*kafka.Producer, len(o.brokers))
 
-	o.EventSent = metrics.NewRegisteredMeter("event_sent",metrics.DefaultRegistry)
-	o.DroppedEvent = metrics.NewRegisteredMeter("dropped_events",metrics.DefaultRegistry)
-	o.EventSentBytes = metrics.NewRegisteredMeter("event_sent_Bytes",metrics.DefaultRegistry)
+	o.EventSent = metrics.NewRegisteredMeter("event_sent", metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("dropped_events", metrics.DefaultRegistry)
+	o.EventSentBytes = metrics.NewRegisteredMeter("event_sent_Bytes", metrics.DefaultRegistry)
 
 	/*metrics.Register("event_sent_gauge",o.EventSentGuage)
 	metrics.Register("dropped_event_gauge",o.DroppedEventGuage)
@@ -225,6 +225,5 @@ func output(m string, producer *kafka.Producer, partition kafka.TopicPartition) 
 	for producer.Produce(kafkamsg, nil) != nil {
 		producer.Flush(1)
 	}
-
 
 }

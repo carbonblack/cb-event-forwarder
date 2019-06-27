@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-//"github.com/rcrowley/go-metrics"
-//	"github.com/rcrowley/go-metrics/exp"
 import _ "net/http/pprof"
 
 var (
@@ -52,6 +50,7 @@ type Status struct {
 
 	LastConnectError string
 	ErrorTime        time.Time
+	Healthy          metrics.Healthcheck
 
 	sync.RWMutex
 }
@@ -85,11 +84,22 @@ func NewBufwriter(n int) bufwriter {
 */
 func init() {
 	flag.Parse()
-	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count",metrics.DefaultRegistry)
-	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count",metrics.DefaultRegistry)
-	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count",metrics.DefaultRegistry)
-	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count",metrics.DefaultRegistry)
-	status.ErrorCount = metrics.NewRegisteredMeter("error_count",metrics.DefaultRegistry)
+}
+
+func setupMetrics() {
+	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count", metrics.DefaultRegistry)
+	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count", metrics.DefaultRegistry)
+	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count", metrics.DefaultRegistry)
+	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count", metrics.DefaultRegistry)
+	status.ErrorCount = metrics.NewRegisteredMeter("error_count", metrics.DefaultRegistry)
+
+	status.Healthy = metrics.NewHealthcheck(func(h metrics.Healthcheck) {
+		if status.IsConnected {
+			h.Healthy()
+		} else {
+			h.Unhealthy(errors.New("Event Forwarder is not connected"))
+		}
+	})
 
 	metrics.RegisterRuntimeMemStats(metrics.DefaultRegistry)
 
@@ -476,6 +486,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.RunMetrics {
+		metrics.UseNilMetrics = false
+	} else {
+		metrics.UseNilMetrics = true
+	}
+
 	if config.PerformFeedPostprocessing {
 		apiVersion, err := GetCbVersion()
 		if err != nil {
@@ -525,63 +541,63 @@ func main() {
 	}
 
 	/*
-	dirs := [...]string{
-		"/usr/share/cb/integrations/event-forwarder/content",
-		"./static",
-	}
-
-	for _, dirname := range dirs {
-		finfo, err := os.Stat(dirname)
-		if err == nil && finfo.IsDir() {
-			http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
-			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/static/", 301)
-			})
-			log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
-			break
+		dirs := [...]string{
+			"/usr/share/cb/integrations/event-forwarder/content",
+			"./static",
 		}
-	}
 
-	if *debug {
-		http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "POST" {
-				msg := make([]byte, r.ContentLength)
-				_, err := r.Body.Read(msg)
-				var parsedMsg map[string]interface{}
-
-				err = json.Unmarshal(msg, &parsedMsg)
-				if err != nil {
-					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-					_, _ = w.Write(errMsg)
-					return
-				}
-
-				err = outputMessage(parsedMsg)
-				if err != nil {
-					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-					_, _ = w.Write(errMsg)
-					return
-				}
-				log.Errorf("Sent test message: %s\n", string(msg))
-			} else {
-				err = outputMessage(map[string]interface{}{
-					"type":    "debug.message",
-					"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
+		for _, dirname := range dirs {
+			finfo, err := os.Stat(dirname)
+			if err == nil && finfo.IsDir() {
+				http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
+				http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/static/", 301)
 				})
-				if err != nil {
-					errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
-					_, _ = w.Write(errMsg)
-					return
-				}
-				log.Info("Sent test debugging message")
+				log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
+				break
 			}
+		}
 
-			errMsg, _ := json.Marshal(map[string]string{"status": "success"})
-			_, _ = w.Write(errMsg)
-		})
-	}
+		if *debug {
+			http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == "POST" {
+					msg := make([]byte, r.ContentLength)
+					_, err := r.Body.Read(msg)
+					var parsedMsg map[string]interface{}
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil) */
+					err = json.Unmarshal(msg, &parsedMsg)
+					if err != nil {
+						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+						_, _ = w.Write(errMsg)
+						return
+					}
+
+					err = outputMessage(parsedMsg)
+					if err != nil {
+						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+						_, _ = w.Write(errMsg)
+						return
+					}
+					log.Errorf("Sent test message: %s\n", string(msg))
+				} else {
+					err = outputMessage(map[string]interface{}{
+						"type":    "debug.message",
+						"message": fmt.Sprintf("Debugging test message sent at %s", time.Now().String()),
+					})
+					if err != nil {
+						errMsg, _ := json.Marshal(map[string]string{"status": "error", "error": err.Error()})
+						_, _ = w.Write(errMsg)
+						return
+					}
+					log.Info("Sent test debugging message")
+				}
+
+				errMsg, _ := json.Marshal(map[string]string{"status": "success"})
+				_, _ = w.Write(errMsg)
+			})
+		}
+
+		go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil) */
 
 	queueName := fmt.Sprintf("cb-event-forwarder:%s:%d", hostname, os.Getpid())
 
@@ -621,7 +637,7 @@ func main() {
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
-		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, "cb.eventforwarder", addr)
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)

@@ -130,6 +130,7 @@ type Configuration struct {
 	UseTimeFloat bool
 
 	//graphite/carbon
+	RunMetrics            bool
 	CarbonMetricsEndpoint *string
 }
 
@@ -808,6 +809,18 @@ func ParseConfig(fn string) (Configuration, error) {
 		} else {
 			config.NumProcessors = runtime.NumCPU()
 		}
+	}
+
+	val, ok = input.Get("bridge", "run_metrics")
+
+	if ok {
+		if runMetrics, err := strconv.ParseBool(val); err == nil {
+			config.RunMetrics = runMetrics
+		} else {
+			config.RunMetrics = false
+		}
+	} else {
+		config.RunMetrics = false
 	}
 
 	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
