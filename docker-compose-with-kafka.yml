@@ -30,7 +30,7 @@ services:
     hostname: kafkamanager
     container_name: kafkamanager
     tty: true
-    command: -c '/kafkamanager/bin/kafka-manager'
+    command: -c 'sleep 45 ; rm /kafkamanager/RUNNING_PID  ; /kafkamanager/bin/kafka-manager'
     ports:
       - "39000:9000"
     depends_on:
