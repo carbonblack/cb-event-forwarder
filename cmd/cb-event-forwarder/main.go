@@ -487,7 +487,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if config.RunMetrics {
+	if !config.RunMetrics {
 		log.Infof("Running without metrics")
 		metrics.UseNilMetrics = true
 	} else {
@@ -653,6 +653,9 @@ func main() {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+		log.Infof("Sending metrics to graphite")
+	} else {
+		log.Infof("Didn't send %v %v",config.CarbonMetricsEndpoint,config.RunMetrics)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)

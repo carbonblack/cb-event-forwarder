@@ -5,7 +5,7 @@ ENV GOBIN /go/bin
 ENV PATH $PATH:$GOBIN:$GOPATH
 ENV GO111MODULE=on
 ARG INIFILE
-ENV INIFILE ${INIFILE:-cb-event-forwarder.docker.ini}
+ENV INIFILE $INIFILE
 RUN mkdir /vol
 
 RUN yum install -y make which git curl epel-release 
@@ -36,4 +36,4 @@ WORKDIR /go/src/github.com/carbonblack/cb-event-forwarder
 
 
 ENTRYPOINT ["/bin/bash"]
-CMD ["-c" , "sleep 45 && ./cb-event-forwarder  cb-event-forwarder.docker.ini"]
+CMD ["-c" , "sleep 45 && ./cb-event-forwarder $INIFILE"]
