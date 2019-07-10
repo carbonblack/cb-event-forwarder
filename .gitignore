@@ -25,6 +25,7 @@ _testmain.go
 *.prof
 
 .idea/
+.vscode/
 scratch/
 
 # these are automatically created during "make test"

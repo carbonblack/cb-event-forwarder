@@ -98,7 +98,7 @@ services:
       - zookeeper-2
       - zookeeper-3
     volumes:
-      - ./run/kafka-1/data:/var/lib/kafka/data
+      - ./run/data/kafka-1/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -124,7 +124,7 @@ services:
       - zookeeper-2
       - zookeeper-3
     volumes:
-      - ./run/kafka-2/data:/var/lib/kafka/data
+      - ./run/data/kafka-2/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -150,7 +150,7 @@ services:
       - zookeeper-2
       - zookeeper-3
     volumes:
-      - ./run/kafka-3/data:/var/lib/kafka/data
+      - ./run/data/kafka-3/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -176,17 +176,17 @@ services:
       image: graphiteapp/graphite-statsd
       container_name: graphite
       volumes:
-        - ./run/graphite/storage:/opt/graphite/storage
-        - ./run/graphite/log:/var/log
-        - ./run/graphite/redis:/var/lib/redis
+        - ./run/data/graphite/storage:/opt/graphite/storage
+        - ./run/data/graphite/log:/var/log
+        - ./run/data/graphite/redis:/var/lib/redis
       restart: always
 
   rabbitmq:
     image: "rabbitmq:3.6.5-management"
     hostname: "rabbitmq"
     volumes:
-      - ./run/rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./run/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+      - ./run/config/rabbitmq/definitions.json:/opt/definitions.json:ro
+      - ./run/config/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
     ports:
       - "15672:15672"
       - "5672:5672"
