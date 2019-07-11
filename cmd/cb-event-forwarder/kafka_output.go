@@ -87,9 +87,16 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
 			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
 		}
+		if config.KafkaSSLKeyPassword != nil {
+			kafkaConfig["ssl.password.key"] = config.KafkaSSLKeystorePassword
+		}
+		if len(config.KafkaSSLEnabledProtocols) > 0 {
+			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
+		}
 	default:
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
 	}
+
 	if config.KafkaCompressionType != nil {
 		kafkaConfig["compression.type"] = config.KafkaCompressionType
 	}
@@ -101,6 +108,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 		}
 		o.producers[index] = p
 	}
+
 	return nil
 }
 
