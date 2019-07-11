@@ -40,9 +40,9 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.topic = config.KafkaTopic
 	o.producers = make([]*kafka.Producer, len(o.brokers))
 
-	o.EventSent = metrics.NewRegisteredMeter("kafka_events_sent", metrics.DefaultRegistry)
-	o.DroppedEvent = metrics.NewRegisteredMeter("kafka_dropped_events", metrics.DefaultRegistry)
-	o.EventSentBytes = metrics.NewRegisteredMeter("kafka_event_sent_Bytes", metrics.DefaultRegistry)
+	o.EventSent = metrics.NewRegisteredMeter("output.kafka.events_sent", metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("output.kafka.events_dropped", metrics.DefaultRegistry)
+	o.EventSentBytes = metrics.NewRegisteredMeter("output.kafka.data_sent", metrics.DefaultRegistry)
 
 	var kafkaConfig kafka.ConfigMap = nil
 	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL

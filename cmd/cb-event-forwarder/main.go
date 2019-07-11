@@ -31,6 +31,7 @@ import _ "net/http/pprof"
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
+	metricTag          = flag.String("metric", "", "The metrics tag to identify this execution.")
 )
 
 var version = "NOT FOR RELEASE"
@@ -49,7 +50,7 @@ type Status struct {
 	ErrorCount       metrics.Meter
 
 	InputChannelCount  metrics.Gauge
-	ResultChannelCount metrics.Gauge
+	OutputChannelCount metrics.Gauge
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -94,13 +95,13 @@ func init() {
 }
 
 func setupMetrics() {
-	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count", metrics.DefaultRegistry)
-	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count", metrics.DefaultRegistry)
-	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count", metrics.DefaultRegistry)
-	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count", metrics.DefaultRegistry)
-	status.ErrorCount = metrics.NewRegisteredMeter("error_count", metrics.DefaultRegistry)
-	status.InputChannelCount = metrics.NewRegisteredGauge("input_channel", metrics.DefaultRegistry)
-	status.ResultChannelCount = metrics.NewRegisteredGauge("result_channel", metrics.DefaultRegistry)
+	status.InputEventCount = metrics.NewRegisteredMeter("core.input.events", metrics.DefaultRegistry)
+	status.InputByteCount = metrics.NewRegisteredMeter("core.input.data", metrics.DefaultRegistry)
+	status.OutputEventCount = metrics.NewRegisteredMeter("core.output.events", metrics.DefaultRegistry)
+	status.OutputByteCount = metrics.NewRegisteredMeter("core.output.data", metrics.DefaultRegistry)
+	status.ErrorCount = metrics.NewRegisteredMeter("errors", metrics.DefaultRegistry)
+	status.InputChannelCount = metrics.NewRegisteredGauge("core.channel.input.events", metrics.DefaultRegistry)
+	status.OutputChannelCount = metrics.NewRegisteredGauge("core.channel.output.events", metrics.DefaultRegistry)
 
 	status.Healthy = metrics.NewHealthcheck(func(h metrics.Healthcheck) {
 		if status.IsConnected {
@@ -201,7 +202,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 func monitorChannels(ticker *time.Ticker, inputChannel chan<- amqp.Delivery, outputChannel chan<- string) {
 	for range ticker.C {
 		status.InputChannelCount.Update(int64(len(inputChannel)))
-		status.ResultChannelCount.Update(int64(len(outputChannel)))
+		status.OutputChannelCount.Update(int64(len(outputChannel)))
 	}
 }
 
@@ -679,7 +680,17 @@ func main() {
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
-		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+
+		metricTagEnv := os.Getenv("EF_METRIC_TAG")
+		log.Debugf("Metric Tag: %s, Environment Variable: %s", *metricTag, metricTagEnv)
+		metricName := fmt.Sprintf("cb.eventforwarder")
+		if *metricTag != "" {
+			metricName = fmt.Sprintf("cb.eventforwarder.%s", *metricTag)
+		} else if metricTagEnv != "" {
+			metricName = fmt.Sprintf("cb.eventforwarder.%s", metricTagEnv)
+		}
+
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, metricName, addr)
 		log.Infof("Sending metrics to graphite")
 	} else {
 		log.Infof("Didn't send %v %v",config.CarbonMetricsEndpoint,config.RunMetrics)
