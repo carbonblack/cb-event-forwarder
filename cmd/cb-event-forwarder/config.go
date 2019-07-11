@@ -55,6 +55,7 @@ type Configuration struct {
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
+	DryRun				 bool
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
@@ -397,6 +398,20 @@ func ParseConfig(fn string) (Configuration, error) {
 			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
 		}
 	}
+
+	config.DryRun = false
+	dryRun, ok := input.Get("bridge", "dry_run")
+
+	if ok {
+		boolval, err := strconv.ParseBool(dryRun)
+		if err == nil {
+			config.DryRun = boolval
+		} else {
+			errs.addErrorString("Unknown value for 'dry_run': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
+
+	log.Debugf("DryRyn is %v", config.DryRun)
 
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {

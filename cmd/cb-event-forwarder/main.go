@@ -35,6 +35,9 @@ var (
 
 var version = "NOT FOR RELEASE"
 
+var inputChannelSize = 100000
+var outputChannelSize = 1000000
+
 var wg sync.WaitGroup
 var config Configuration
 
@@ -44,6 +47,9 @@ type Status struct {
 	OutputEventCount metrics.Meter
 	OutputByteCount  metrics.Meter
 	ErrorCount       metrics.Meter
+
+	InputChannelCount  metrics.Gauge
+	ResultChannelCount metrics.Gauge
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -93,6 +99,8 @@ func setupMetrics() {
 	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count", metrics.DefaultRegistry)
 	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count", metrics.DefaultRegistry)
 	status.ErrorCount = metrics.NewRegisteredMeter("error_count", metrics.DefaultRegistry)
+	status.InputChannelCount = metrics.NewRegisteredGauge("input_channel", metrics.DefaultRegistry)
+	status.ResultChannelCount = metrics.NewRegisteredGauge("result_channel", metrics.DefaultRegistry)
 
 	status.Healthy = metrics.NewHealthcheck(func(h metrics.Healthcheck) {
 		if status.IsConnected {
@@ -127,7 +135,7 @@ func setupMetrics() {
 		return config.EventTypes
 	}))
 
-	results = make(chan string)
+	results = make(chan string, outputChannelSize)
 	outputErrors = make(chan error)
 
 	status.StartTime = time.Now()
@@ -187,6 +195,13 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 		fullFilePath = path.Join(config.DebugStore, fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))
 		log.Debugf("Writing Bundle to disk: %s", fullFilePath)
 		ioutil.WriteFile(fullFilePath, body, 0444)
+	}
+}
+
+func monitorChannels(ticker *time.Ticker, inputChannel chan<- amqp.Delivery, outputChannel chan<- string) {
+	for range ticker.C {
+		status.InputChannelCount.Update(int64(len(inputChannel)))
+		status.ResultChannelCount.Update(int64(len(outputChannel)))
 	}
 }
 
@@ -294,6 +309,12 @@ func outputMessage(msg map[string]interface{}) error {
 	return nil
 }
 
+func splitDelivery(deliveries <-chan amqp.Delivery, messages chan<- amqp.Delivery) {
+	for delivery := range deliveries {
+		messages <- delivery
+	}
+}
+
 func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
@@ -353,6 +374,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	connectionError := make(chan *amqp.Error, 1)
 
 	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
+	messages := make(chan amqp.Delivery, inputChannelSize)
 	if err != nil {
 		status.LastConnectError = err.Error()
 		status.ErrorTime = time.Now()
@@ -368,8 +390,13 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	log.Infof("Starting %d message processors\n", numProcessors)
 
 	wg.Add(numProcessors)
+	
+	if config.RunMetrics {
+		go monitorChannels(time.NewTicker(100 * time.Millisecond), messages, results)
+	}
+	go splitDelivery(deliveries, messages)
 	for i := 0; i < numProcessors; i++ {
-		go worker(deliveries)
+		go worker(messages)
 	}
 
 	for {

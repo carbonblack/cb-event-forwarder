@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 )
 
@@ -106,7 +105,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
-	joinEventsChan := make(chan (kafka.Event))
+	joinEventsChan := make(chan (kafka.Event), 1000)
 	sigs := make(chan os.Signal, 1)
 	stopProdChans := make([]chan struct{}, len(o.producers))
 
@@ -145,7 +144,11 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						}
 					}
 					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
-					output(message, o.producers[workernum], partition)
+					if config.DryRun {
+						o.EventSent.Mark(1)
+					} else {
+						output(message, o.producers[workernum], partition)
+					}
 					o.EventSentBytes.Mark(int64(len(message)))
 				case <-stopProdChan:
 					shouldStop = true
@@ -165,14 +168,9 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case e := <-joinEventsChan:
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
-					//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
-					atomic.AddInt64(&o.droppedEventCount, 1)
 					o.DroppedEvent.Mark(1)
 					errorChan <- m.TopicPartition.Error
 				} else {
-					/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
-					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)*/
-					atomic.AddInt64(&o.eventSentCount, 1)
 					o.EventSent.Mark(1)
 				}
 			case sig := <-sigs:

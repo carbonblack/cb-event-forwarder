@@ -26,6 +26,7 @@ _testmain.go
 
 .idea/
 .vscode/
+run/data/
 scratch/
 
 # these are automatically created during "make test"
