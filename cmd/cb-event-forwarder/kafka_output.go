@@ -62,16 +62,18 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			"sasl.mechanism":    config.KafkaMechanism,
 			"sasl.username":     config.KafkaUsername,
 			"sasl.password":     config.KafkaPassword}
-		if config.KafkaSSLTrustStoreLocation != nil {
-			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
-			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
+
+		if config.KafkaSSLKeystoreLocation != nil && config.KafkaSSLKeystoreFilename != nil && config.KafkaSSLKeystorePassword != nil {
+			kafkaConfig["ssl.keystore.location"] = *config.KafkaSSLKeystoreLocation
+			kafkaConfig["ssl.keystore.filename"] = *config.KafkaSSLKeystoreFilename
+			kafkaConfig["ssl.keystore.password"] = *config.KafkaSSLKeystorePassword
 		}
-		if config.KafkaSSLKeystoreLocation != nil {
-			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
+		if config.KafkaSSLCAKeyFilename != nil && config.KafkaSSLCAKeyLocation != nil {
+			kafkaConfig["ssl.ca.location"] = *config.KafkaSSLCAKeyLocation
+			kafkaConfig["ssl.ca.filename"] = *config.KafkaSSLCAKeyFilename
 		}
 		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.password.key"] = config.KafkaSSLKeystorePassword
+			kafkaConfig["ssl.key.password"] = *config.KafkaSSLKeyPassword
 		}
 		if len(config.KafkaSSLEnabledProtocols) > 0 {
 			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
@@ -79,16 +81,21 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	case "SSL":
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
 			"security.protocol": config.KafkaProtocol}
-		if config.KafkaSSLTrustStoreLocation != nil {
-			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
-			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
-		}
-		if config.KafkaSSLKeystoreLocation != nil {
-			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
+		/*if config.KafkaSSLTrustStoreLocation != nil {
+			kafkaConfig["ssl.truststore.location"] = *config.KafkaSSLTrustStoreLocation
+			kafkaConfig["ssl.truststore.password"] = *config.KafkaSSLTrustStorePassword
+		}*/
+		if config.KafkaSSLKeystoreLocation != nil && config.KafkaSSLKeystoreFilename != nil && config.KafkaSSLKeystorePassword != nil {
+			kafkaConfig["ssl.keystore.location"] = *config.KafkaSSLKeystoreLocation
+			kafkaConfig["ssl.keystore.filename"] = *config.KafkaSSLKeystoreFilename
+			kafkaConfig["ssl.keystore.password"] = *config.KafkaSSLKeystorePassword
 		}
 		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.password.key"] = config.KafkaSSLKeystorePassword
+			kafkaConfig["ssl.key.password"] = *config.KafkaSSLKeyPassword
+		}
+		if config.KafkaSSLCAKeyFilename != nil && config.KafkaSSLCAKeyLocation != nil {
+			kafkaConfig["ssl.ca.location"] = *config.KafkaSSLCAKeyLocation
+			kafkaConfig["ssl.ca.filename"] = *config.KafkaSSLCAKeyFilename
 		}
 		if len(config.KafkaSSLEnabledProtocols) > 0 {
 			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
@@ -98,7 +105,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	}
 
 	if config.KafkaCompressionType != nil {
-		kafkaConfig["compression.type"] = config.KafkaCompressionType
+		kafkaConfig["compression.type"] = *config.KafkaCompressionType
 	}
 
 	for index, _ := range o.brokers {

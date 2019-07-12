@@ -112,13 +112,15 @@ type Configuration struct {
 	KafkaPassword       string
 	KafkaMaxRequestSize int32
 
-	KafkaCompressionType       *string
-	KafkaSSLKeyPassword        *string
-	KafkaSSLKeystoreLocation   *string
-	KafkaSSLKeystorePassword   *string
-	KafkaSSLTrustStoreLocation *string
-	KafkaSSLTrustStorePassword *string
-	KafkaSSLEnabledProtocols   []string
+	KafkaCompressionType     *string
+	KafkaSSLKeyPassword      *string
+	KafkaSSLKeystoreLocation *string
+	KafkaSSLKeystoreFilename *string
+	KafkaSSLKeystorePassword *string
+	KafkaSSLCAKeyFilename    *string
+	KafkaSSLCAKeyLocation    *string
+
+	KafkaSSLEnabledProtocols []string
 
 	//Splunkd
 	SplunkToken *string
@@ -586,10 +588,29 @@ func ParseConfig(fn string) (Configuration, error) {
 				compressionType := fmt.Sprintf("%s", kafkaCompressionType)
 				config.KafkaCompressionType = &compressionType
 			}
+
+			kafkaSSLCALocation, ok := input.Get("kafka", "ssl_ca_location")
+			if ok {
+				SSLCALocation := fmt.Sprintf("%s", kafkaSSLCALocation)
+				config.KafkaSSLCAKeyLocation = &SSLCALocation
+			}
+
+			kafkaSSLCAFilename, ok := input.Get("kafka", "ssl_ca_filename")
+			if ok {
+				SSLCAFilename := fmt.Sprintf("%s", kafkaSSLCAFilename)
+				config.KafkaSSLKeystoreLocation = &SSLCAFilename
+			}
+
 			kafkaSSLKeystoreLocation, ok := input.Get("kafka", "ssl_keystore_location")
 			if ok {
 				SSLKeystoreLocation := fmt.Sprintf("%s", kafkaSSLKeystoreLocation)
 				config.KafkaSSLKeystoreLocation = &SSLKeystoreLocation
+			}
+
+			kafkaSSLKeystoreFilename, ok := input.Get("kafka", "ssl_keystore_filename")
+			if ok {
+				SSLKeystoreFilename := fmt.Sprintf("%s", kafkaSSLKeystoreFilename)
+				config.KafkaSSLKeystoreLocation = &SSLKeystoreFilename
 			}
 
 			kafkaSSLKeystorePassword, ok := input.Get("kafka", "ssl_keystore_password")
@@ -602,18 +623,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			if ok {
 				SSLKeyPassword := fmt.Sprintf("%s", kafkaSSLKeyPassword)
 				config.KafkaSSLKeyPassword = &SSLKeyPassword
-			}
-
-			kafkaSSLTrustStoreLocation, ok := input.Get("kafka", "ssl_truststore_location")
-			if ok {
-				SSLTrustStoreLocation := fmt.Sprintf("%s", kafkaSSLTrustStoreLocation)
-				config.KafkaSSLTrustStoreLocation = &SSLTrustStoreLocation
-			}
-
-			kafkaSSLTrustStorePassword, ok := input.Get("kafka", "ssl_truststore_password")
-			if ok {
-				SSLTrustStorePassword := fmt.Sprintf("%s", kafkaSSLTrustStorePassword)
-				config.KafkaSSLTrustStorePassword = &SSLTrustStorePassword
 			}
 
 			kafkaSSLEnabledPasswords, ok := input.Get("kafka", "ssl_enabled_protocols")
@@ -835,6 +844,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "use_time_float")
 	if ok {
+		usetimefloat, _ := strconv.ParseBool(val)
 		config.UseTimeFloat = usetimefloat
 	} else {
 		config.UseTimeFloat = false

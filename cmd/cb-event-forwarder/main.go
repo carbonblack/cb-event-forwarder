@@ -604,7 +604,7 @@ func main() {
 
 	http.HandleFunc("/debug/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if !status.IsConnected {
-			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error" : status.LastConnectError})
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error": status.LastConnectError})
 			http.Error(w, string(payload), http.StatusNetworkAuthenticationRequired)
 		} else {
 			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS CONNECTED"})
@@ -655,7 +655,7 @@ func main() {
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
 		log.Infof("Sending metrics to graphite")
 	} else {
-		log.Infof("Didn't send %v %v",config.CarbonMetricsEndpoint,config.RunMetrics)
+		log.Infof("Didn't send %v %v", config.CarbonMetricsEndpoint, config.RunMetrics)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)
