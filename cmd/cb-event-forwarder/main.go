@@ -31,7 +31,7 @@ import _ "net/http/pprof"
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
-	metricTag          = flag.String("metric", null, "The metrics tag to identify this execution.")
+	metricTag          = flag.String("metric", "", "The metrics tag to identify this execution.")
 )
 
 var version = "NOT FOR RELEASE"
@@ -685,7 +685,7 @@ func main() {
 		metricTagEnv := os.Getenv("EF_METRIC_TAG")
 		log.Debugf("Metric Tag: %s, Environment Variable: %s", *metricTag, metricTagEnv)
 		metricName := fmt.Sprintf("cb.eventforwarder")
-		if metricTag != nil {
+		if *metricTag != "" {
 			metricName = fmt.Sprintf("cb.eventforwarder.%s", *metricTag)
 		} else if metricTagEnv != "" {
 			metricName = fmt.Sprintf("cb.eventforwarder.%s", metricTagEnv)
