@@ -5,10 +5,10 @@ services:
       context: .
       args:
         INIFILE: cb-event-forwarder.dockerkafka.ini
-    environment:
-      EF_METRIC_TAG: testname.runname
     hostname: eventforwarder
     container_name: eventforwarder
+    environment:
+      EF_METRIC_TAG: cb.eventoforwarder
 
     restart: always
     tty: true

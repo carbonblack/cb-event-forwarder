@@ -686,9 +686,9 @@ func main() {
 		log.Debugf("Metric Tag: %s, Environment Variable: %s", *metricTag, metricTagEnv)
 		metricName := fmt.Sprintf("cb.eventforwarder")
 		if *metricTag != "" {
-			metricName = fmt.Sprintf("cb.eventforwarder.%s", *metricTag)
+			metricName = *metricTag
 		} else if metricTagEnv != "" {
-			metricName = fmt.Sprintf("cb.eventforwarder.%s", metricTagEnv)
+			metricName = metricTagEnv
 		}
 
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, metricName, addr)
