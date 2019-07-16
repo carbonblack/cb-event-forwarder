@@ -31,7 +31,7 @@ import _ "net/http/pprof"
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
-	metricTag          = flag.String("metric", "", "The metrics tag to identify this execution.")
+	metricTag          = flag.String("metric", null, "The metrics tag to identify this execution.")
 )
 
 var version = "NOT FOR RELEASE"
@@ -391,9 +391,9 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	log.Infof("Starting %d message processors\n", numProcessors)
 
 	wg.Add(numProcessors)
-	
+
 	if config.RunMetrics {
-		go monitorChannels(time.NewTicker(100 * time.Millisecond), messages, results)
+		go monitorChannels(time.NewTicker(100*time.Millisecond), messages, results)
 	}
 	go splitDelivery(deliveries, messages)
 	for i := 0; i < numProcessors; i++ {
@@ -560,6 +560,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
+
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
@@ -632,7 +633,7 @@ func main() {
 
 	http.HandleFunc("/debug/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if !status.IsConnected {
-			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error" : status.LastConnectError})
+			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS NOT CONNECTED", "error": status.LastConnectError})
 			http.Error(w, string(payload), http.StatusNetworkAuthenticationRequired)
 		} else {
 			payload, _ := json.Marshal(map[string]interface{}{"status": "FORWARDER IS CONNECTED"})
@@ -684,7 +685,7 @@ func main() {
 		metricTagEnv := os.Getenv("EF_METRIC_TAG")
 		log.Debugf("Metric Tag: %s, Environment Variable: %s", *metricTag, metricTagEnv)
 		metricName := fmt.Sprintf("cb.eventforwarder")
-		if *metricTag != "" {
+		if metricTag != nil {
 			metricName = fmt.Sprintf("cb.eventforwarder.%s", *metricTag)
 		} else if metricTagEnv != "" {
 			metricName = fmt.Sprintf("cb.eventforwarder.%s", metricTagEnv)
@@ -693,7 +694,7 @@ func main() {
 		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, metricName, addr)
 		log.Infof("Sending metrics to graphite")
 	} else {
-		log.Infof("Didn't send %v %v",config.CarbonMetricsEndpoint,config.RunMetrics)
+		log.Infof("Didn't send %v %v", config.CarbonMetricsEndpoint, config.RunMetrics)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)

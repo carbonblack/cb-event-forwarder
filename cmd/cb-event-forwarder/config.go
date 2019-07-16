@@ -55,7 +55,7 @@ type Configuration struct {
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
-	DryRun				 bool
+	DryRun               bool
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
