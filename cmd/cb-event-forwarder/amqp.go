@@ -64,6 +64,8 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		bindToRawExchange: bindToRawExchange,
 		routingKeys:       routingKeys,
 		dialer:            dialer,
+		amqpURI:           amqpURI,
+		queueName:         queueName,
 		tlsCfg:            getAMQPTLSConfigFromConf()}
 
 	return c
@@ -98,13 +100,13 @@ func getAMQPTLSConfigFromConf() *tls.Config {
 func (c *Consumer) DialAMQP() error {
 	var err error = nil
 	if c.tlsCfg != nil {
-		log.Debug("Connecting to message bus via TLS...")
+		log.Debugf("Connecting to message bus at %s via TLS...", c.amqpURI)
 		c.conn, err = c.dialer.DialTLS(c.amqpURI, c.tlsCfg)
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Debug("Connecting to message bus...")
+		log.Debugf("Connecting to message bus at %s....", c.amqpURI)
 		c.conn, err = c.dialer.Dial(c.amqpURI)
 		if err != nil {
 			return err
@@ -142,7 +144,7 @@ func (c *Consumer) Connect() (deliveries <-chan amqp.Delivery, err error) {
 		if err != nil {
 			return deliveries, err
 		}
-		log.Infof(" Subscribed to bulk raw sensor event exchange on queue %s", c.queueName)
+		log.Infof("ubscribed to bulk raw sensor event exchange on queue %s", c.queueName)
 	}
 
 	for _, key := range c.routingKeys {
