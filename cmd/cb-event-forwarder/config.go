@@ -55,7 +55,11 @@ type Configuration struct {
 	HTTPServerPort       int
 	CbServerURL          string
 	UseRawSensorExchange bool
-	DryRun               bool
+
+	//DRY RUN CONTROLS REAL OUTPUT - WHEN DRYRUN IS TRUE, REAL OUTPUT WILL NOT OCCUR
+	DryRun bool
+	//CannedInput bool CONTROLS REAL INPUT - WHEN CANNEDINPUT IS TRUE, bundles from stress_rabbit will be used instead
+	CannedInput bool
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
@@ -411,7 +415,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	log.Debugf("DryRyn is %v", config.DryRun)
+	config.CannedInput = false
+	cannedInput, ok := input.Get("bridge", "canned_input")
+
+	if ok {
+		boolval, err := strconv.ParseBool(cannedInput)
+		if err == nil {
+			config.CannedInput = boolval
+		} else {
+			errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
 
 	val, ok = input.Get("bridge", "cb_server_hostname")
 	if ok {

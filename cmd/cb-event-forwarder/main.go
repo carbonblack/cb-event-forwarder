@@ -368,7 +368,18 @@ func logFileProcessingLoop() <-chan error {
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
-	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, StreadwayAMQPDialer{})
+	var dialer AMQPDialer
+
+	if config.CannedInput {
+		md := NewMockAMQPDialer()
+		mockChan, _ := md.Connection.Channel()
+		go RunCannedData(mockChan)
+		dialer = md
+	} else {
+		dialer = StreadwayAMQPDialer{}
+	}
+
+	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
 
 	messages := make(chan amqp.Delivery, inputChannelSize)
 

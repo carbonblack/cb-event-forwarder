@@ -137,7 +137,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
-	joinEventsChan := make(chan (kafka.Event), 1000)
+	joinEventsChan := make(chan (kafka.Event), 100000)
 	sigs := make(chan os.Signal, 1)
 	stopProdChans := make([]chan struct{}, len(o.producers))
 

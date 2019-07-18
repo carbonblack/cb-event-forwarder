@@ -3,8 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"fmt"
 	"github.com/streadway/amqp"
+	"path"
+	"os"
+	"io/ioutil"
 )
 
 type MockAMQPConnection struct {
@@ -106,4 +110,83 @@ func (mdial MockAMQPDialer) Dial(s string) (AMQPConnection, error) {
 
 func (mdial MockAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnection, error) {
 	return &mdial.Connection, nil
+}
+
+func NewMockAMQPDialer() MockAMQPDialer {
+	return MockAMQPDialer{Connection: MockAMQPConnection{AMQPURL: "amqp://cb:lol@localhost:5672"}}
+}
+
+func RunCannedData(mockChan AMQPChannel) {
+	for {
+		for _, format := range []string{"zip"} {
+
+			pathname := path.Join("test/raw_data", format)
+
+			fp, err := os.Open(pathname)
+
+			if err != nil {
+				log.Errorf("Could not open %s", pathname)
+				continue
+			}
+
+			infos, err := fp.Readdir(0)
+			if err != nil {
+				log.Errorf("Could not enumerate directory %s", pathname)
+				continue
+			}
+
+			fp.Close()
+
+			for _, fn := range infos {
+
+				if fn.IsDir() {
+					continue
+				}
+
+				filename := path.Join(pathname,fn.Name())
+
+				fp, err := os.Open(filename)
+				if err != nil {
+					log.Errorf("Could not open %s for reading", filename)
+					continue
+				}
+
+				b, err := ioutil.ReadAll(fp)
+				if err != nil {
+					log.Errorf("Could not read %s", filename)
+					continue
+				}
+
+				fp.Close()
+
+				exchange := "api.events"
+				contentType := "application/json"
+				if format == "json" {
+					exchange = "api.events"
+					contentType = "application/json"
+				}
+				if format == "zip" {
+					exchange = "api.rawsensordata"
+					contentType = "application/protobuf"
+				}
+
+				if err = mockChan.Publish(
+					exchange, // publish to an exchange
+					"", // routing to 0 or more queues
+					false, // mandatory
+					false, // immediate
+					amqp.Publishing{
+						Headers:         amqp.Table{},
+						ContentType:     contentType,
+						ContentEncoding: "",
+						Body:            b,
+						DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
+						Priority:        0, // 0-
+					},
+				); err != nil {
+					log.Errorf("Failed to publish %s %s: %s", exchange, "", err)
+				}
+			}
+		}
+	}
 }
