@@ -21,7 +21,7 @@ def main():
 
     channel = connection.channel()
 
-    with open('zipbundles/1', 'rb') as file_handle:
+    with open('zipbundles/bundleone', 'rb') as file_handle:
         buffer = file_handle.read()
 
     if not buffer:
@@ -33,7 +33,7 @@ def main():
                               routing_key='',
                               body=buffer,
                               properties=pika.BasicProperties(
-                                  content_type='application/zip',
+                                  content_type='application/protobuf',
                                   delivery_mode=1))
 
         time.sleep(0.01)
