@@ -7,8 +7,6 @@ services:
         INIFILE: cb-event-forwarder.dockerkafka.ini
     hostname: eventforwarder
     container_name: eventforwarder
-    environment:
-      EF_METRIC_TAG: cb.eventforwarder
 
     restart: always
     tty: true
@@ -183,10 +181,6 @@ services:
       hostname: graphite
       image: graphiteapp/graphite-statsd
       container_name: graphite
-      volumes:
-        - ./run/data/graphite/storage:/opt/graphite/storage
-        - ./run/data/graphite/log:/var/log
-        - ./run/data/graphite/redis:/var/lib/redis
       restart: always
 
   rabbitmq:
