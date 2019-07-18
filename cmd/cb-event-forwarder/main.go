@@ -210,6 +210,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	//
 	// Process message based on ContentType
 	//
+	//log.Errorf("PROCESS MESSAGE CALLED ROUTINGKEY = %s contentType = %s exchange = %s ",routingKey, contentType, exchangeName)
 	if contentType == "application/zip" {
 		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
@@ -222,6 +223,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		// single protobuf
 		if exchangeName == "api.rawsensordata" {
 			msgs, err = ProcessProtobufBundle(routingKey, body, headers)
+			//log.Infof("Process Protobuf bundle returned %d messages and error = %v",len(msgs),err)
 		} else {
 			msg, err := ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
@@ -269,6 +271,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 }
 
 func outputMessage(msg map[string]interface{}) error {
+	log.Errorf("OUTPUT MESSAGE CALLED")
 	var err error
 
 	//

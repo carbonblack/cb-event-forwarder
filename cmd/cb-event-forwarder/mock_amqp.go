@@ -118,9 +118,9 @@ func NewMockAMQPDialer() MockAMQPDialer {
 
 func RunCannedData(mockChan AMQPChannel) {
 	for {
-		for _, format := range []string{"zip"} {
+		for _, format := range []string{"zipbundles"} {
 
-			pathname := path.Join("test/raw_data", format)
+			pathname := path.Join("test/stress_rabbit/",format)
 
 			fp, err := os.Open(pathname)
 
@@ -159,16 +159,9 @@ func RunCannedData(mockChan AMQPChannel) {
 
 				fp.Close()
 
-				exchange := "api.events"
-				contentType := "application/json"
-				if format == "json" {
-					exchange = "api.events"
-					contentType = "application/json"
-				}
-				if format == "zip" {
-					exchange = "api.rawsensordata"
-					contentType = "application/protobuf"
-				}
+				exchange := "api.rawsensordata"
+				contentType := "application/protobuf"
+
 
 				if err = mockChan.Publish(
 					exchange, // publish to an exchange

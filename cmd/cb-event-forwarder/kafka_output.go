@@ -177,6 +177,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					}
 					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
 					output(message, o.producers[workernum], partition)
+					o.EventSent.Mark(1)
 					o.EventSentBytes.Mark(int64(len(message)))
 				case <-stopProdChan:
 					shouldStop = true
@@ -198,8 +199,6 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 				if m.TopicPartition.Error != nil {
 					o.DroppedEvent.Mark(1)
 					errorChan <- m.TopicPartition.Error
-				} else {
-					o.EventSent.Mark(1)
 				}
 			case sig := <-sigs:
 				switch sig {
@@ -243,8 +242,12 @@ func output(m string, producer WrappedProducer, partition kafka.TopicPartition) 
 		TopicPartition: partition,
 		Value:          []byte(m),
 	}
-	for producer.Produce(kafkamsg, nil) != nil {
+	var err error = producer.Produce(kafkamsg, nil)
+
+	for err != nil {
+		log.Errorf("ERROR PRODUCING TO KAFKA %v",err)
 		producer.Flush(1)
+		err = producer.Produce(kafkamsg,nil)
 	}
 
 }
