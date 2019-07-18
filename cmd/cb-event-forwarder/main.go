@@ -145,11 +145,6 @@ func setupMetrics() {
 /*
  * Types
  */
-type Consumer struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	tag     string
-}
 
 type OutputHandler interface {
 	Initialize(string) error
@@ -372,10 +367,13 @@ func logFileProcessingLoop() <-chan error {
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
-	connectionError := make(chan *amqp.Error, 1)
 
-	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
+	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, StreadwayAMQPDialer{})
+
 	messages := make(chan amqp.Delivery, inputChannelSize)
+
+	deliveries, err := c.Connect()
+
 	if err != nil {
 		status.LastConnectError = err.Error()
 		status.ErrorTime = time.Now()
@@ -384,8 +382,6 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 	status.LastConnectTime = time.Now()
 	status.IsConnected = true
-
-	c.conn.NotifyClose(connectionError)
 
 	numProcessors := config.NumProcessors
 	log.Infof("Starting %d message processors\n", numProcessors)
@@ -412,12 +408,14 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 				wg.Wait()
 				os.Exit(1)
 			}
-		case closeError := <-connectionError:
+
+		case closeError := <-c.connectionErrors:
 			status.IsConnected = false
 			status.LastConnectError = closeError.Error()
 			status.ErrorTime = time.Now()
 
-			log.Errorf("Connection closed: %s", closeError.Error())
+			log.Errorf("Connection error: %s", closeError.Error())
+			// This assumes that after the error, workers don't get any more messagesa nd will eventually return
 			log.Info("Waiting for all workers to exit")
 			wg.Wait()
 			log.Info("All workers have exited")
