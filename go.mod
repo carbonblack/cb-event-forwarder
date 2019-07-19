@@ -6,7 +6,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go v0.11.4
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
-	github.com/go-ini/ini v1.36.0 // indirect
+	github.com/go-ini/ini v1.36.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.2.0
 	github.com/google/go-cmp v0.2.0

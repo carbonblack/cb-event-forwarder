@@ -7,15 +7,15 @@ import (
 	_ "expvar"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
-	"os"
 
+	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
-	"github.com/vaughan0/go-ini"
 )
 
 const (
@@ -170,21 +170,21 @@ func (e *ConfigurationError) addError(err error) {
 	e.Errors = append(e.Errors, err.Error())
 }
 
-func parseCbConf() (username, password string, err error) {
-	input, err := ini.LoadFile("/etc/cb/cb.conf")
+func GetLocalRabbitMQCredentials() (username, password string, err error) {
+	input, err := ini.Load("/etc/cb/cb.conf")
 	if err != nil {
-		return username, password, err
+		return "error", "error", err
 	}
-	username, _ = input.Get("", "RabbitMQUser")
-	password, _ = input.Get("", "RabbitMQPassword")
+	username = input.Section("").Key("RabbitMQUser").Value()
+	password = input.Section("").Key("RabbitMQPassword").Value()
 
 	if len(username) == 0 || len(password) == 0 {
 		return username, password, errors.New("Could not get RabbitMQ credentials from /etc/cb/cb.conf")
 	}
-	return
+	return username, password, nil
 }
 
-func (c *Configuration) parseEventTypes(input ini.File) {
+func (c *Configuration) parseEventTypes(input *ini.File) {
 	eventTypes := [...]struct {
 		configKey string
 		eventList []string
@@ -226,8 +226,9 @@ func (c *Configuration) parseEventTypes(input ini.File) {
 	}
 
 	for _, eventType := range eventTypes {
-		val, ok := input.Get("bridge", eventType.configKey)
-		if ok {
+		if input.Section("bridge").HasKey(eventType.configKey) {
+			key := input.Section("bridge").Key(eventType.configKey)
+			val := key.Value()
 			val = strings.ToLower(val)
 			if val == "all" {
 				for _, routingKey := range eventType.eventList {
@@ -258,7 +259,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
 
-	input, err := ini.LoadFile(fn)
+	input, err := ini.Load(fn)
 	if err != nil {
 		return config, err
 	}
@@ -278,15 +279,17 @@ func ParseConfig(fn string) (Configuration, error) {
 	config.S3CredentialProfileName = nil
 
 	// required values
-	val, ok := input.Get("bridge", "server_name")
-	if !ok {
+
+	if !input.Section("bridge").HasKey("server_name") {
 		config.ServerName = "CB"
 	} else {
-		config.ServerName = val
+		key := input.Section("bridge").Key("server_name")
+		config.ServerName = key.Value()
 	}
 
-	val, ok = input.Get("bridge", "debug")
-	if ok {
+	if input.Section("bridge").HasKey("debug") {
+		key := input.Section("bridge").Key("debug")
+		val := key.Value()
 		if val == "1" {
 			config.DebugFlag = true
 			log.SetLevel(log.DebugLevel)
@@ -300,9 +303,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	removeFromOutput, ok := input.Get("bridge", "remove_from_output")
-	if ok {
-		thingsToRemove := strings.Split(removeFromOutput, ",")
+	if input.Section("bridge").HasKey("remove_from_output") {
+		key := input.Section("bridge").Key("remove_from_output")
+		thingsToRemove := strings.Split(key.Value(), ",")
 		numberOfThingsToRemove := len(thingsToRemove)
 		strippedThingsToRemove := make([]string, numberOfThingsToRemove)
 		for index, element := range thingsToRemove {
@@ -317,85 +320,83 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.RemoveFromOutput = make([]string, 0)
 	}
 
-	debugStore, ok := input.Get("bridge", "debug_store")
-	if ok {
-		config.DebugStore = debugStore
+	if input.Section("bridge").HasKey("debug_store") {
+		key := input.Section("bridge").Key("debug_store")
+		config.DebugStore = key.Value()
 	} else {
 		config.DebugStore = "/var/log/cb/integrations/cb-event-forwarder"
 	}
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
 
-	val, ok = input.Get("bridge", "http_server_port")
-	if ok {
-		port, err := strconv.Atoi(val)
+	if input.Section("bridge").HasKey("http_server_port") {
+		key := input.Section("bridge").Key("http_server_port")
+		port, err := strconv.Atoi(key.Value())
 		if err == nil {
 			config.HTTPServerPort = port
 		}
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_username")
-	if ok {
-		config.AMQPUsername = val
+	if input.Section("bridge").HasKey("rabbit_mq_username") {
+		key := input.Section("bridge").Key("rabbit_mq_username")
+		config.AMQPUsername = key.Value()
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_password")
-	if !ok {
+	if !input.Section("bridge").HasKey("rabbit_mq_password") {
 		errs.addErrorString("Missing required rabbit_mq_password section")
 	} else {
-		config.AMQPPassword = val
+		key := input.Section("bridge").Key("rabbit_mq_password")
+		config.AMQPPassword = key.Value()
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_port")
-	if ok {
-		port, err := strconv.Atoi(val)
+	if input.Section("bridge").HasKey("rabbit_mq_port") {
+		key := input.Section("bridge").Key("rabbit_mq_port")
+		port, err := strconv.Atoi(key.Value())
 		if err == nil {
 			config.AMQPPort = port
 		}
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
-		config.AMQPUsername, config.AMQPPassword, err = parseCbConf()
+		config.AMQPUsername, config.AMQPPassword, err = GetLocalRabbitMQCredentials()
 		if err != nil {
 			errs.addError(err)
 		}
 	}
 
-	val, ok = input.Get("bridge", "rabbit_mq_use_tls")
-	if ok {
-		if ok {
-			b, err := strconv.ParseBool(val)
-			if err == nil {
-				config.AMQPTLSEnabled = b
-			}
+	if input.Section("bridge").HasKey("rabbit_mq_use_tls") {
+		key := input.Section("bridge").Key("rabbit_mq_use_tls")
+		b, err := key.Bool()
+		if err == nil {
+			config.AMQPTLSEnabled = b
 		}
 	}
 
-	rabbitKeyFilename, ok := input.Get("bridge", "rabbit_mq_key")
-	if ok {
-		config.AMQPTLSClientKey = rabbitKeyFilename
+	if input.Section("bridge").HasKey("rabbit_mq_key") {
+		key := input.Section("bridge").Key("rabbit_mq_key")
+		config.AMQPTLSClientKey = key.Value()
 	}
 
-	rabbitCertFilename, ok := input.Get("bridge", "rabbit_mq_cert")
-	if ok {
-		config.AMQPTLSClientCert = rabbitCertFilename
+	if input.Section("bridge").HasKey("rabbit_mq_cert") {
+		key := input.Section("bridge").Key("rabbit_mq_cert")
+		config.AMQPTLSClientCert = key.Value()
 	}
 
-	rabbitCaCertFilename, ok := input.Get("bridge", "rabbit_mq_ca_cert")
-	if ok {
-		config.AMQPTLSCACert = rabbitCaCertFilename
+	if input.Section("bridge").HasKey("rabbit_mq_ca_cert") {
+		key := input.Section("bridge").Key("rabbit_mq_ca_cert")
+		config.AMQPTLSCACert = key.Value()
 	}
 
-	rabbitQueueName, ok := input.Get("bridge", "rabbit_mq_queue_name")
-	if ok {
-		config.AMQPQueueName = rabbitQueueName
+	if input.Section("bridge").HasKey("rabbit_mq_queue_name") {
+		key := input.Section("bridge").Key("rabbit_mq_queue_name")
+		config.AMQPQueueName = key.Value()
 	}
 
 	config.AMQPAutomaticAcking = true
-	rabbitAutomaticAcking, ok := input.Get("bridge", "rabbit_mq_automatic_acking")
 
-	if ok {
-		boolval, err := strconv.ParseBool(rabbitAutomaticAcking)
+	if input.Section("bridge").HasKey("rabbit_mq_automatic_acking") {
+		key := input.Section("bridge").Key("rabbit_mq_automatic_acking")
+		boolval, err := key.Bool()
 		if err == nil {
 			if boolval == false {
 				config.AMQPAutomaticAcking = false
@@ -406,10 +407,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.DryRun = false
-	dryRun, ok := input.Get("bridge", "dry_run")
 
-	if ok {
-		boolval, err := strconv.ParseBool(dryRun)
+	if input.Section("bridge").HasKey("dry_run") {
+		key := input.Section("bridge").Key("dry_run")
+		boolval, err := key.Bool()
 		if err == nil {
 			config.DryRun = boolval
 		} else {
@@ -418,32 +419,40 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.CannedInput = false
-	cannedInput, ok := input.Get("bridge", "canned_input")
 
-	if ok {
-		boolval, err := strconv.ParseBool(cannedInput)
-		if err == nil {
-			config.CannedInput = boolval
-		} else {
-			errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
+	cannedInputEnvVar := os.Getenv("EF_CANNED_INPUT")
+
+	if cannedInputEnvVar != "" {
+		config.CannedInput, _ = strconv.ParseBool(cannedInputEnvVar)
+	} else {
+		if input.Section("bridge").HasKey("canned_input") {
+			key := input.Section("bridge").Key("canned_input")
+			boolval, err := key.Bool()
+			if err == nil {
+				config.CannedInput = boolval
+			} else {
+				errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
+			}
 		}
 	}
 
-	val, ok = input.Get("bridge", "cb_server_hostname")
-	if ok {
-		config.AMQPHostname = val
+	if input.Section("bridge").HasKey("cb_server_hostname") {
+		key := input.Section("bridge").Key("cb_server_hostname")
+		config.AMQPHostname = key.Value()
 	}
 
-	val, ok = input.Get("bridge", "cb_server_url")
-	if ok {
+	if input.Section("bridge").HasKey("cb_server_url") {
+		key := input.Section("bridge").Key("cb_server_url")
+		val := key.Value()
 		if !strings.HasSuffix(val, "/") {
 			val = val + "/"
 		}
 		config.CbServerURL = val
 	}
 
-	val, ok = input.Get("bridge", "output_format")
-	if ok {
+	if input.Section("bridge").HasKey("output_format") {
+		key := input.Section("bridge").Key("output_format")
+		val := key.Value()
 		val = strings.TrimSpace(val)
 		val = strings.ToLower(val)
 		if val == "leef" {
@@ -452,259 +461,291 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	config.FileHandlerCompressData = false
-	val, ok = input.Get("bridge", "compress_data")
-	if ok {
-		b, err := strconv.ParseBool(val)
+
+	if input.Section("bridge").HasKey("compress_data") {
+		key := input.Section("bridge").Key("compress_data")
+		b, err := key.Bool()
 		if err == nil {
 			config.FileHandlerCompressData = b
 		}
 	}
 
 	config.AuditLog = false
-	val, ok = input.Get("bridge", "audit_log")
-	if ok {
-		b, err := strconv.ParseBool(val)
+
+	if input.Section("bridge").HasKey("audit_log") {
+		key := input.Section("bridge").Key("audit_log")
+		b, err := key.Bool()
 		if err == nil {
 			config.AuditLog = b
 		}
 	}
 
-	outType, ok := input.Get("bridge", "output_type")
 	var parameterKey string
-	if ok {
-		outType = strings.TrimSpace(outType)
-		outType = strings.ToLower(outType)
 
-		switch outType {
-		case "file":
-			parameterKey = "outfile"
-			config.OutputType = FileOutputType
-		case "tcp":
-			parameterKey = "tcpout"
-			config.OutputType = TCPOutputType
-		case "udp":
-			parameterKey = "udpout"
-			config.OutputType = UDPOutputType
-		case "s3":
-			parameterKey = "s3out"
-			config.OutputType = S3OutputType
-
-			profileName, ok := input.Get("s3", "credential_profile")
-			if ok {
-				config.S3CredentialProfileName = &profileName
-			}
-
-			aclPolicy, ok := input.Get("s3", "acl_policy")
-			if ok {
-				config.S3ACLPolicy = &aclPolicy
-			}
-
-			sseType, ok := input.Get("s3", "server_side_encryption")
-			if ok {
-				config.S3ServerSideEncryption = &sseType
-			}
-
-			objectPrefix, ok := input.Get("s3", "object_prefix")
-			if ok {
-				config.S3ObjectPrefix = &objectPrefix
-			}
-
-			useDualStack, ok := input.Get("s3", "use_dual_stack")
-			if ok {
-				b, err := strconv.ParseBool(useDualStack)
-				if err == nil {
-					config.S3UseDualStack = b
-				}
-			}
-
-		case "http":
-			parameterKey = "httpout"
-			config.OutputType = HTTPOutputType
-
-			token, ok := input.Get("http", "authorization_token")
-			if ok {
-				config.HTTPAuthorizationToken = &token
-			}
-
-			postTemplate, ok := input.Get("http", "http_post_template")
-			config.HTTPPostTemplate = template.New("http_post_output")
-			if ok {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
-			} else {
-				if config.OutputFormat == JSONOutputFormat {
-					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
-						`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
-				} else {
-					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
-				}
-			}
-
-			contentType, ok := input.Get("http", "content_type")
-			if ok {
-				config.HTTPContentType = &contentType
-			} else {
-				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
-			}
-
-			// Parse OAuth related configuration.
-			parseOAuthConfiguration(&input, &config, &errs)
-			eventTextAsJsonByteArray, ok := input.Get("http", "event_text_as_json_byte_array")
-			if ok {
-				boolval, err := strconv.ParseBool(eventTextAsJsonByteArray)
-				if err == nil {
-					config.EventTextAsJsonByteArray = boolval
-				} else {
-					errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", eventTextAsJsonByteArray))
-				}
-			}
-
-			config.CompressHTTPPayload = false
-			compressHttpPayload, ok := input.Get("http", "compress_http_payload")
-			if ok {
-				boolval, err := strconv.ParseBool(compressHttpPayload)
-				if err == nil {
-					config.CompressHTTPPayload = boolval
-				} else {
-					errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", compressHttpPayload))
-				}
-			}
-
-		case "syslog":
-			parameterKey = "syslogout"
-			config.OutputType = SyslogOutputType
-		case "kafka":
-			config.OutputType = KafkaOutputType
-
-			kafkaBrokers, ok := input.Get("kafka", "brokers")
-			if ok {
-				config.KafkaBrokers = &kafkaBrokers
-			}
-			kafkaTopicSuffix, ok := input.Get("kafka", "topic_suffix")
-			if ok {
-				config.KafkaTopicSuffix = kafkaTopicSuffix
-			}
-			kafkaTopic, ok := input.Get("kafka", "topic")
-			if ok {
-				config.KafkaTopic = kafkaTopic
-			}
-			kafkaProtocol, ok := input.Get("kafka", "protocol")
-			if ok {
-				config.KafkaProtocol = kafkaProtocol
-			}
-			kafkaMechanism, ok := input.Get("kafka", "mechanism")
-			if ok {
-				config.KafkaMechanism = kafkaMechanism
-			}
-			kafkaUsername, ok := input.Get("kafka", "username")
-			if ok {
-				config.KafkaUsername = kafkaUsername
-			}
-			kafkaPassword, ok := input.Get("kafka", "password")
-			if ok {
-				config.KafkaPassword = kafkaPassword
-			}
-			kafkaMaxRequestSize, ok := input.Get("kafka", "max_request_size")
-			if ok {
-				if intKafkaMaxRequestSize, err := strconv.ParseInt(kafkaMaxRequestSize, 10, 32); err == nil {
-					config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
-				}
-			} else {
-				config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
-			}
-			kafkaCompressionType, ok := input.Get("kafka", "compression_type")
-			if ok {
-				compressionType := fmt.Sprintf("%s", kafkaCompressionType)
-				config.KafkaCompressionType = &compressionType
-			}
-			kafkaSSLKeystoreLocation, ok := input.Get("kafka", "ssl_keystore_location")
-			if ok {
-				SSLKeystoreLocation := fmt.Sprintf("%s", kafkaSSLKeystoreLocation)
-				config.KafkaSSLKeystoreLocation = &SSLKeystoreLocation
-			}
-
-			kafkaSSLKeystorePassword, ok := input.Get("kafka", "ssl_keystore_password")
-			if ok {
-				SSLKeystorePassword := fmt.Sprintf("%s", kafkaSSLKeystorePassword)
-				config.KafkaSSLKeystorePassword = &SSLKeystorePassword
-			}
-
-			kafkaSSLKeyPassword, ok := input.Get("kafka", "ssl_key_password")
-			if ok {
-				SSLKeyPassword := fmt.Sprintf("%s", kafkaSSLKeyPassword)
-				config.KafkaSSLKeyPassword = &SSLKeyPassword
-			}
-
-			kafkaSSLTrustStoreLocation, ok := input.Get("kafka", "ssl_truststore_location")
-			if ok {
-				SSLTrustStoreLocation := fmt.Sprintf("%s", kafkaSSLTrustStoreLocation)
-				config.KafkaSSLTrustStoreLocation = &SSLTrustStoreLocation
-			}
-
-			kafkaSSLTrustStorePassword, ok := input.Get("kafka", "ssl_truststore_password")
-			if ok {
-				SSLTrustStorePassword := fmt.Sprintf("%s", kafkaSSLTrustStorePassword)
-				config.KafkaSSLTrustStorePassword = &SSLTrustStorePassword
-			}
-
-			kafkaSSLEnabledPasswords, ok := input.Get("kafka", "ssl_enabled_protocols")
-			if ok {
-				config.KafkaSSLEnabledProtocols = strings.Split(kafkaSSLEnabledPasswords, ",")
-			} else {
-				config.KafkaSSLEnabledProtocols = make([]string, 0)
-			}
-
-		case "splunk":
-			parameterKey = "splunkout"
-			config.OutputType = SplunkOutputType
-
-			token, ok := input.Get("splunk", "hec_token")
-			if ok {
-				config.SplunkToken = &token
-			}
-
-			postTemplate, ok := input.Get("splunk", "http_post_template")
-			config.HTTPPostTemplate = template.New("http_post_output")
-			if ok {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
-			} else {
-				if config.OutputFormat == JSONOutputFormat {
-					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
-						`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
-				} else {
-					config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
-				}
-			}
-
-			contentType, ok := input.Get("http", "content_type")
-			if ok {
-				config.HTTPContentType = &contentType
-			} else {
-				jsonString := "application/json"
-				config.HTTPContentType = &jsonString
-			}
-
-		default:
-			errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
-		}
-	} else {
+	if !input.Section("bridge").HasKey("output_type") {
 		errs.addErrorString("No output type specified")
 		return config, errs
 	}
 
+	key := input.Section("bridge").Key("output_type")
+	outType := key.Value()
+	outType = strings.TrimSpace(outType)
+	outType = strings.ToLower(outType)
+
+	switch outType {
+	case "file":
+		parameterKey = "outfile"
+		config.OutputType = FileOutputType
+	case "tcp":
+		parameterKey = "tcpout"
+		config.OutputType = TCPOutputType
+	case "udp":
+		parameterKey = "udpout"
+		config.OutputType = UDPOutputType
+	case "s3":
+		parameterKey = "s3out"
+		config.OutputType = S3OutputType
+
+		if input.Section("s3").HasKey("credential_profile") {
+			key := input.Section("s3").Key("credential_profile")
+			profileName := key.Value()
+			config.S3CredentialProfileName = &profileName
+		}
+
+		if input.Section("s3").HasKey("acl_policy") {
+			key := input.Section("s3").Key("acl_policy")
+			aclPolicy := key.Value()
+			config.S3ACLPolicy = &aclPolicy
+		}
+
+		if input.Section("s3").HasKey("server_side_encryption") {
+			key := input.Section("s3").Key("server_side_encryption")
+			sseType := key.Value()
+			config.S3ServerSideEncryption = &sseType
+		}
+
+		if input.Section("s3").HasKey("object_prefix") {
+			key = input.Section("s3").Key("object_prefix")
+			objectPrefix := key.Value()
+			config.S3ObjectPrefix = &objectPrefix
+		}
+
+		if input.Section("s3").HasKey("use_dual_stack") {
+			key := input.Section("s3").Key("use_dual_stack")
+			b, err := key.Bool()
+			if err == nil {
+				config.S3UseDualStack = b
+			}
+		}
+
+	case "http":
+		parameterKey = "httpout"
+		config.OutputType = HTTPOutputType
+
+		if input.Section("http").HasKey("authorization_token") {
+			key := input.Section("http").Key("authorization_token")
+			token := key.Value()
+			config.HTTPAuthorizationToken = &token
+		}
+
+		config.HTTPPostTemplate = template.New("http_post_output")
+		if input.Section("http").HasKey("http_post_template") {
+			key := input.Section("http").Key("http_post_template")
+			postTemplate := key.Value()
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
+		} else {
+			if config.OutputFormat == JSONOutputFormat {
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
+					`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+			} else {
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+			}
+		}
+
+		if input.Section("http").HasKey("content_type") {
+			key := input.Section("http").Key("content_type")
+			contentType := key.Value()
+			config.HTTPContentType = &contentType
+		} else {
+			jsonString := "application/json"
+			config.HTTPContentType = &jsonString
+		}
+
+		// Parse OAuth related configuration.
+		parseOAuthConfiguration(input, &config, &errs)
+
+		if input.Section("http").HasKey("event_text_as_json_byte_array") {
+			key := input.Section("http").Key("event_text_as_json_byte_array")
+			boolval, err := key.Bool()
+			if err == nil {
+				config.EventTextAsJsonByteArray = boolval
+			} else {
+				errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", key.Value()))
+			}
+		}
+
+		config.CompressHTTPPayload = false
+
+		if input.Section("http").HasKey("compress_http_payload") {
+			key := input.Section("http").Key("compress_http_payload")
+			boolval, err := key.Bool()
+			if err == nil {
+				config.CompressHTTPPayload = boolval
+			} else {
+				errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", key.Value()))
+			}
+		}
+
+	case "syslog":
+		parameterKey = "syslogout"
+		config.OutputType = SyslogOutputType
+	case "kafka":
+		config.OutputType = KafkaOutputType
+
+		if input.Section("kafka").HasKey("brokers") {
+			key := input.Section("kafka").Key("brokers")
+			kafkaBrokers := key.Value()
+			config.KafkaBrokers = &kafkaBrokers
+		}
+
+		if input.Section("kafka").HasKey("topic_suffix") {
+			key := input.Section("kafka").Key("topic_suffix")
+			kafkaTopicSuffix := key.Value()
+			config.KafkaTopicSuffix = kafkaTopicSuffix
+		}
+
+		if input.Section("kafka").HasKey("topic") {
+			key := input.Section("kafka").Key("topic")
+			kafkaTopic := key.Value()
+			config.KafkaTopic = kafkaTopic
+		}
+
+		if input.Section("kafka").HasKey("protocol") {
+			key := input.Section("kafka").Key("protocol")
+			kafkaProtocol := key.Value()
+			config.KafkaProtocol = kafkaProtocol
+		}
+
+		if input.Section("kafka").HasKey("mechanism") {
+			key := input.Section("kafka").Key("mechanism")
+			kafkaMechanism := key.Value()
+			config.KafkaMechanism = kafkaMechanism
+		}
+
+		if input.Section("kafka").HasKey("username") {
+			key := input.Section("kafka").Key("username")
+			kafkaUsername := key.Value()
+			config.KafkaUsername = kafkaUsername
+		}
+
+		if input.Section("kafka").HasKey("password") {
+			key := input.Section("kafka").Key("password")
+			kafkaPassword := key.Value()
+			config.KafkaPassword = kafkaPassword
+		}
+
+		if input.Section("kafka").HasKey("max_request_size") {
+			key := input.Section("kafka").Key("max_request_size")
+			if intKafkaMaxRequestSize, err := key.Int(); err == nil {
+				config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+			}
+		} else {
+			config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
+		}
+
+		if input.Section("kafka").HasKey("compression_type") {
+			key := input.Section("kafka").Key("compression_type")
+			compressionType := key.Value()
+			config.KafkaCompressionType = &compressionType
+		}
+
+		if input.Section("kafka").HasKey("ssl_keystore_location") {
+			key := input.Section("kafka").Key("ssl_keystore_location")
+			SSLKeystoreLocation := key.Value()
+			config.KafkaSSLKeystoreLocation = &SSLKeystoreLocation
+		}
+
+		if input.Section("kafka").HasKey("ssl_keystore_password") {
+			key := input.Section("kafka").Key("ssl_keystore_password")
+			SSLKeystorePassword := key.Value()
+			config.KafkaSSLKeystorePassword = &SSLKeystorePassword
+		}
+
+		if input.Section("kafka").HasKey("ssl_key_password") {
+			key := input.Section("kafka").Key("ssl_key_password")
+			SSLKeyPassword := key.Value()
+			config.KafkaSSLKeyPassword = &SSLKeyPassword
+		}
+
+		if key != nil {
+			key := input.Section("kafka").Key("ssl_truststore_location")
+			SSLTrustStoreLocation := key.Value()
+			config.KafkaSSLTrustStoreLocation = &SSLTrustStoreLocation
+		}
+
+		if input.Section("kafka").HasKey("ssl_truststore_password") {
+			key := input.Section("kafka").Key("ssl_truststore_password")
+			SSLTrustStorePassword := key.Value()
+			config.KafkaSSLTrustStorePassword = &SSLTrustStorePassword
+		}
+
+		if input.Section("kafka").HasKey("ssl_enabled_protocols") {
+			key := input.Section("kafka").Key("ssl_enabled_protocols")
+			config.KafkaSSLEnabledProtocols = strings.Split(key.Value(), ",")
+		} else {
+			config.KafkaSSLEnabledProtocols = make([]string, 0)
+		}
+
+	case "splunk":
+		parameterKey = "splunkout"
+		config.OutputType = SplunkOutputType
+
+		if input.Section("splunk").HasKey("hec_token") {
+			key := input.Section("splunk").Key("hec_token")
+			token := key.Value()
+			config.SplunkToken = &token
+		}
+
+		config.HTTPPostTemplate = template.New("http_post_output")
+		if input.Section("splunk").HasKey("http_post_template") {
+			key := input.Section("splunk").Key("http_post_template")
+			postTemplate := key.Value()
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
+		} else {
+			if config.OutputFormat == JSONOutputFormat {
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
+					`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
+			} else {
+				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+			}
+		}
+
+		if input.Section("http").HasKey("content_type") {
+			key := input.Section("http").Key("content_type")
+			contentType := key.Value()
+			config.HTTPContentType = &contentType
+		} else {
+			jsonString := "application/json"
+			config.HTTPContentType = &jsonString
+		}
+
+	default:
+		errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
+	}
+
 	if len(parameterKey) > 0 {
-		val, ok = input.Get("bridge", parameterKey)
-		if !ok {
+		if input.Section("bridge").HasKey(parameterKey) {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
 		} else {
-			config.OutputParameters = val
+			key := input.Section("bridge").Key(parameterKey)
+			config.OutputParameters = key.Value()
 		}
 	}
 
-	val, ok = input.Get("bridge", "use_raw_sensor_exchange")
-	if ok {
-		boolval, err := strconv.ParseBool(val)
+	if input.Section("bridge").HasKey("use_raw_sensor_exchange") {
+		key := input.Section("bridge").Key("use_raw_sensor_exchange")
+		boolval, err := key.Bool()
 		if err == nil {
 			config.UseRawSensorExchange = boolval
 			if boolval {
@@ -719,38 +760,44 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	// TLS configuration
-	clientKeyFilename, ok := input.Get(outType, "client_key")
-	if ok {
+
+	if input.Section(outType).HasKey("client_key") {
+		key := input.Section(outType).Key("client_key")
+		clientKeyFilename := key.Value()
 		config.TLSClientKey = &clientKeyFilename
 	}
 
-	clientCertFilename, ok := input.Get(outType, "client_cert")
-	if ok {
+	if input.Section(outType).HasKey("client_cert") {
+		key := input.Section(outType).Key("client_cert")
+		clientCertFilename := key.Value()
 		config.TLSClientCert = &clientCertFilename
 	}
 
-	caCertFilename, ok := input.Get(outType, "ca_cert")
-	if ok {
+	if input.Section(outType).HasKey("ca_cert") {
+		key := input.Section(outType).Key("ca_cert")
+		caCertFilename := key.Value()
 		config.TLSCACert = &caCertFilename
 	}
 
 	config.TLSVerify = true
-	tlsVerify, ok := input.Get(outType, "tls_verify")
-	if ok {
-		boolval, err := strconv.ParseBool(tlsVerify)
+
+	if input.Section(outType).HasKey("tls_verify") {
+		key := input.Section(outType).Key("tls_verify")
+		boolval, err := key.Bool()
 		if err == nil {
 			if boolval == false {
 				config.TLSVerify = false
 			}
 		} else {
-			errs.addErrorString("Unknown value for 'tls_verify': valid values are true, false, 1, 0. Default is 'true'")
+			errs.addErrorString(fmt.Sprintf("%v", err))
 		}
 	}
 
 	config.TLS12Only = true
-	tlsInsecure, ok := input.Get(outType, "insecure_tls")
-	if ok {
-		boolval, err := strconv.ParseBool(tlsInsecure)
+
+	if input.Section(outType).HasKey("insecure_tls") {
+		key := input.Section(outType).Key("insecure_tls")
+		boolval, err := key.Bool()
 		if err == nil {
 			if boolval == true {
 				config.TLS12Only = false
@@ -760,8 +807,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	serverCName, ok := input.Get(outType, "server_cname")
-	if ok {
+	if input.Section(outType).HasKey("server_cname") {
+		key := input.Section(outType).Key("server_cname")
+		serverCName := key.Value()
 		config.TLSCName = &serverCName
 	}
 
@@ -776,9 +824,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		config.UploadEmptyFiles = true
 	}
-	sendEmptyFiles, ok := input.Get(outType, "upload_empty_files")
-	if ok {
-		boolval, err := strconv.ParseBool(sendEmptyFiles)
+
+	if input.Section(outType).HasKey("upload_empty_files") {
+		key := input.Section(outType).Key("upload_empty_files")
+		boolval, err := key.Bool()
 		if err == nil {
 			if boolval == false {
 				config.UploadEmptyFiles = false
@@ -796,9 +845,9 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// default 10MB bundle size max before forcing a send
 	config.BundleSizeMax = 10 * 1024 * 1024
-	bundleSizeMax, ok := input.Get(outType, "bundle_size_max")
-	if ok {
-		bundleSizeMax, err := strconv.ParseInt(bundleSizeMax, 10, 64)
+	if input.Section(outType).HasKey("bundle_size_max") {
+		key := input.Section(outType).Key("bundle_size_max")
+		bundleSizeMax, err := key.Int64()
 		if err == nil {
 			config.BundleSizeMax = bundleSizeMax
 		}
@@ -806,46 +855,48 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// default 5 minute send interval
 	config.BundleSendTimeout = 5 * time.Minute
-	bundleSendTimeout, ok := input.Get(outType, "bundle_send_timeout")
-	if ok {
-		bundleSendTimeout, err := strconv.ParseInt(bundleSendTimeout, 10, 64)
+
+	if input.Section(outType).HasKey("bundle_send_timeout") {
+		key := input.Section(outType).Key("bundle_send_timeout")
+		bundleSendTimeout, err := key.Int64()
 		if err == nil {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 		}
 	}
 
-	val, ok = input.Get("bridge", "api_verify_ssl")
-	if ok {
-		config.CbAPIVerifySSL, err = strconv.ParseBool(val)
+	if input.Section("bridge").HasKey("api_verify_ssl") {
+		key := input.Section("bridge").Key("api_verify_ssl")
+		config.CbAPIVerifySSL, err = key.Bool()
 		if err != nil {
 			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
-	val, ok = input.Get("bridge", "api_token")
-	if ok {
-		config.CbAPIToken = val
+
+	if input.Section("bridge").HasKey("api_token") {
+		key := input.Section("bridge").Key("api_token")
+		config.CbAPIToken = key.Value()
 		config.PerformFeedPostprocessing = true
 	}
 
 	config.CbAPIProxyURL = ""
-	val, ok = input.Get("bridge", "api_proxy_url")
-	if ok {
-		config.CbAPIProxyURL = val
+
+	if input.Section("bridge").HasKey("api_proxy_url") {
+		key := input.Section("bridge").Key("api_proxy_url")
+		config.CbAPIProxyURL = key.Value()
 	}
 
-	val, ok = input.Get("bridge", "message_processor_count")
-	if ok {
-		if numprocessors, err := strconv.ParseInt(val, 10, 32); err == nil {
+	if input.Section("bridge").HasKey("message_processor_count") {
+		key := input.Section("bridge").Key("message_processor_count")
+		if numprocessors, err := key.Int(); err == nil {
 			config.NumProcessors = int(numprocessors)
 		} else {
 			config.NumProcessors = runtime.NumCPU()
 		}
 	}
 
-	val, ok = input.Get("bridge", "run_metrics")
-
-	if ok {
-		if runMetrics, err := strconv.ParseBool(val); err == nil {
+	if input.Section("bridge").HasKey("run_metrics") {
+		key := input.Section("bridge").Key("run_metrics")
+		if runMetrics, err := key.Bool(); err == nil {
 			config.RunMetrics = runMetrics
 		} else {
 			config.RunMetrics = false
@@ -854,9 +905,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.RunMetrics = false
 	}
 
-	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
-	if ok {
-		metricsEndpoint := fmt.Sprintf("%s", val)
+	if input.Section("bridge").HasKey("carbon_metrics_endpoint") {
+		key := input.Section("bridge").Key("carbon_metrics_endpoint")
+		metricsEndpoint := key.Value()
 		config.CarbonMetricsEndpoint = &metricsEndpoint
 	} else {
 		config.CarbonMetricsEndpoint = nil
@@ -868,9 +919,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.MetricTag = metricTagEnv
 	}
 
-	val, ok = input.Get("bridge", "use_time_float")
-	if ok {
-		usetimefloat, _ := strconv.ParseBool(val)
+	if input.Section("bridge").HasKey("use_time_float") {
+		key := input.Section("bridge").Key("use_time_float")
+		usetimefloat, _ := key.Bool()
 		config.UseTimeFloat = usetimefloat
 	} else {
 		config.UseTimeFloat = false
@@ -937,7 +988,9 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 	// oAuthFieldsConfigured is used to track OAuth fields that have been configured.
 	oAuthFieldsConfigured := make(map[string]bool)
 
-	if oAuthJwtClientEmail, ok := input.Get("http", "oauth_jwt_client_email"); ok {
+	if input.Section("http").HasKey("oauth_jwt_client_email") {
+		key := input.Section("http").Key("oauth_jwt_client_email")
+		oAuthJwtClientEmail := key.Value()
 		if len(oAuthJwtClientEmail) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_client_email"] = true
 			config.OAuthJwtClientEmail = oAuthJwtClientEmail
@@ -946,7 +999,9 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 		}
 	}
 
-	if oAuthJwtPrivateKey, ok := input.Get("http", "oauth_jwt_private_key"); ok {
+	if input.Section("http").HasKey("oauth_jwt_private_key") {
+		key := input.Section("http").Key("oauth_jwt_private_key")
+		oAuthJwtPrivateKey := key.Value()
 		if len(oAuthJwtPrivateKey) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_private_key"] = true
 			// Replace the escaped version of a line break character with the non-escaped version.
@@ -959,7 +1014,9 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 		}
 	}
 
-	if oAuthJwtPrivateKeyId, ok := input.Get("http", "oauth_jwt_private_key_id"); ok {
+	if input.Section("http").HasKey("oauth_jwt_private_key_id") {
+		key := input.Section("http").Key("oauth_jwt_private_key_id")
+		oAuthJwtPrivateKeyId := key.Value()
 		if len(oAuthJwtPrivateKeyId) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_private_key_id"] = true
 			config.OAuthJwtPrivateKeyId = oAuthJwtPrivateKeyId
@@ -968,7 +1025,9 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 		}
 	}
 
-	if scopesStr, ok := input.Get("http", "oauth_jwt_scopes"); ok {
+	if input.Section("http").HasKey("oauth_jwt_scopes") {
+		key := input.Section("http").Key("oauth_jwt_scopes")
+		scopesStr := key.Value()
 		if len(scopesStr) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_scopes"] = true
 
@@ -988,7 +1047,9 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 
 	}
 
-	if oAuthJwtTokenUrl, ok := input.Get("http", "oauth_jwt_token_url"); ok {
+	if input.Section("http").HasKey("oauth_jwt_token_url") {
+		key := input.Section("http").Key("oauth_jwt_token_url")
+		oAuthJwtTokenUrl := key.Value()
 		if len(oAuthJwtTokenUrl) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_token_url"] = true
 			config.OAuthJwtTokenUrl = oAuthJwtTokenUrl

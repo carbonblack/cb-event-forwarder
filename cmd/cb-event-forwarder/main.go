@@ -270,7 +270,6 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 }
 
 func outputMessage(msg map[string]interface{}) error {
-	log.Errorf("OUTPUT MESSAGE CALLED")
 	var err error
 
 	//
