@@ -79,42 +79,32 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			"sasl.mechanism":    config.KafkaMechanism,
 			"sasl.username":     config.KafkaUsername,
 			"sasl.password":     config.KafkaPassword}
-	case "SASL+SSL":
-		kafkaConfig = kafka.ConfigMap{"boostrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol,
-			"sasl.mechanism":    config.KafkaMechanism,
-			"sasl.username":     config.KafkaUsername,
-			"sasl.password":     config.KafkaPassword}
-		if config.KafkaSSLTrustStoreLocation != nil {
-			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
-			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
-		}
-		if config.KafkaSSLKeystoreLocation != nil {
-			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
-		}
-		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.password.key"] = config.KafkaSSLKeystorePassword
-		}
-		if len(config.KafkaSSLEnabledProtocols) > 0 {
-			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-		}
 	case "SSL":
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
 			"security.protocol": config.KafkaProtocol}
-		if config.KafkaSSLTrustStoreLocation != nil {
-			kafkaConfig["ssl.truststore.location"] = config.KafkaSSLTrustStoreLocation
-			kafkaConfig["ssl.truststore.password"] = config.KafkaSSLTrustStorePassword
+
+		if config.KafkaSSLCertificateLocation != nil {
+			kafkaConfig["ssl_certificate_location"] = config.KafkaSSLCertificateLocation
 		}
-		if config.KafkaSSLKeystoreLocation != nil {
-			kafkaConfig["ssl.keystore.location"] = config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.password"] = config.KafkaSSLKeystorePassword
+
+		if config.KafkaSSLKeyLocation != nil && config.KafkaSSLKeyPassword != nil {
+			kafkaConfig["ssl_key_location"] = config.KafkaSSLKeyLocation
+			kafkaConfig["ssl_Key_password"] = config.KafkaSSLKeyPassword
+		}
+
+		if config.KafkaSSLEnabledProtocols != nil {
+			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
+		}
+
+		if config.KafkaSSLCALocation != nil {
+			kafkaConfig["ssl.ca.location"] = config.KafkaSSLCALocation
 		}
 	default:
 		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
 	}
+
 	if config.KafkaCompressionType != nil {
-		kafkaConfig["compression.type"] = config.KafkaCompressionType
+		kafkaConfig["compression.type"] = *config.KafkaCompressionType
 	}
 
 	for index, _ := range o.brokers {
@@ -132,6 +122,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 			o.producers[index] = p
 		}
 	}
+
 	return nil
 }
 

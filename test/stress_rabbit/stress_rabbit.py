@@ -36,7 +36,7 @@ def main():
                                   content_type='application/protobuf',
                                   delivery_mode=1))
 
-        time.sleep(0.01)
+        time.sleep(1.0)
 
     connection.close()
 

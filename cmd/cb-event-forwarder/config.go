@@ -118,13 +118,15 @@ type Configuration struct {
 	KafkaPassword       string
 	KafkaMaxRequestSize int32
 
-	KafkaCompressionType       *string
-	KafkaSSLKeyPassword        *string
-	KafkaSSLKeystoreLocation   *string
-	KafkaSSLKeystorePassword   *string
-	KafkaSSLTrustStoreLocation *string
-	KafkaSSLTrustStorePassword *string
-	KafkaSSLEnabledProtocols   []string
+	KafkaCompressionType *string
+
+	KafkaSSLKeyPassword *string
+	KafkaSSLKeyLocation *string
+
+	KafkaSSLCertificateLocation *string
+	KafkaSSLCALocation          *string
+
+	KafkaSSLEnabledProtocols []string
 
 	//Splunkd
 	SplunkToken *string
@@ -659,34 +661,28 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.KafkaCompressionType = &compressionType
 		}
 
-		if input.Section("kafka").HasKey("ssl_keystore_location") {
-			key := input.Section("kafka").Key("ssl_keystore_location")
-			SSLKeystoreLocation := key.Value()
-			config.KafkaSSLKeystoreLocation = &SSLKeystoreLocation
+		if input.Section("kafka").HasKey("ssl_ca_location") {
+			key := input.Section("kafka").Key("ssl_ca_location")
+			SSLCALocation := key.Value()
+			config.KafkaSSLCALocation = &SSLCALocation
 		}
 
-		if input.Section("kafka").HasKey("ssl_keystore_password") {
-			key := input.Section("kafka").Key("ssl_keystore_password")
-			SSLKeystorePassword := key.Value()
-			config.KafkaSSLKeystorePassword = &SSLKeystorePassword
+		if input.Section("kafka").HasKey("ssl_cert_location") {
+			key := input.Section("kafka").Key("ssl_cert_location")
+			SSLCertLocation := key.Value()
+			config.KafkaSSLCertificateLocation = &SSLCertLocation
+		}
+
+		if input.Section("kafka").HasKey("ssl_key_location") {
+			key := input.Section("kafka").Key("ssl_key_location")
+			SSLKeyLocation := key.Value()
+			config.KafkaSSLKeyLocation = &SSLKeyLocation
 		}
 
 		if input.Section("kafka").HasKey("ssl_key_password") {
 			key := input.Section("kafka").Key("ssl_key_password")
 			SSLKeyPassword := key.Value()
 			config.KafkaSSLKeyPassword = &SSLKeyPassword
-		}
-
-		if key != nil {
-			key := input.Section("kafka").Key("ssl_truststore_location")
-			SSLTrustStoreLocation := key.Value()
-			config.KafkaSSLTrustStoreLocation = &SSLTrustStoreLocation
-		}
-
-		if input.Section("kafka").HasKey("ssl_truststore_password") {
-			key := input.Section("kafka").Key("ssl_truststore_password")
-			SSLTrustStorePassword := key.Value()
-			config.KafkaSSLTrustStorePassword = &SSLTrustStorePassword
 		}
 
 		if input.Section("kafka").HasKey("ssl_enabled_protocols") {
