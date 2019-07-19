@@ -117,7 +117,7 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 			select {
 			case message := <-messages:
-				if err := o.output(message); err != nil {
+				if err := o.output(message); err != nil && !config.DryRun {
 					errorChan <- err
 					return
 				}

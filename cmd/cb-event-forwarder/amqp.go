@@ -12,17 +12,66 @@ import (
 /*
  * AMQP bookkeeping
  */
+/*
+ ZE 2019 - Improved Consumer struct
+*/
+type Consumer struct {
+	conn              AMQPConnection
+	channel           AMQPChannel
+	bindToRawExchange bool
+	tag               string
+	queueName         string
+	amqpURI           string
+	tlsCfg            *tls.Config
+	routingKeys       []string
+	dialer            AMQPDialer
+	connectionErrors  chan *amqp.Error
+}
+
+type AMQPConnection interface {
+	Close() error
+	NotifyClose(receiver chan *amqp.Error) chan *amqp.Error
+	Channel() (AMQPChannel, error)
+}
+
+type AMQPChannel interface {
+	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
+	Cancel(consumer string, noWait bool) error
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+}
+
+type WrappedAMQPConnection struct {
+	*amqp.Connection
+}
+
+type WrappedAMQPChannel struct {
+	*amqp.Channel
+}
+
+func (wrappedcon WrappedAMQPConnection) Channel() (AMQPChannel, error) {
+	channel, err := wrappedcon.Connection.Channel()
+	return WrappedAMQPChannel{channel}, err
+}
 
 func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
-	routingKeys []string) (*Consumer, <-chan amqp.Delivery, error) {
+	routingKeys []string, dialer AMQPDialer) *Consumer {
 	c := &Consumer{
-		conn:    nil,
-		channel: nil,
-		tag:     ctag,
-	}
+		conn:              nil,
+		channel:           nil,
+		tag:               ctag,
+		bindToRawExchange: bindToRawExchange,
+		routingKeys:       routingKeys,
+		dialer:            dialer,
+		amqpURI:           amqpURI,
+		queueName:         queueName,
+		tlsCfg:            getAMQPTLSConfigFromConf()}
 
-	var err error
+	return c
+}
 
+func getAMQPTLSConfigFromConf() *tls.Config {
 	if config.AMQPTLSEnabled == true {
 		log.Info("Connecting to message bus via TLS...")
 
@@ -42,28 +91,44 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		}
 		cfg.Certificates = []tls.Certificate{cert}
 		cfg.InsecureSkipVerify = true
+		return cfg
+	} else {
+		return nil
+	}
+}
 
-		c.conn, err = amqp.DialTLS(amqpURI, cfg)
-
+func (c *Consumer) DialAMQP() error {
+	var err error = nil
+	if c.tlsCfg != nil {
+		log.Debugf("Connecting to message bus at %s via TLS...", c.amqpURI)
+		c.conn, err = c.dialer.DialTLS(c.amqpURI, c.tlsCfg)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Dial: %s", err)
+			return err
 		}
 	} else {
-		log.Info("Connecting to message bus...")
-		c.conn, err = amqp.Dial(amqpURI)
-
+		log.Debugf("Connecting to message bus at %s....", c.amqpURI)
+		c.conn, err = c.dialer.Dial(c.amqpURI)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Dial: %s", err)
+			return err
 		}
-	}
 
+	}
+	return err
+}
+
+func (c *Consumer) Connect() (deliveries <-chan amqp.Delivery, err error) {
+
+	err = c.DialAMQP()
+	if err != nil {
+		return deliveries, err
+	}
 	c.channel, err = c.conn.Channel()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Channel: %s", err)
+		return deliveries, err
 	}
 
 	queue, err := c.channel.QueueDeclare(
-		queueName,
+		c.queueName,
 		false, // durable,
 		true,  // delete when unused
 		false, // exclusive
@@ -71,40 +136,42 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		nil,   // arguments
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Queue declare: %s", err)
+		return deliveries, err
 	}
 
-	if bindToRawExchange {
-		err = c.channel.QueueBind(queueName, "", "api.rawsensordata", false, nil)
+	if c.bindToRawExchange {
+		err = c.channel.QueueBind(c.queueName, "", "api.rawsensordata", false, nil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("QueueBind: %s", err)
+			return deliveries, err
 		}
-		log.Info("Subscribed to bulk raw sensor event exchange")
+		log.Infof("ubscribed to bulk raw sensor event exchange on queue %s", c.queueName)
 	}
 
-	for _, key := range routingKeys {
-		err = c.channel.QueueBind(queueName, key, "api.events", false, nil)
+	for _, key := range c.routingKeys {
+		err = c.channel.QueueBind(c.queueName, key, "api.events", false, nil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("QueueBind: %s", err)
+			return deliveries, err
 		}
-		log.Infof("Subscribed to %s", key)
+		log.Infof("Subscribed to %s on %s", key, c.queueName)
 	}
 
-	deliveries, err := c.channel.Consume(
+	deliveries, err = c.channel.Consume(
 		queue.Name,
 		c.tag,
-		config.AMQPAutomaticAcking, // automatic or manual acking
-		false,                      // exclusive
-		false,                      // noLocal
-		false,                      // noWait
-		nil,                        // arguments
+		true,  // automatic or manual acking
+		false, // exclusive
+		false, // noLocal
+		false, // noWait
+		nil,   // arguments
 	)
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("Queue consume: %s", err)
+		return deliveries, err
 	}
 
-	return c, deliveries, nil
+	c.conn.NotifyClose(c.connectionErrors)
+
+	return deliveries, nil
 }
 
 func (c *Consumer) Shutdown() error {
@@ -119,4 +186,22 @@ func (c *Consumer) Shutdown() error {
 	defer log.Infof("AMQP shutdown OK")
 
 	return nil
+}
+
+type AMQPDialer interface {
+	Dial(string) (AMQPConnection, error)
+	DialTLS(string, *tls.Config) (AMQPConnection, error)
+}
+
+type StreadwayAMQPDialer struct {
+}
+
+func (sdial StreadwayAMQPDialer) Dial(s string) (AMQPConnection, error) {
+	conn, err := amqp.Dial(s)
+	return WrappedAMQPConnection{conn}, err
+}
+
+func (sdial StreadwayAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnection, error) {
+	conn, err := amqp.DialTLS(s, tlscfg)
+	return WrappedAMQPConnection{conn}, err
 }

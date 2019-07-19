@@ -11,7 +11,7 @@ services:
     restart: always
     tty: true
     sysctls:
-      net.ipv6.conf.all.disable_ipv6 :  1
+      net.ipv6.conf.all.disable_ipv6: 1
     ports:
       - "33706:33706"
     depends_on:
@@ -86,6 +86,7 @@ services:
       ZOOKEEPER_SERVERS: zookeeper-1:12888:13888;zookeeper-2:22888:23888;zookeeper-3:32888:33888
 
   kafka-1:
+    container_name: kafka-1
     image: confluentinc/cp-kafka:latest
     hostname: kafka-1
     restart: always
@@ -96,6 +97,8 @@ services:
       - zookeeper-1
       - zookeeper-2
       - zookeeper-3
+    volumes:
+      - ./run/data/kafka-1/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -105,9 +108,13 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_JMX_PORT: 19999
       KAFKA_JXM_HOSTNAME: kafka-1
+      KAFKA_LOG_RETENTION_MS: 60000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 10000
+      KAFKA_LOG_CLEANER_ENABLE: "true"
       JMX_PORT: 19999
 
   kafka-2:
+    container_name: kafka-2
     image: confluentinc/cp-kafka:latest
     hostname: kafka-2
     restart: always
@@ -118,6 +125,8 @@ services:
       - zookeeper-1
       - zookeeper-2
       - zookeeper-3
+    volumes:
+      - ./run/data/kafka-2/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -127,9 +136,13 @@ services:
       KAFKA_DEFAULT_REPLICATION_FACTOR: 3
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_JMX_HOSTNAME: kafka-2
+      KAFKA_LOG_RETENTION_MS: 60000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 10000
+      KAFKA_LOG_CLEANER_ENABLE: "true"
       JMX_PORT: 29999
 
   kafka-3:
+    container_name: kafka-3
     image: confluentinc/cp-kafka:latest
     hostname: kafka-3
     restart: always
@@ -140,6 +153,8 @@ services:
       - zookeeper-1
       - zookeeper-2
       - zookeeper-3
+    volumes:
+      - ./run/data/kafka-3/data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:12181,zookeeper-2:12181,zookeeper-3:12181
@@ -149,6 +164,9 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_JMX_PORT: 39999
       KAFKA_JXM_HOSTNAME: kafka-3
+      KAFKA_LOG_RETENTION_MS: 60000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 10000
+      KAFKA_LOG_CLEANER_ENABLE: "true"
       JMX_PORT: 39999
 
   grafana:
@@ -169,8 +187,8 @@ services:
     image: "rabbitmq:3.6.5-management"
     hostname: "rabbitmq"
     volumes:
-      - ./rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+      - ./run/config/rabbitmq/definitions.json:/opt/definitions.json:ro
+      - ./run/config/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
     ports:
       - "15672:15672"
       - "5672:5672"

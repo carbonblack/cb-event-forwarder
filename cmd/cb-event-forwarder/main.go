@@ -35,6 +35,9 @@ var (
 
 var version = "NOT FOR RELEASE"
 
+var inputChannelSize = 100000
+var outputChannelSize = 1000000
+
 var wg sync.WaitGroup
 var config Configuration
 
@@ -44,6 +47,9 @@ type Status struct {
 	OutputEventCount metrics.Meter
 	OutputByteCount  metrics.Meter
 	ErrorCount       metrics.Meter
+
+	InputChannelCount  metrics.Gauge
+	OutputChannelCount metrics.Gauge
 
 	IsConnected     bool
 	LastConnectTime time.Time
@@ -88,11 +94,13 @@ func init() {
 }
 
 func setupMetrics() {
-	status.InputEventCount = metrics.NewRegisteredMeter("input_event_count", metrics.DefaultRegistry)
-	status.InputByteCount = metrics.NewRegisteredMeter("input_byte_count", metrics.DefaultRegistry)
-	status.OutputEventCount = metrics.NewRegisteredMeter("output_event_count", metrics.DefaultRegistry)
-	status.OutputByteCount = metrics.NewRegisteredMeter("output_byte_count", metrics.DefaultRegistry)
-	status.ErrorCount = metrics.NewRegisteredMeter("error_count", metrics.DefaultRegistry)
+	status.InputEventCount = metrics.NewRegisteredMeter("core.input.events", metrics.DefaultRegistry)
+	status.InputByteCount = metrics.NewRegisteredMeter("core.input.data", metrics.DefaultRegistry)
+	status.OutputEventCount = metrics.NewRegisteredMeter("core.output.events", metrics.DefaultRegistry)
+	status.OutputByteCount = metrics.NewRegisteredMeter("core.output.data", metrics.DefaultRegistry)
+	status.ErrorCount = metrics.NewRegisteredMeter("errors", metrics.DefaultRegistry)
+	status.InputChannelCount = metrics.NewRegisteredGauge("core.channel.input.events", metrics.DefaultRegistry)
+	status.OutputChannelCount = metrics.NewRegisteredGauge("core.channel.output.events", metrics.DefaultRegistry)
 
 	status.Healthy = metrics.NewHealthcheck(func(h metrics.Healthcheck) {
 		if status.IsConnected {
@@ -127,7 +135,7 @@ func setupMetrics() {
 		return config.EventTypes
 	}))
 
-	results = make(chan string)
+	results = make(chan string, outputChannelSize)
 	outputErrors = make(chan error)
 
 	status.StartTime = time.Now()
@@ -136,11 +144,6 @@ func setupMetrics() {
 /*
  * Types
  */
-type Consumer struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	tag     string
-}
 
 type OutputHandler interface {
 	Initialize(string) error
@@ -190,6 +193,13 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	}
 }
 
+func monitorChannels(ticker *time.Ticker, inputChannel chan<- amqp.Delivery, outputChannel chan<- string) {
+	for range ticker.C {
+		status.InputChannelCount.Update(int64(len(inputChannel)))
+		status.OutputChannelCount.Update(int64(len(outputChannel)))
+	}
+}
+
 func processMessage(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
 	status.InputEventCount.Mark(1)
 	status.InputByteCount.Mark(int64(len(body)))
@@ -199,6 +209,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	//
 	// Process message based on ContentType
 	//
+	//log.Errorf("PROCESS MESSAGE CALLED ROUTINGKEY = %s contentType = %s exchange = %s ",routingKey, contentType, exchangeName)
 	if contentType == "application/zip" {
 		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
@@ -211,6 +222,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		// single protobuf
 		if exchangeName == "api.rawsensordata" {
 			msgs, err = ProcessProtobufBundle(routingKey, body, headers)
+			//log.Infof("Process Protobuf bundle returned %d messages and error = %v",len(msgs),err)
 		} else {
 			msg, err := ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
@@ -294,6 +306,12 @@ func outputMessage(msg map[string]interface{}) error {
 	return nil
 }
 
+func splitDelivery(deliveries <-chan amqp.Delivery, messages chan<- amqp.Delivery) {
+	for delivery := range deliveries {
+		messages <- delivery
+	}
+}
+
 func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
@@ -350,9 +368,24 @@ func logFileProcessingLoop() <-chan error {
 }
 
 func messageProcessingLoop(uri, queueName, consumerTag string) error {
-	connectionError := make(chan *amqp.Error, 1)
 
-	c, deliveries, err := NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes)
+	var dialer AMQPDialer
+
+	if config.CannedInput {
+		md := NewMockAMQPDialer()
+		mockChan, _ := md.Connection.Channel()
+		go RunCannedData(mockChan)
+		dialer = md
+	} else {
+		dialer = StreadwayAMQPDialer{}
+	}
+
+	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
+
+	messages := make(chan amqp.Delivery, inputChannelSize)
+
+	deliveries, err := c.Connect()
+
 	if err != nil {
 		status.LastConnectError = err.Error()
 		status.ErrorTime = time.Now()
@@ -362,14 +395,17 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	status.LastConnectTime = time.Now()
 	status.IsConnected = true
 
-	c.conn.NotifyClose(connectionError)
-
 	numProcessors := config.NumProcessors
 	log.Infof("Starting %d message processors\n", numProcessors)
 
 	wg.Add(numProcessors)
+
+	if config.RunMetrics {
+		go monitorChannels(time.NewTicker(100*time.Millisecond), messages, results)
+	}
+	go splitDelivery(deliveries, messages)
 	for i := 0; i < numProcessors; i++ {
-		go worker(deliveries)
+		go worker(messages)
 	}
 
 	for {
@@ -384,12 +420,14 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 				wg.Wait()
 				os.Exit(1)
 			}
-		case closeError := <-connectionError:
+
+		case closeError := <-c.connectionErrors:
 			status.IsConnected = false
 			status.LastConnectError = closeError.Error()
 			status.ErrorTime = time.Now()
 
-			log.Errorf("Connection closed: %s", closeError.Error())
+			log.Errorf("Connection error: %s", closeError.Error())
+			// This assumes that after the error, workers don't get any more messagesa nd will eventually return
 			log.Info("Waiting for all workers to exit")
 			wg.Wait()
 			log.Info("All workers have exited")
@@ -532,6 +570,7 @@ func main() {
 	} else {
 		exportedVersion.Set(version)
 	}
+
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
 	for _, addr := range addrs {
@@ -652,10 +691,9 @@ func main() {
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
-		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, "cb.eventforwarder", addr)
+
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, config.MetricTag, addr)
 		log.Infof("Sending metrics to graphite")
-	} else {
-		log.Infof("Didn't send %v %v", config.CarbonMetricsEndpoint, config.RunMetrics)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)

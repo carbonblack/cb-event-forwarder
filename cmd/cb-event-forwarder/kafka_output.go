@@ -10,15 +10,38 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 )
+
+// Producer implements a High-level Apache Kafka Producer instance ZE 2018
+// This allows Mocking producers w/o actual contact to kafka broker for testing purposes
+type WrappedProducer interface {
+	String() string
+
+	Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error
+
+	Events() chan kafka.Event
+
+	ProduceChannel() chan *kafka.Message
+
+	Len() int
+
+	Flush(timeoutMs int) int
+
+	Close()
+
+	GetMetadata(topic *string, allTopics bool, timeoutMs int) (*kafka.Metadata, error)
+
+	QueryWatermarkOffsets(topic string, partition int32, timeoutMs int) (low, high int64, err error)
+
+	OffsetsForTimes(times []kafka.TopicPartition, timeoutMs int) (offsets []kafka.TopicPartition, err error)
+}
 
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
 	topic             string
-	producers         []*kafka.Producer
+	producers         []WrappedProducer
 	droppedEventCount int64
 	eventSentCount    int64
 	EventSent         metrics.Meter
@@ -39,81 +62,69 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
 	o.topicSuffix = config.KafkaTopicSuffix
 	o.topic = config.KafkaTopic
-	o.producers = make([]*kafka.Producer, len(o.brokers))
+	o.producers = make([]WrappedProducer, len(o.brokers))
 
-	o.EventSent = metrics.NewRegisteredMeter("kafka_events_sent", metrics.DefaultRegistry)
-	o.DroppedEvent = metrics.NewRegisteredMeter("kafka_dropped_events", metrics.DefaultRegistry)
-	o.EventSentBytes = metrics.NewRegisteredMeter("kafka_event_sent_Bytes", metrics.DefaultRegistry)
+	o.EventSent = metrics.NewRegisteredMeter("output.kafka.events_sent", metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("output.kafka.events_dropped", metrics.DefaultRegistry)
+	o.EventSentBytes = metrics.NewRegisteredMeter("output.kafka.data_sent", metrics.DefaultRegistry)
 
 	var kafkaConfig kafka.ConfigMap = nil
 	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-	switch config.KafkaProtocol {
-	case "PLAINTEXT":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
-	case "SASL":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol,
-			"sasl.mechanism":    config.KafkaMechanism,
-			"sasl.username":     config.KafkaUsername,
-			"sasl.password":     config.KafkaPassword}
-	case "SASL+SSL":
-		kafkaConfig = kafka.ConfigMap{"boostrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol,
-			"sasl.mechanism":    config.KafkaMechanism,
-			"sasl.username":     config.KafkaUsername,
-			"sasl.password":     config.KafkaPassword}
+	if config.KafkaProducerProps == nil {
+		switch config.KafkaProtocol {
+		case "PLAINTEXT":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
+		case "SASL":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+				"security.protocol": config.KafkaProtocol,
+				"sasl.mechanism":    config.KafkaMechanism,
+				"sasl.username":     config.KafkaUsername,
+				"sasl.password":     config.KafkaPassword}
+		case "SSL":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+				"security.protocol": config.KafkaProtocol}
 
-		if config.KafkaSSLKeystoreLocation != nil && config.KafkaSSLKeystoreFilename != nil && config.KafkaSSLKeystorePassword != nil {
-			kafkaConfig["ssl.keystore.location"] = *config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.filename"] = *config.KafkaSSLKeystoreFilename
-			kafkaConfig["ssl.keystore.password"] = *config.KafkaSSLKeystorePassword
-		}
-		if config.KafkaSSLCAKeyFilename != nil && config.KafkaSSLCAKeyLocation != nil {
-			kafkaConfig["ssl.ca.location"] = *config.KafkaSSLCAKeyLocation
-			kafkaConfig["ssl.ca.filename"] = *config.KafkaSSLCAKeyFilename
-		}
-		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.key.password"] = *config.KafkaSSLKeyPassword
-		}
-		if len(config.KafkaSSLEnabledProtocols) > 0 {
-			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-		}
-	case "SSL":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol}
-		/*if config.KafkaSSLTrustStoreLocation != nil {
-			kafkaConfig["ssl.truststore.location"] = *config.KafkaSSLTrustStoreLocation
-			kafkaConfig["ssl.truststore.password"] = *config.KafkaSSLTrustStorePassword
-		}*/
-		if config.KafkaSSLKeystoreLocation != nil && config.KafkaSSLKeystoreFilename != nil && config.KafkaSSLKeystorePassword != nil {
-			kafkaConfig["ssl.keystore.location"] = *config.KafkaSSLKeystoreLocation
-			kafkaConfig["ssl.keystore.filename"] = *config.KafkaSSLKeystoreFilename
-			kafkaConfig["ssl.keystore.password"] = *config.KafkaSSLKeystorePassword
-		}
-		if config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl.key.password"] = *config.KafkaSSLKeyPassword
-		}
-		if config.KafkaSSLCAKeyFilename != nil && config.KafkaSSLCAKeyLocation != nil {
-			kafkaConfig["ssl.ca.location"] = *config.KafkaSSLCAKeyLocation
-			kafkaConfig["ssl.ca.filename"] = *config.KafkaSSLCAKeyFilename
-		}
-		if len(config.KafkaSSLEnabledProtocols) > 0 {
-			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-		}
-	default:
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
-	}
+			if config.KafkaSSLCertificateLocation != nil {
+				kafkaConfig["ssl_certificate_location"] = config.KafkaSSLCertificateLocation
+			}
 
-	if config.KafkaCompressionType != nil {
-		kafkaConfig["compression.type"] = *config.KafkaCompressionType
+			if config.KafkaSSLKeyLocation != nil && config.KafkaSSLKeyPassword != nil {
+				kafkaConfig["ssl_key_location"] = config.KafkaSSLKeyLocation
+				kafkaConfig["ssl_Key_password"] = config.KafkaSSLKeyPassword
+			}
+
+			if config.KafkaSSLEnabledProtocols != nil {
+				kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
+			}
+
+			if config.KafkaSSLCALocation != nil {
+				kafkaConfig["ssl.ca.location"] = config.KafkaSSLCALocation
+			}
+		default:
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
+		}
+
+		if config.KafkaCompressionType != nil {
+			kafkaConfig["compression.type"] = *config.KafkaCompressionType
+		}
+	} else {
+		kafkaConfig = config.KafkaProducerProps
 	}
 
 	for index, _ := range o.brokers {
-		p, err := kafka.NewProducer(&kafkaConfig)
-		if err != nil {
-			panic(err)
+		if config.DryRun {
+			p, err := NewMockedKafkaProducer(".")
+			if err != nil {
+				panic(err)
+			}
+			o.producers[index] = p
+		} else {
+			p, err := kafka.NewProducer(&kafkaConfig)
+			if err != nil {
+				panic(err)
+			}
+			o.producers[index] = p
 		}
-		o.producers[index] = p
 	}
 
 	return nil
@@ -121,7 +132,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
-	joinEventsChan := make(chan (kafka.Event))
+	joinEventsChan := make(chan (kafka.Event), 100000)
 	sigs := make(chan os.Signal, 1)
 	stopProdChans := make([]chan struct{}, len(o.producers))
 
@@ -133,7 +144,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 	for workernum, producer := range o.producers {
 		stopProdChans[workernum] = make(chan struct{}, 1)
-		go func(workernum int32, producer *kafka.Producer, stopProdChan <-chan struct{}) {
+		go func(workernum int32, producer WrappedProducer, stopProdChan <-chan struct{}) {
 
 			defer producer.Close()
 
@@ -161,6 +172,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					}
 					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
 					output(message, o.producers[workernum], partition)
+					o.EventSent.Mark(1)
 					o.EventSentBytes.Mark(int64(len(message)))
 				case <-stopProdChan:
 					shouldStop = true
@@ -180,15 +192,8 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 			case e := <-joinEventsChan:
 				m := e.(*kafka.Message)
 				if m.TopicPartition.Error != nil {
-					//log.Debugf("Delivery failed: %v\n", m.TopicPartition.Error)
-					atomic.AddInt64(&o.droppedEventCount, 1)
 					o.DroppedEvent.Mark(1)
 					errorChan <- m.TopicPartition.Error
-				} else {
-					/*log.Debugf("Delivered message to topic %s [%d] at offset %v\n",
-					*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)*/
-					atomic.AddInt64(&o.eventSentCount, 1)
-					o.EventSent.Mark(1)
 				}
 			case sig := <-sigs:
 				switch sig {
@@ -227,13 +232,17 @@ func (o *KafkaOutput) Key() string {
 	return fmt.Sprintf("brokers:%s", o.brokers)
 }
 
-func output(m string, producer *kafka.Producer, partition kafka.TopicPartition) {
+func output(m string, producer WrappedProducer, partition kafka.TopicPartition) {
 	kafkamsg := &kafka.Message{
 		TopicPartition: partition,
 		Value:          []byte(m),
 	}
-	for producer.Produce(kafkamsg, nil) != nil {
+	var err error = producer.Produce(kafkamsg, nil)
+
+	for err != nil {
+		log.Errorf("ERROR PRODUCING TO KAFKA %v", err)
 		producer.Flush(1)
+		err = producer.Produce(kafkamsg, nil)
 	}
 
 }
