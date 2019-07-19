@@ -694,10 +694,12 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.KafkaSSLEnabledProtocols = make([]string, 0)
 		}
 
-		if input.Section("kafka.producer") != nil{
+		if _, err := input.GetSection("kafka.producer"); err == nil {
 			config.KafkaProducerProps = kafka.ConfigMap{}
-			err := input.Section("kafka.producer").MapTo(config.KafkaProducerProps)
-			panic(err);
+			kcfg := input.Section("kafka.producer").KeysHash()
+			for key,value := range kcfg {
+				config.KafkaProducerProps[key] = value
+			}
 		}
 
 	case "splunk":
