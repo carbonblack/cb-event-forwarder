@@ -70,41 +70,45 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 	var kafkaConfig kafka.ConfigMap = nil
 	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-	switch config.KafkaProtocol {
-	case "PLAINTEXT":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
-	case "SASL":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol,
-			"sasl.mechanism":    config.KafkaMechanism,
-			"sasl.username":     config.KafkaUsername,
-			"sasl.password":     config.KafkaPassword}
-	case "SSL":
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-			"security.protocol": config.KafkaProtocol}
+	if config.KafkaProducerProps == nil {
+		switch config.KafkaProtocol {
+		case "PLAINTEXT":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
+		case "SASL":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+				"security.protocol": config.KafkaProtocol,
+				"sasl.mechanism":    config.KafkaMechanism,
+				"sasl.username":     config.KafkaUsername,
+				"sasl.password":     config.KafkaPassword}
+		case "SSL":
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
+				"security.protocol": config.KafkaProtocol}
 
-		if config.KafkaSSLCertificateLocation != nil {
-			kafkaConfig["ssl_certificate_location"] = config.KafkaSSLCertificateLocation
+			if config.KafkaSSLCertificateLocation != nil {
+				kafkaConfig["ssl_certificate_location"] = config.KafkaSSLCertificateLocation
+			}
+
+			if config.KafkaSSLKeyLocation != nil && config.KafkaSSLKeyPassword != nil {
+				kafkaConfig["ssl_key_location"] = config.KafkaSSLKeyLocation
+				kafkaConfig["ssl_Key_password"] = config.KafkaSSLKeyPassword
+			}
+
+			if config.KafkaSSLEnabledProtocols != nil {
+				kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
+			}
+
+			if config.KafkaSSLCALocation != nil {
+				kafkaConfig["ssl.ca.location"] = config.KafkaSSLCALocation
+			}
+		default:
+			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
 		}
 
-		if config.KafkaSSLKeyLocation != nil && config.KafkaSSLKeyPassword != nil {
-			kafkaConfig["ssl_key_location"] = config.KafkaSSLKeyLocation
-			kafkaConfig["ssl_Key_password"] = config.KafkaSSLKeyPassword
+		if config.KafkaCompressionType != nil {
+			kafkaConfig["compression.type"] = *config.KafkaCompressionType
 		}
-
-		if config.KafkaSSLEnabledProtocols != nil {
-			kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-		}
-
-		if config.KafkaSSLCALocation != nil {
-			kafkaConfig["ssl.ca.location"] = config.KafkaSSLCALocation
-		}
-	default:
-		kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
-	}
-
-	if config.KafkaCompressionType != nil {
-		kafkaConfig["compression.type"] = *config.KafkaCompressionType
+	} else {
+		kafkaConfig = config.KafkaProducerProps
 	}
 
 	for index, _ := range o.brokers {

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 const (
@@ -127,6 +127,8 @@ type Configuration struct {
 	KafkaSSLCALocation          *string
 
 	KafkaSSLEnabledProtocols []string
+
+	KafkaProducerProps kafka.ConfigMap
 
 	//Splunkd
 	SplunkToken *string
@@ -690,6 +692,12 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.KafkaSSLEnabledProtocols = strings.Split(key.Value(), ",")
 		} else {
 			config.KafkaSSLEnabledProtocols = make([]string, 0)
+		}
+
+		if input.Section("kafka.producer") != nil{
+			config.KafkaProducerProps = kafka.ConfigMap{}
+			err := input.Section("kafka.producer").MapTo(config.KafkaProducerProps)
+			panic(err);
 		}
 
 	case "splunk":
