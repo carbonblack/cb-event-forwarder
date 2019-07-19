@@ -31,7 +31,6 @@ import _ "net/http/pprof"
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
-	metricTag          = flag.String("metric", "", "The metrics tag to identify this execution.")
 )
 
 var version = "NOT FOR RELEASE"
@@ -694,19 +693,8 @@ func main() {
 			log.Panicf("Failing resolving carbon endpoint %v", err)
 		}
 
-		metricTagEnv := os.Getenv("EF_METRIC_TAG")
-		log.Debugf("Metric Tag: %s, Environment Variable: %s", *metricTag, metricTagEnv)
-		metricName := fmt.Sprintf("cb.eventforwarder")
-		if *metricTag != "" {
-			metricName = *metricTag
-		} else if metricTagEnv != "" {
-			metricName = metricTagEnv
-		}
-
-		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, metricName, addr)
+		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Second, config.MetricTag, addr)
 		log.Infof("Sending metrics to graphite")
-	} else {
-		log.Infof("Didn't send %v %v", config.CarbonMetricsEndpoint, config.RunMetrics)
 	}
 
 	exp.Exp(metrics.DefaultRegistry)

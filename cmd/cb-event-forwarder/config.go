@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vaughan0/go-ini"
@@ -137,6 +138,7 @@ type Configuration struct {
 	//graphite/carbon
 	RunMetrics            bool
 	CarbonMetricsEndpoint *string
+	MetricTag             string
 }
 
 type ConfigurationError struct {
@@ -854,12 +856,16 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	val, ok = input.Get("bridge", "carbon_metrics_endpoint")
 	if ok {
-		//log.Infof("SETTING CARBONMETRICSENDPOITN TO %s",val)
 		metricsEndpoint := fmt.Sprintf("%s", val)
 		config.CarbonMetricsEndpoint = &metricsEndpoint
 	} else {
-		//log.Infof("SETTING CARBONMETRICSENDPOINT TO NIL")
 		config.CarbonMetricsEndpoint = nil
+	}
+
+	config.MetricTag = "cb.eventforwarder"
+	metricTagEnv := os.Getenv("EF_METRIC_TAG")
+	if metricTagEnv != "" {
+		config.MetricTag = metricTagEnv
 	}
 
 	val, ok = input.Get("bridge", "use_time_float")

@@ -3,12 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"path"
-	"os"
 	"io/ioutil"
+	"os"
+	"path"
 )
 
 type MockAMQPConnection struct {
@@ -120,7 +120,7 @@ func RunCannedData(mockChan AMQPChannel) {
 	for {
 		for _, format := range []string{"zipbundles"} {
 
-			pathname := path.Join("test/stress_rabbit/",format)
+			pathname := path.Join("test/stress_rabbit/", format)
 
 			fp, err := os.Open(pathname)
 
@@ -143,7 +143,7 @@ func RunCannedData(mockChan AMQPChannel) {
 					continue
 				}
 
-				filename := path.Join(pathname,fn.Name())
+				filename := path.Join(pathname, fn.Name())
 
 				fp, err := os.Open(filename)
 				if err != nil {
@@ -162,19 +162,18 @@ func RunCannedData(mockChan AMQPChannel) {
 				exchange := "api.rawsensordata"
 				contentType := "application/protobuf"
 
-
 				if err = mockChan.Publish(
 					exchange, // publish to an exchange
-					"", // routing to 0 or more queues
-					false, // mandatory
-					false, // immediate
+					"",       // routing to 0 or more queues
+					false,    // mandatory
+					false,    // immediate
 					amqp.Publishing{
 						Headers:         amqp.Table{},
 						ContentType:     contentType,
 						ContentEncoding: "",
 						Body:            b,
 						DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
-						Priority:        0, // 0-
+						Priority:        0,              // 0-
 					},
 				); err != nil {
 					log.Errorf("Failed to publish %s %s: %s", exchange, "", err)

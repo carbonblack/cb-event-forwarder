@@ -245,9 +245,9 @@ func output(m string, producer WrappedProducer, partition kafka.TopicPartition) 
 	var err error = producer.Produce(kafkamsg, nil)
 
 	for err != nil {
-		log.Errorf("ERROR PRODUCING TO KAFKA %v",err)
+		log.Errorf("ERROR PRODUCING TO KAFKA %v", err)
 		producer.Flush(1)
-		err = producer.Produce(kafkamsg,nil)
+		err = producer.Produce(kafkamsg, nil)
 	}
 
 }
