@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
-	"zvelo.io/ttlru"
+	"github.com/carbonblack/ttlru"
 )
 
 type ThreatReport struct {
