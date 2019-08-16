@@ -740,7 +740,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(parameterKey) > 0 {
-		if input.Section("bridge").HasKey(parameterKey) {
+		if ! input.Section("bridge").HasKey(parameterKey) {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
 		} else {
