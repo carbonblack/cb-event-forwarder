@@ -203,21 +203,19 @@ output from the JSON status is shown below:
 
 ## Building from source
 
-It is recommended to use golang 1.6.4.
+It is recommended to use the latest golang available on your target system - at the time of writing this is 1.13.x.
 
-Setup your GOPATH environment variable.
-See [https://golang.org/doc/code.html#GOPATH](https://golang.org/doc/code.html#GOPATH) for details
+Setup your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).'
+
+Set GO111MODULE=on (that is ,activate optional module support). The project can be built using the provided makefile. 
+
+The project requires librdkafka.so to be available and on the PKG_CONFIG_PATH for your build-system. Follow the guide in [go-confluent-kafka](https://github.com/confluentinc/confluent-kafka-go) to make sure librdkafka is installed correctly, either from source or one of the confluent provided repositories.
 ```
-go get github.com/carbonblack/cb-event-forwarder
-go get -u github.com/golang/protobuf/proto
-go get -u github.com/golang/protobuf/protoc-gen-go
-go generate ./...
-go get ./...
-go build
+make build 
 ```
 
 ## Changelog
 
 This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
-See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) 
+See the [releases page](https://github.com/carbonblack/cb-event-forwarder/releases) .
 for more information on new features introduced with each new version and upgrading from cb-event-forwarder 2.x.
