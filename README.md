@@ -205,9 +205,9 @@ output from the JSON status is shown below:
 
 It is recommended to use the latest golang available on your target system - at the time of writing this is 1.13.x.
 
-Setup your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).'
+Set up your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).
 
-Set GO111MODULE=on (that is ,activate optional module support). The project can be built using the provided makefile. 
+Set `GO111MODULE=on` to activate optional module support. The project can be built using the provided makefile. 
 
 The project requires librdkafka.so to be available and on the PKG_CONFIG_PATH for your build-system. Follow the guide in [go-confluent-kafka](https://github.com/confluentinc/confluent-kafka-go) to make sure librdkafka is installed correctly, either from source or one of the confluent provided repositories.
 ```

@@ -8,8 +8,8 @@ require (
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-ini/ini v1.36.0
-	github.com/gogo/protobuf v1.2.1
-	github.com/golang/protobuf v1.2.0
+	github.com/gogo/protobuf v1.3.0
+	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.2.0
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
 	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc
@@ -23,11 +23,10 @@ require (
 	github.com/streadway/amqp v0.0.0-20180315184602-8e4aba63da9f
 	github.com/stretchr/testify v1.3.0
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
-	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
+	golang.org/x/crypto v0.0.0-20190926114937-fa1a29108794 // indirect
+	golang.org/x/net v0.0.0-20190926025831-c00fd9afed17 // indirect
 	golang.org/x/oauth2 v0.0.0-20190212230446-3e8b2be13635
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58 // indirect
-	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
+	golang.org/x/sys v0.0.0-20190924154521-2837fb4f24fe // indirect
 	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/h2non/filetype.v1 v1.0.5
