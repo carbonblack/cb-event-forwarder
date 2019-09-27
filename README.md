@@ -214,6 +214,8 @@ The project requires librdkafka.so to be available and on the PKG_CONFIG_PATH fo
 make build 
 ```
 
+To build an RPM package, use `make rpm`. By default, the result will be located at `~/rpmbuild/RPMS/x86_64`.
+
 ## Changelog
 
 This connector has been completely rewritten for version 3.0.0 for greatly enhanced reliability and performance. 
