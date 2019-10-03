@@ -81,10 +81,15 @@ the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 
 ### Starting and Stopping the Service
 
+#### CentOS 6.x
 Once the service is installed, it is managed by the Upstart init system in CentOS 6.x. You can control the service via the 
 initctl command.
 * To start the service, `initctl start cb-event-forwarder`
 * To stop the service, `initctl stop cb-event-forwarder`
+
+#### CentOS 7.x
+* To start the service, `systemctl start cb-event-forwarder`
+* To stop the service, `systemctl stop cb-event-forwarder`
 
 Once the service is installed, it is configured to start automatically on system boot.
 
@@ -205,14 +210,16 @@ output from the JSON status is shown below:
 
 It is recommended to use the latest golang available on your target system - at the time of writing this is 1.13.x.
 
-Setup your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).'
+Set up your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).
 
-Set GO111MODULE=on (that is ,activate optional module support). The project can be built using the provided makefile. 
+Set `GO111MODULE=on` to activate optional module support. The project can be built using the provided makefile. 
 
 The project requires librdkafka.so to be available and on the PKG_CONFIG_PATH for your build-system. Follow the guide in [go-confluent-kafka](https://github.com/confluentinc/confluent-kafka-go) to make sure librdkafka is installed correctly, either from source or one of the confluent provided repositories.
 ```
 make build 
 ```
+
+To build an RPM package, use `make rpm`. By default, the result will be located at `~/rpmbuild/RPMS/x86_64`.
 
 ## Changelog
 

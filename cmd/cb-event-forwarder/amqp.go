@@ -144,7 +144,7 @@ func (c *Consumer) Connect() (deliveries <-chan amqp.Delivery, err error) {
 		if err != nil {
 			return deliveries, err
 		}
-		log.Infof("ubscribed to bulk raw sensor event exchange on queue %s", c.queueName)
+		log.Infof("Subscribed to bulk raw sensor event exchange on queue %s", c.queueName)
 	}
 
 	for _, key := range c.routingKeys {
