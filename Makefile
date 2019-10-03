@@ -30,14 +30,14 @@ build: librdkafka
 	go mod tidy
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go mod verify
-	go build -tags static ./cmd/cb-event-forwarder 
-	go build -tags static ./cmd/kafka-util
+	go build -tags static-all ./cmd/cb-event-forwarder
+	go build -tags static-all ./cmd/kafka-util
 
 rpmbuild: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
+	go build -tags static-all -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+	go build -tags static-all -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
