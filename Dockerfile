@@ -25,6 +25,8 @@ RUN yum install -y zlib zlib-devel cyrus-sasl-devel openssl-devel
 
 RUN yum install -y lsof
 RUN yum install -y python-devel python-pip
+
+RUN pip install --upgrade pip
 RUN pip install pika cbapi
 
 #build forwarder
