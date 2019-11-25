@@ -35,8 +35,8 @@ var (
 
 var version = "NOT FOR RELEASE"
 
-var inputChannelSize = 100000
-var outputChannelSize = 1000000
+const inputChannelSize = 100
+const outputChannelSize = inputChannelSize * 1000
 
 var wg sync.WaitGroup
 var config Configuration
@@ -72,22 +72,6 @@ var (
 /*
  * Initializations
  *
-
-type bufwriter chan []byte
-
-func (bw bufwriter) Write(p []byte) (int, error) {
-    bw <- p
-    return len(p), nil
-}
-func NewBufwriter(n int) bufwriter {
-    w := make(bufwriter, n)
-    go func() {
-        for p := range w {
-            os.Stdout.Write(p)
-        }
-    }()
-    return w
-}
 */
 func init() {
 	flag.Parse()
@@ -306,12 +290,6 @@ func outputMessage(msg map[string]interface{}) error {
 	return nil
 }
 
-func splitDelivery(deliveries <-chan amqp.Delivery, messages chan<- amqp.Delivery) {
-	for delivery := range deliveries {
-		messages <- delivery
-	}
-}
-
 func worker(deliveries <-chan amqp.Delivery) {
 	defer wg.Done()
 
@@ -382,8 +360,6 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
 
-	messages := make(chan amqp.Delivery, inputChannelSize)
-
 	deliveries, err := c.Connect()
 
 	if err != nil {
@@ -403,9 +379,9 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	if config.RunMetrics {
 		go monitorChannels(time.NewTicker(100*time.Millisecond), messages, results)
 	}
-	go splitDelivery(deliveries, messages)
+
 	for i := 0; i < numProcessors; i++ {
-		go worker(messages)
+		go worker(deliveries)
 	}
 
 	for {
