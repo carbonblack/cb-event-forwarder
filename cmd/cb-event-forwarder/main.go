@@ -9,13 +9,6 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
-	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/rcrowley/go-metrics"
-	"github.com/rcrowley/go-metrics/exp"
-	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -24,9 +17,17 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-import _ "net/http/pprof"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
+	"github.com/rcrowley/go-metrics/exp"
+	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
+
+	_ "net/http/pprof"
+)
 
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
@@ -72,7 +73,7 @@ var (
 /*
  * Initializations
  *
-*/
+ */
 func init() {
 	flag.Parse()
 }
@@ -177,7 +178,7 @@ func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	}
 }
 
-func monitorChannels(ticker *time.Ticker, inputChannel chan<- amqp.Delivery, outputChannel chan<- string) {
+func monitorChannels(ticker *time.Ticker, inputChannel <-chan amqp.Delivery, outputChannel chan<- string) {
 	for range ticker.C {
 		status.InputChannelCount.Update(int64(len(inputChannel)))
 		status.OutputChannelCount.Update(int64(len(outputChannel)))
@@ -377,7 +378,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	wg.Add(numProcessors)
 
 	if config.RunMetrics {
-		go monitorChannels(time.NewTicker(100*time.Millisecond), messages, results)
+		go monitorChannels(time.NewTicker(100*time.Millisecond), deliveries, results)
 	}
 
 	for i := 0; i < numProcessors; i++ {
