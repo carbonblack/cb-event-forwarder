@@ -48,7 +48,7 @@ rm -rf $RPM_BUILD_ROOT
 # since the "old" cb-event-forwarder controls itself through the file we're about to replace
 # we should stop it before we install anything on upgrade
 
-if [ -x /etc/init.d/cb-event-forwarder ]; then
+if [ -x /etc/init.d/cb-event-forwarder ] || [ -e /etc/systemd/system/cb-event-forwarder.service]; then
     service cb-event-forwarder stop &> /dev/null || :
 fi
 

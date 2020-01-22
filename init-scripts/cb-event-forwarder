@@ -5,23 +5,35 @@
 . /etc/init.d/functions
 
 prog="cb-event-forwarder"
-pidfile="/var/run/cb/integrations/event-forwarder/$prog.pid"
-command="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log"
+piddir="/var/run/cb/integrations/event-forwarder"
+pidfile="$piddir/$prog.pid"
+precommand="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+command="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 
 start() {
     if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile"); then
         echo "Already started"
         return 1
     fi
-    echo -n $"Starting $prog: "
-    PID=`$command & echo $!`
+    echo -n "Starting $prog: "
+    $precommand &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.startup.log
+    result=$?
+    if [ "$result" -ne "0" ]; then
+        echo "Failed config file check"
+        return $result
+    fi
+    nohup $command > /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log 2>&1 &
+    PID=$(echo $!)
+    result=$?
+
     if [ -z $PID ]; then
         echo "Failed"
     else
+        mkdir -p $piddir
         echo $PID > $pidfile
         echo "Ok"
     fi
-    return $?
+    return $result
 }
 
 stop() {
@@ -32,9 +44,11 @@ stop() {
     fi
 	kill -15 $(cat $pidfile) && rm -f $pidfile
 	echo "Ok"
+    return 0
 }
 
 status() {
+    echo -n "Status of $prog: "
     if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile"); then
         echo "Running"
     else
