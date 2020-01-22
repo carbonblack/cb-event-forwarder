@@ -48,7 +48,7 @@ rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init.d
 	mkdir -p ${RPM_BUILD_ROOT}/etc/systemd/system
-	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/etc/init.d/cb-event-forwarder
+	cp -p init-scripts/cb-event-forwarder ${RPM_BUILD_ROOT}/etc/init.d/cb-event-forwarder
 	cp -p init-scripts/cb-event-forwarder.conf ${RPM_BUILD_ROOT}/etc/init/cb-event-forwarder.conf
 	cp -p cb-event-forwarder.service ${RPM_BUILD_ROOT}/etc/systemd/system/cb-event-forwarder.service
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
