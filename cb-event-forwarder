@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+#       /etc/rc.d/init.d/cb-event-forwarder
+#
+. /etc/init.d/functions
+
+prog="cb-event-forwarder"
+pidfile="/var/run/cb/integrations/event-forwarder/$prog.pid"
+command="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log"
+
+start() {
+    if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile"); then
+        echo "Already started"
+        return 1
+    fi
+    echo -n $"Starting $prog: "
+    PID=`$command & echo $!`
+    if [ -z $PID ]; then
+        echo "Failed"
+    else
+        echo $PID > $pidfile
+        echo "Ok"
+    fi
+    return $?
+}
+
+stop() {
+    echo -n "Shutting down $prog: "
+    if [ ! -f "$pidfile" ] || ! kill -0 $(cat "$pidfile"); then
+        echo "Ok"
+        return 1
+    fi
+	kill -15 $(cat $pidfile) && rm -f $pidfile
+	echo "Ok"
+}
+
+status() {
+    if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile"); then
+        echo "Running"
+    else
+        echo "Stopped"
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    restart)
+        stop
+        start
+        ;;
+esac
+exit $?

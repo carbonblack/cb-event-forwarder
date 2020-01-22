@@ -1,8 +1,8 @@
 #GIT_VERSION := $(shell git describe --tags)
 #VERSION := $(shell cat VERSION)
 
-GIT_VERSION := 3.6
-VERSION := 3.6
+GIT_VERSION := 3.6.1
+VERSION := 3.6.1
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 TARGET_OS=linux
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
@@ -46,7 +46,9 @@ rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
+	mkdir -p ${RPM_BUILD_ROOT}/etc/init.d
 	mkdir -p ${RPM_BUILD_ROOT}/etc/systemd/system
+	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/etc/init.d/cb-event-forwarder
 	cp -p init-scripts/cb-event-forwarder.conf ${RPM_BUILD_ROOT}/etc/init/cb-event-forwarder.conf
 	cp -p cb-event-forwarder.service ${RPM_BUILD_ROOT}/etc/systemd/system/cb-event-forwarder.service
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
@@ -76,7 +78,7 @@ bench:
 sdist:
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp cb-event-forwarder.service  Makefile go.mod cmd static conf internal init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-event-forwarder cb-event-forwarder.service  Makefile go.mod cmd static conf internal init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
 	sleep 1
