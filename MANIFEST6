@@ -1,6 +1,0 @@
-/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
-/usr/share/cb/integrations/event-forwarder/kafka-util
-/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
-/etc/init.d/cb-event-forwarder
-/etc/init/cb-event-forwarder.conf
-/usr/share/cb/integrations/event-forwarder/content/*

@@ -3,13 +3,10 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define version 3.6.1
-%define release 0
-
 Summary: Carbon Black event forwarder
 Name: %{name}
 Version: %{version}
-Release: %{release}%{?dist}
+Release: %{release}
 Source0: %{name}-%{version}.tar.gz
 License: MIT
 Group: Development/Libraries
@@ -48,8 +45,17 @@ rm -rf $RPM_BUILD_ROOT
 # since the "old" cb-event-forwarder controls itself through the file we're about to replace
 # we should stop it before we install anything on upgrade
 
-if [ -x /etc/init.d/cb-event-forwarder ] || [ -e /etc/systemd/system/cb-event-forwarder.service ]; then
+if [ -x /etc/init.d/cb-event-forwarder ]
+then
     service cb-event-forwarder stop &> /dev/null || :
+fi
+
+%preun
+#!/bin/sh
+
+if [ "X$1" = "X0" ]
+then
+    initctl stop cb-event-forwarder &> /dev/null || :
 fi
 
 %post
