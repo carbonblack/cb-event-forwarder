@@ -26,6 +26,7 @@ _testmain.go
 
 .idea/
 .vscode/
+*.iml
 run/data/
 scratch/
 
