@@ -414,14 +414,14 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			log.Errorf("ERROR during output: %s", outputError.Error())
 
 			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType {
+			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType || config.OutputType == S3OutputType || config.OutputType == SyslogOutputType {
 				log.Error("File output error; exiting immediately.")
 				c.Shutdown()
 				wg.Wait()
 				os.Exit(1)
 			}
 
-		case closeError := <-c.connectionErrors:
+		case closeError := <-c.connectionErrors:f
 			status.IsConnected = false
 			status.LastConnectError = closeError.Error()
 			status.ErrorTime = time.Now()
