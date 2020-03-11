@@ -421,7 +421,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 				os.Exit(1)
 			}
 
-		case closeError := <-c.connectionErrors:f
+		case closeError := <-c.connectionErrors:
 			status.IsConnected = false
 			status.LastConnectError = closeError.Error()
 			status.ErrorTime = time.Now()
