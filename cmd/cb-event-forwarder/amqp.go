@@ -4,9 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"io/ioutil"
 )
 
 /*
@@ -66,6 +67,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		dialer:            dialer,
 		amqpURI:           amqpURI,
 		queueName:         queueName,
+		connectionErrors:  make(chan *amqp.Error),
 		tlsCfg:            getAMQPTLSConfigFromConf()}
 
 	return c
