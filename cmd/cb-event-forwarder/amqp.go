@@ -58,6 +58,11 @@ func (wrappedcon WrappedAMQPConnection) Channel() (AMQPChannel, error) {
 
 func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 	routingKeys []string, dialer AMQPDialer) *Consumer {
+	return NewConsumerWithTlsCfg(amqpURI, queueName, ctag, bindToRawExchange, routingKeys, dialer, getAMQPTLSConfigFromConf())
+}
+
+func NewConsumerWithTlsCfg(amqpURI, queueName, ctag string, bindToRawExchange bool,
+	routingKeys []string, dialer AMQPDialer, tlsCfg *tls.Config) *Consumer {
 	c := &Consumer{
 		conn:              nil,
 		channel:           nil,
@@ -68,7 +73,7 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		amqpURI:           amqpURI,
 		queueName:         queueName,
 		connectionErrors:  make(chan *amqp.Error),
-		tlsCfg:            getAMQPTLSConfigFromConf()}
+		tlsCfg:            tlsCfg}
 
 	return c
 }
