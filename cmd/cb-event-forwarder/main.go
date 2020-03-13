@@ -9,13 +9,6 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
-	"github.com/cyberdelia/go-metrics-graphite"
-	"github.com/rcrowley/go-metrics"
-	"github.com/rcrowley/go-metrics/exp"
-	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -24,9 +17,17 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-import _ "net/http/pprof"
+	"github.com/carbonblack/cb-event-forwarder/internal/leef"
+	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
+	graphite "github.com/cyberdelia/go-metrics-graphite"
+	"github.com/rcrowley/go-metrics"
+	"github.com/rcrowley/go-metrics/exp"
+	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
+
+	_ "net/http/pprof"
+)
 
 var (
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
@@ -307,6 +308,7 @@ func outputMessage(msg map[string]interface{}) error {
 }
 
 func splitDelivery(deliveries <-chan amqp.Delivery, messages chan<- amqp.Delivery) {
+	defer close(messages)
 	for delivery := range deliveries {
 		messages <- delivery
 	}
