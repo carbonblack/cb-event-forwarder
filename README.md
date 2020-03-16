@@ -33,7 +33,9 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the Cb Response
 
 ### Installation
 
-To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system.
+To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
+to use the CD EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
+CB EDR is installed (in the case of a cluster installer, this means the master node).
 
 1. Install the CbOpenSource repository if it isn't already present:
 
@@ -45,6 +47,12 @@ To install and configure the cb-event-forwarder, perform these steps as "root" o
 
    ```
    yum install cb-event-forwarder
+   ```
+3. If you will be using the CB EDR console to configure and operate the event forwarder, run the following script to set
+the appropriate permissions needed by EDR:
+
+   ```
+   /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
    ```
 
 ### Configure the cb-event-forwarder

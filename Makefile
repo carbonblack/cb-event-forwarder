@@ -31,7 +31,7 @@ build: librdkafka
 	go mod tidy
 	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
 	go mod verify
-	go build -tags static ./cmd/cb-event-forwarder 
+	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild: librdkafka
@@ -44,6 +44,7 @@ rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
 	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
+	cp -p cb-edr-fix-permissions.sh ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 	mkdir -p ${RPM_BUILD_ROOT}/etc/init
@@ -83,7 +84,7 @@ bench:
 sdist:
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp cb-event-forwarder cb-event-forwarder.service Makefile go.mod cmd static conf internal init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf internal init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST${EL_VERSION} build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
 	sleep 1

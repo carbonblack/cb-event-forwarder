@@ -61,3 +61,7 @@ mkdir -p /var/cb/data
 %files -f MANIFEST
 %defattr(-,root,root)
 %config(noreplace) /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+
+%defattr(755,root,root,-)
+/usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
+
