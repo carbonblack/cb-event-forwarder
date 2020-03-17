@@ -4,9 +4,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"io/ioutil"
 )
 
 /*
@@ -57,6 +58,11 @@ func (wrappedcon WrappedAMQPConnection) Channel() (AMQPChannel, error) {
 
 func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 	routingKeys []string, dialer AMQPDialer) *Consumer {
+	return NewConsumerWithTlsCfg(amqpURI, queueName, ctag, bindToRawExchange, routingKeys, dialer, getAMQPTLSConfigFromConf())
+}
+
+func NewConsumerWithTlsCfg(amqpURI, queueName, ctag string, bindToRawExchange bool,
+	routingKeys []string, dialer AMQPDialer, tlsCfg *tls.Config) *Consumer {
 	c := &Consumer{
 		conn:              nil,
 		channel:           nil,
@@ -66,7 +72,8 @@ func NewConsumer(amqpURI, queueName, ctag string, bindToRawExchange bool,
 		dialer:            dialer,
 		amqpURI:           amqpURI,
 		queueName:         queueName,
-		tlsCfg:            getAMQPTLSConfigFromConf()}
+		connectionErrors:  make(chan *amqp.Error),
+		tlsCfg:            tlsCfg}
 
 	return c
 }
