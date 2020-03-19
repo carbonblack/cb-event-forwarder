@@ -3,12 +3,13 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define version 3.6.1
+%define version 3.6.2
+%define build_timestamp %(date +%%y%%m%%d)
 %define release 0
 
 Summary: Carbon Black event forwarder
 Name: %{name}
-Version: %{version}
+Version: %{version}.%{build_timestamp}
 Release: %{release}%{?dist}
 Source0: %{name}-%{version}.tar.gz
 License: MIT
