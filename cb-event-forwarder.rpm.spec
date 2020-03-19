@@ -3,14 +3,15 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define version 3.6.1
+%define bare_version 3.6.2
+%define build_timestamp %(date +%%y%%m%%d.%%H%%m)
 %define release 0
 
 Summary: Carbon Black event forwarder
 Name: %{name}
-Version: %{version}
+Version: %{bare_version}.%{build_timestamp}
 Release: %{release}%{?dist}
-Source0: %{name}-%{version}.tar.gz
+Source0: %{name}-%{bare_version}.tar.gz
 License: MIT
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
@@ -26,7 +27,7 @@ The events can be saved to a file, delivered to a network service or archived au
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
 %prep
-%setup -n %{name}-%{version}
+%setup -n %{name}-%{bare_version}
 
 %build
 export GOPATH=$PWD
