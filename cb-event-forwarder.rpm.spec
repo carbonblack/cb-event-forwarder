@@ -27,7 +27,7 @@ The events can be saved to a file, delivered to a network service or archived au
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
 %prep
-%setup -n %{name}-%{version}
+%setup -n %{name}-%{bare_version}
 
 %build
 export GOPATH=$PWD
