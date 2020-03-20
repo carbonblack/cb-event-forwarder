@@ -19,7 +19,7 @@
  * CentOS/RHEL 7.x compatibility with separate packages for el6 and el7.
  * New metric support
  * Threading for Kafka output,
- * bility to configure more options for kafka.
+ * Ability to configure more options for kafka.
 
 ### Bug Fixes
 
