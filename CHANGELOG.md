@@ -1,60 +1,100 @@
-# Changelog
+# CB Event Forwarder Changelog
 
-## cb-event-forwarer 3.5.0
-- kafka SASL support
-- OATH2 JWT optional support for http output
-- Support for sending EventText as bytearary httpoutput 
+## v3.6.2
 
-## cb-event-forwarder 3.1.2
+#### Features
 
-The 3.1.2 release of cb-event-forwarder adds two features:
+ * Event Forwarder can now be configured and operated from the CB EDR web console.
+ * There are no new features in Event Forwarder itself.
+
+#### Bug Fixes
+
+ * Fix signal handling for syslog and S3 output types
+ * Fix error handling for AMQP connections
+
+## v3.6.1
+
+### Features
+
+ * CentOS/RHEL 7.x compatibility with separate packages for el6 and el7.
+ * New metric support
+ * Threading for Kafka output,
+ * Ability to configure more options for kafka.
+
+### Bug Fixes
+
+ * Streamlined error reporting, removing superfluous and numerous
+`blocked_netconn` exceptions from the event forwarder stream.
+
+## v3.6.0
+
+ * Overhaul support for Kafka output
+ * Various fixes and support for compression in HTTP/S3 outputs.
+ * Use the new `[kafka.producer]` section to specify arbitrary Kafka producer
+ options based on the [Kafka producer API](https://docs.confluent.io/current/installation/configuration/producer-configs.html)
+ for details on the supported configuration options. This allows for supporting
+ Kafka producer TLS/SSL options, compression, and various others if desired.
+ Continue to specify `output_type=kafka` and
+
  
-* You can now send arbitrary messages for debugging/testing purposes through the forwarder to the output location.
+     [kafka]
+     brookers=comma-delimited-broker-list
+     
+in your configuration file to try things out.
+
+## v3.5.0
+ * Kafka SASL support
+ * OATH2 JWT optional support for http output
+ * Support for sending EventText as bytearary httpoutput 
+
+## v3.1.2
+
+ * You can now send arbitrary messages for debugging/testing purposes through the forwarder to the output location.
   This is only available when the cb-event-forwarder is started with the `-debug` command line switch. Messages
   sent via this mechanism are also logged for audit purposes.
-* S3: You can now explicitly specify the location of the AWS credential file to use for authentication in the
+ * S3: You can now explicitly specify the location of the AWS credential file to use for authentication in the
   `credential_profile` option in the `[s3]` section of the configuration file. To search for the credential profile
   `production` in the credentials stored in the file `/etc/cb/aws.creds`, set the `credential_profile` option to
   `/etc/cb/aws.creds:production`.
 
-## cb-event-forwarder 3.1.1
+## v3.1.1
 
 The 3.1.1 release of cb-event-forwarder fixes a critical bug when rolling over files. Previous versions of the
 cb-event-forwarder would stop rolling over files after the first of a new month. This release fixes that bug.
 
-## cb-event-forwarder 3.1.0
+## v3.1.0
 
-The 3.1.0 release of cb-event-forwarder adds the following features over 3.0.0:
-
-* "Deep links" into the Cb server UI are now optionally available in the output
-  * These links allow you to directly access the relevant sensor, binary, or process context for each event output
+ * "Deep links" into the CB server UI are now optionally available in the output
+   * These links allow you to directly access the relevant sensor, binary, or process context for each event output
     by the cb-event-forwarder.
-  * The new variable `cb_server_url` has been added to the configuration file to support this new feature. Set this
+   * The new variable `cb_server_url` has been added to the configuration file to support this new feature. Set this
     variable to the base URL of the Carbon Black web UI. **If this variable is not set, then no links are generated.**
-  * The new links are available in the `link_process`, `link_child` (in child process events), `link_md5` and 
+   * The new links are available in the `link_process`, `link_child` (in child process events), `link_md5` and 
     `link_sensor` keys of the JSON or LEEF output.
-  * Note that links to processes and binaries may result in 404 errors until the process and binary data is committed
+   * Note that links to processes and binaries may result in 404 errors until the process and binary data is committed
     to disk on the Carbon Black server. Process events received via the event-forwarder may take up to 15 minutes or 
     longer before they're visible on the Carbon Black web UI.
 * All Carbon Black 5.1 event types are now supported
-  * Microsoft EMET
-  * Carbon Black Tamper events
-  * Cross-process (process open/thread create) events
-  * Carbon Black process/network blocking events
+   * Microsoft EMET
+   * Carbon Black Tamper events
+   * Cross-process (process open/thread create) events
+   * Carbon Black process/network blocking events
 * Network events now include the local IP and port number of the network connection (available on Carbon Black 5.1 
   servers and sensors)
-  * The IP four-tuple is now available as (`local_ip`, `local_port`, `remote_ip`, and `remote_port`) in the JSON/LEEF
+   * The IP four-tuple is now available as (`local_ip`, `local_port`, `remote_ip`, and `remote_port`) in the JSON/LEEF
     output
-* Provide a human-readable status page for statistics
-  * By default, these statistics are available via HTTP on port 33706 of the system running the cb-event-forwarder.
-* Fix regressions on output from cb-event-forwarder 2.x on some JSON message types
-  * cb-event-forwarder 3.0.0 was missing the `computer_name` field from some JSON messages
+* Provided a human-readable status page for statistics
+   * By default, these statistics are available via HTTP on port 33706 of the system running the cb-event-forwarder.
+* Fixed regressions on output from cb-event-forwarder 2.x on some JSON message types
+   * cb-event-forwarder 3.0.0 was missing the `computer_name` field from some JSON messages
 * New Amazon S3 options; see the `[s3]` section of the configuration file
-  * Specify whether the files uploaded to S3 should be encrypted with server-side encryption (see `server_side_encryption`)
-  * Define an ACL policy to apply to files uploaded to S3 (see `acl_policy`)
-  * Specify the credential profile used when connecting to S3 (see `credential_profile`)
+   * Specify whether the files uploaded to S3 should be encrypted with server-side encryption (see `server_side_encryption`)
+   * Define an ACL policy to apply to files uploaded to S3 (see `acl_policy`)
+   * Specify the credential profile used when connecting to S3 (see `credential_profile`)
 
-# Changes from the cb-event-forwarder 2.x to 3.x
+---
+
+# Changes from v2.x to v3.x
 
 In general, the new cb-event-forwarder 3.0 is designed to be a drop-in replacement for previous versions of the
 event forwarder. There are a few bug fixes, configuration changes and enhancements of note. The most important change
@@ -62,7 +102,7 @@ is that the service is now managed by the "upstart" system in CentOS 6. The `ser
 control the service; instead use `start cb-event-forwarder` and `stop cb-event-forwarder` to manually start and stop
 the service.
 
-## Configuration
+### Configuration
 
 The configuration file location still defaults to `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` and
 most existing configuration files will work unchanged with this new version. 
@@ -92,7 +132,7 @@ The following changes have been made to the configuration file in version 3.0:
   
 * The `stdout` output option has been removed.
 
-## Output format
+### Output format
 
 * The `tcp` output now places a newline (`\r\n`) between each event in the output stream
 
@@ -100,7 +140,7 @@ The following changes have been made to the configuration file in version 3.0:
 
 * Bugfix: the output from the `procend` event type now contains the MD5 from the process that exited in the `md5` value
 
-## Operations
+### Operations
 
 * The daemon is now managed by the "upstart" system in CentOS 6.
   * Use the `start` and `stop` commands to control the daemon: `start cb-event-forwarder`.
