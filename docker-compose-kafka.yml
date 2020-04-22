@@ -17,7 +17,6 @@ services:
       - rabbitmq
       - grafana
       - graphite
-      - httpserver
 
   grafana:
       image: grafana/grafana
@@ -51,10 +50,3 @@ services:
       - rabbitmq
       - eventforwarder
 
-  httpserver:
-      container_name: httpserver
-      hostname: httpserver 
-      build:
-        context:  .
-        dockerfile: Dockerfile.httpserver
-      command: "nc -klv 31337 &"
