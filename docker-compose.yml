@@ -36,8 +36,8 @@ services:
     image: "rabbitmq:3.6.5-management"
     hostname: "rabbitmq"
     volumes:
-      - ./rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+      - ./run/config/rabbitmq/definitions.json:/opt/definitions.json:ro
+      - ./run/config/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
     ports:
       - "15672:15672"
       - "5672:5672"
