@@ -1,4 +1,0 @@
-FROM centos:7
-RUN yum -y install nc
-ENTRYPOINT ["/bin/bash"]
-CMD ["-c", "nc -klv 31337 &"]

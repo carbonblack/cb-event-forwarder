@@ -1,4 +1,4 @@
-version: '2.1'
+version: '2.2'
 services:
   eventforwarder:
     build:
@@ -9,6 +9,7 @@ services:
     hostname: eventforwarder
     container_name: eventforwarder
     restart: always
+    cpu_count: 6
     tty: true
     sysctls:
       net.ipv6.conf.all.disable_ipv6 :  1
@@ -18,7 +19,7 @@ services:
       - rabbitmq
       - grafana
       - graphite
-      - httpserver
+      - s3server
 
   grafana:
       image: grafana/grafana
@@ -52,11 +53,15 @@ services:
       - rabbitmq
       - eventforwarder
 
-  httpserver:
-      container_name: httpserver
-      hostname: httpserver 
+  s3server:
+      container_name: s3server
+      hostname: s3serer
       tty: true
+      environment:
+        - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+        - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       build:
-        context:  .
-        dockerfile: Dockerfile.httpserver
-      command: ["-c", "nc -klv 31337 > /dev/null 2&>/dev/null"]
+        context: .
+        dockerfile: Dockerfile.s3server
+      restart: always
+      command: server /tmp

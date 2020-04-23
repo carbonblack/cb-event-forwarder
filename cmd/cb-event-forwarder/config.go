@@ -13,9 +13,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 const (
@@ -67,6 +68,7 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3Endpoint              *string
 	S3UseDualStack          bool
 
 	// SSL/TLS-specific configuration
@@ -534,6 +536,12 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.S3ObjectPrefix = &objectPrefix
 		}
 
+		if input.Section("s3").HasKey("s3_endpoint") {
+			key = input.Section("s3").Key("s3_endpoint")
+			s3Endpoint := key.Value()
+			config.S3Endpoint = &s3Endpoint
+		}
+
 		if input.Section("s3").HasKey("use_dual_stack") {
 			key := input.Section("s3").Key("use_dual_stack")
 			b, err := key.Bool()
@@ -697,7 +705,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if _, err := input.GetSection("kafka.producer"); err == nil {
 			config.KafkaProducerProps = kafka.ConfigMap{}
 			kcfg := input.Section("kafka.producer").KeysHash()
-			for key,value := range kcfg {
+			for key, value := range kcfg {
 				config.KafkaProducerProps[key] = value
 			}
 		}
@@ -740,7 +748,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(parameterKey) > 0 {
-		if ! input.Section("bridge").HasKey(parameterKey) {
+		if !input.Section("bridge").HasKey(parameterKey) {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
 		} else {
