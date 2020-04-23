@@ -1,9 +1,11 @@
 FROM centos:7
 ARG INIFILE
 ENV INIFILE $INIFILE
+ARG EFEXE 
+ENV EFEXE $EFEXE
 
-ADD cb-event-forwarder /
+ADD $EFEXE /
 ADD $INIFILE /
 
 ENTRYPOINT ["/bin/bash"]
-CMD ["-c" , "sleep 45 && ./cb-event-forwarder $INIFILE"]
+CMD ["-c" , "sleep 45 && ./$EFEXE $INIFILE"]

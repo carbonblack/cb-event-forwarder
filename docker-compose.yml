@@ -5,6 +5,7 @@ services:
       context: .
       args:
         INIFILE: cb-event-forwarder.docker.ini
+        EFEXE: cb-event-forwarder
     hostname: eventforwarder
     container_name: eventforwarder
     restart: always
@@ -54,7 +55,8 @@ services:
   httpserver:
       container_name: httpserver
       hostname: httpserver 
+      tty: true
       build:
         context:  .
         dockerfile: Dockerfile.httpserver
-      command: "nc -klv 31337 &"
+      command: ["-c", "nc -klv 31337 > /dev/null 2&>/dev/null"]
