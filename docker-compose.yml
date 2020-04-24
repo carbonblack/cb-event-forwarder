@@ -11,12 +11,13 @@ services:
     restart: always
     cpu_count: 6
     tty: true
+    environment:
+      - EF_CANNED_INPUT=1
     sysctls:
       net.ipv6.conf.all.disable_ipv6 :  1
     ports:
       - "33706:33706"
     depends_on:
-      - rabbitmq
       - grafana
       - graphite
       - s3server
@@ -34,24 +35,6 @@ services:
       image: graphiteapp/graphite-statsd
       container_name: graphite
       restart: always
-
-  rabbitmq:
-    image: "rabbitmq:3.6.5-management"
-    hostname: "rabbitmq"
-    volumes:
-      - ./run/config/rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./run/config/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
-    ports:
-      - "15672:15672"
-      - "5672:5672"
-
-  stressrabbit:
-    build: ./test/stress_rabbit
-    hostname: stressrabbit
-    container_name: stressrabbit
-    depends_on:
-      - rabbitmq
-      - eventforwarder
 
   s3server:
       container_name: s3server
