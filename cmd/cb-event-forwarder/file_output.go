@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	gzip "github.com/klauspost/pgzip"
 	log "github.com/sirupsen/logrus"
 )
 

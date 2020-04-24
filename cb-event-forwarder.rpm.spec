@@ -3,7 +3,7 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define bare_version 3.6.2
+%define bare_version 3.6.3
 %define build_timestamp %(date +%%y%%m%%d.%%H%%m)
 %define release 0
 
