@@ -479,8 +479,8 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.CompressionLevel = 1
 
-	if input.Section("bridge").HasKey("compress_level") {
-		key := input.Section("bridge").Key("compress_level")
+	if input.Section("bridge").HasKey("compression_level") {
+		key := input.Section("bridge").Key("compression_level")
 		level, err := key.Int()
 		if err == nil {
 			config.CompressionLevel = level
