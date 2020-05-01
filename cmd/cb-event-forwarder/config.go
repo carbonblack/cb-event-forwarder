@@ -101,6 +101,7 @@ type Configuration struct {
 
 	// Compress data on S3 or file output types
 	FileHandlerCompressData bool
+	CompressionLevel        int
 
 	TLSConfig *tls.Config
 
@@ -476,6 +477,16 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.CompressionLevel = 1
+
+	if input.Section("bridge").HasKey("compress_level") {
+		key := input.Section("bridge").Key("compress_level")
+		level, err := key.Int()
+		if err == nil {
+			config.CompressionLevel = level
+		}
+	}
+
 	config.AuditLog = false
 
 	if input.Section("bridge").HasKey("audit_log") {
@@ -536,6 +547,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.S3ObjectPrefix = &objectPrefix
 		}
 
+		//Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
 		if input.Section("s3").HasKey("s3_endpoint") {
 			key = input.Section("s3").Key("s3_endpoint")
 			s3Endpoint := key.Value()

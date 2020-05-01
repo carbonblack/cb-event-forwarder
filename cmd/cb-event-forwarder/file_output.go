@@ -83,7 +83,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 
 	if config.FileHandlerCompressData != false {
 		log.Info("File handler configured to compress data")
-		o.outputGzWriter = gzip.NewWriter(fp)
+		o.outputGzWriter, _ = gzip.NewWriterLevel(fp, config.CompressionLevel)
 	}
 	o.outputFile = fp
 
