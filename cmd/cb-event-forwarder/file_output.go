@@ -2,10 +2,8 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/signal"
@@ -13,6 +11,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	gzip "github.com/klauspost/pgzip"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type BufferOutput struct {
@@ -81,7 +83,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 
 	if config.FileHandlerCompressData != false {
 		log.Info("File handler configured to compress data")
-		o.outputGzWriter = gzip.NewWriter(fp)
+		o.outputGzWriter, _ = gzip.NewWriterLevel(fp, config.CompressionLevel)
 	}
 	o.outputFile = fp
 

@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 type S3Behavior struct {
@@ -70,6 +71,12 @@ func (o *S3Behavior) Initialize(connString string) error {
 	}
 
 	awsConfig := &aws.Config{Region: aws.String(o.region)}
+
+	if config.S3Endpoint != nil {
+		awsConfig = &aws.Config{Endpoint: aws.String(*config.S3Endpoint), Region: aws.String(o.region), DisableSSL: aws.Bool(true),
+			S3ForcePathStyle: aws.Bool(true)}
+	}
+
 	if config.S3UseDualStack == true {
 		awsConfig.WithUseDualStack(true)
 	}
