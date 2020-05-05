@@ -1,5 +1,21 @@
 # CB Event Forwarder Changelog
 
+## v.3.6.3
+
+#### Features
+
+ * Switched from the GZIP library to PGZIP for faster and more efficient compression.
+
+#### Bug Fixes
+
+ * Corrected the CB EDR configuration page for the Event Forwarder to allow changing
+ the "Max bundle size". Prior to this fix, submitting a configuration change with a
+ new value for that setting resulted in a server error. **NOTE: this fix requires CB EDR
+ version 7.2.0 or higher.**
+ * The requirements of the `s3out` configuration setting have been relaxed such that 
+ you may omit the leading "temp-file-directory" element. In other words, it is sufficient 
+ to use the format `s3out=[region]:[bucket-name]`.
+
 ## v3.6.2
 
 #### Features
