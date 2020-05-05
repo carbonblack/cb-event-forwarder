@@ -4,11 +4,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"io/ioutil"
 	"os"
-	"path"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 type MockAMQPConnection struct {
@@ -117,68 +117,39 @@ func NewMockAMQPDialer() MockAMQPDialer {
 }
 
 func RunCannedData(mockChan AMQPChannel) {
+
+	filename := "test/stress_rabbit/zipbundles/bundleone"
+
+	fp, err := os.Open(filename)
+
+	b, err := ioutil.ReadAll(fp)
+	if err != nil {
+		log.Fatalf("Could not read %s", filename)
+	}
+
+	fp.Close()
+
 	for {
-		for _, format := range []string{"zipbundles"} {
 
-			pathname := path.Join("test/stress_rabbit/", format)
+		exchange := "api.rawsensordata"
+		contentType := "application/protobuf"
 
-			fp, err := os.Open(pathname)
-
-			if err != nil {
-				log.Errorf("Could not open %s", pathname)
-				continue
-			}
-
-			infos, err := fp.Readdir(0)
-			if err != nil {
-				log.Errorf("Could not enumerate directory %s", pathname)
-				continue
-			}
-
-			fp.Close()
-
-			for _, fn := range infos {
-
-				if fn.IsDir() {
-					continue
-				}
-
-				filename := path.Join(pathname, fn.Name())
-
-				fp, err := os.Open(filename)
-				if err != nil {
-					log.Errorf("Could not open %s for reading", filename)
-					continue
-				}
-
-				b, err := ioutil.ReadAll(fp)
-				if err != nil {
-					log.Errorf("Could not read %s", filename)
-					continue
-				}
-
-				fp.Close()
-
-				exchange := "api.rawsensordata"
-				contentType := "application/protobuf"
-
-				if err = mockChan.Publish(
-					exchange, // publish to an exchange
-					"",       // routing to 0 or more queues
-					false,    // mandatory
-					false,    // immediate
-					amqp.Publishing{
-						Headers:         amqp.Table{},
-						ContentType:     contentType,
-						ContentEncoding: "",
-						Body:            b,
-						DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
-						Priority:        0,              // 0-
-					},
-				); err != nil {
-					log.Errorf("Failed to publish %s %s: %s", exchange, "", err)
-				}
-			}
+		if err = mockChan.Publish(
+			exchange, // publish to an exchange
+			"",       // routing to 0 or more queues
+			false,    // mandatory
+			false,    // immediate
+			amqp.Publishing{
+				Headers:         amqp.Table{},
+				ContentType:     contentType,
+				ContentEncoding: "",
+				Body:            b,
+				DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
+				Priority:        0,              // 0-
+			},
+		); err != nil {
+			log.Errorf("Failed to publish %s %s: %s", exchange, "", err)
 		}
+
 	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"text/template"
 	"time"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"

@@ -1,0 +1,2 @@
+FROM minio/minio 
+run mkdir -p /tmp/s3bucket

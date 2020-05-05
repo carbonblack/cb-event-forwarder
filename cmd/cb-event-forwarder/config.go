@@ -13,9 +13,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 const (
@@ -67,6 +68,7 @@ type Configuration struct {
 	S3CredentialProfileName *string
 	S3ACLPolicy             *string
 	S3ObjectPrefix          *string
+	S3Endpoint              *string
 	S3UseDualStack          bool
 
 	// SSL/TLS-specific configuration
@@ -99,6 +101,7 @@ type Configuration struct {
 
 	// Compress data on S3 or file output types
 	FileHandlerCompressData bool
+	CompressionLevel        int
 
 	TLSConfig *tls.Config
 
@@ -474,6 +477,16 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
+	config.CompressionLevel = 1
+
+	if input.Section("bridge").HasKey("compression_level") {
+		key := input.Section("bridge").Key("compression_level")
+		level, err := key.Int()
+		if err == nil {
+			config.CompressionLevel = level
+		}
+	}
+
 	config.AuditLog = false
 
 	if input.Section("bridge").HasKey("audit_log") {
@@ -532,6 +545,13 @@ func ParseConfig(fn string) (Configuration, error) {
 			key = input.Section("s3").Key("object_prefix")
 			objectPrefix := key.Value()
 			config.S3ObjectPrefix = &objectPrefix
+		}
+
+		//Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
+		if input.Section("s3").HasKey("s3_endpoint") {
+			key = input.Section("s3").Key("s3_endpoint")
+			s3Endpoint := key.Value()
+			config.S3Endpoint = &s3Endpoint
 		}
 
 		if input.Section("s3").HasKey("use_dual_stack") {
@@ -697,7 +717,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if _, err := input.GetSection("kafka.producer"); err == nil {
 			config.KafkaProducerProps = kafka.ConfigMap{}
 			kcfg := input.Section("kafka.producer").KeysHash()
-			for key,value := range kcfg {
+			for key, value := range kcfg {
 				config.KafkaProducerProps[key] = value
 			}
 		}
@@ -740,7 +760,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(parameterKey) > 0 {
-		if ! input.Section("bridge").HasKey(parameterKey) {
+		if !input.Section("bridge").HasKey(parameterKey) {
 			errs.addErrorString(fmt.Sprintf("Missing value for key %s, required by output type %s",
 				parameterKey, outType))
 		} else {
