@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type UploadStatus struct {
@@ -133,7 +134,10 @@ func (o *BundledOutput) Initialize(connString string) error {
 	o.rollOverDuration = config.BundleSendTimeout
 
 	parts := strings.SplitN(connString, ":", 2)
-	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" {
+
+	var firstPartIsPath = parts[0][0] == '/'
+
+	if len(parts) > 1 && parts[0] != "http" && parts[0] != "https" && firstPartIsPath {
 		o.tempFileDirectory = parts[0]
 		connString = parts[1]
 	} else {
