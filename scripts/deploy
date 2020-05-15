@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+if [[ -z "${__af_user}" || -z "${__af_api_key}" || -z "${__af_base_url}" ]]
+then
+  echo -e '\nRequired variables not defined\n'
+  return 1
+fi
+
+parse_pkg_to_path() {
+  if [[ -n "$1" ]]
+  then
+    pkg=$1
+    filename=${pkg##*/}
+    rx='cb-event-forwarder-([0-9\.]+)-[0-9]\.el([0-9]).+'
+    if [[ ${filename} =~ ${rx} ]]
+    then
+      ver="${BASH_REMATCH[1]}"
+      plat="el${BASH_REMATCH[2]}"
+      PKG_FILE=${pkg}
+      PARSED_PATH="${plat}/${ver}/${filename}"
+      return 0
+    else
+      PKG_FILE=
+      PARSED_PATH=
+      return 1
+    fi
+  else
+    PKG_FILE=
+    PARSED_PATH=
+    return 1
+  fi
+}
+
+deploy_to_artifactory() {
+  if [[ -n "$1" && -n "$2" ]]
+  then
+    _pkg_path=$1
+    _branch=$2
+    parse_pkg_to_path ${_pkg_path}
+    if [[ $? -eq 0 ]]
+    then
+      curl -u ${__af_user}:${__af_api_key} ${__af_base_url}/${_branch}/${PARSED_PATH} -T ${PKG_FILE}
+      if [[ $? -eq 1 ]]
+      then
+        echo -e '\nDeployment failed\n'
+        return 1
+      fi
+    else
+      echo -e '\nPackage name parsing failed\n'
+      return 1
+    fi
+  else
+    echo -e '\nInsufficient arguments\n'
+    return 1
+  fi
+  echo -e '\nSuccess\n'
+  return 0
+}
