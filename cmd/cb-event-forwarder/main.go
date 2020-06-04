@@ -519,7 +519,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pidFileLocation := flag.String("pidfile", "", "PID file location")
+	pidFileLocation := flag.String("pid-file", "", "PID file location")
 	flag.Parse()
 
 	defaultPidLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
