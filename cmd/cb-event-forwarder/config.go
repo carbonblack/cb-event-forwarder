@@ -14,7 +14,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
@@ -130,8 +129,6 @@ type Configuration struct {
 	KafkaSSLCALocation          *string
 
 	KafkaSSLEnabledProtocols []string
-
-	KafkaProducerProps kafka.ConfigMap
 
 	//Splunkd
 	SplunkToken *string
@@ -705,21 +702,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			key := input.Section("kafka").Key("ssl_key_password")
 			SSLKeyPassword := key.Value()
 			config.KafkaSSLKeyPassword = &SSLKeyPassword
-		}
-
-		if input.Section("kafka").HasKey("ssl_enabled_protocols") {
-			key := input.Section("kafka").Key("ssl_enabled_protocols")
-			config.KafkaSSLEnabledProtocols = strings.Split(key.Value(), ",")
-		} else {
-			config.KafkaSSLEnabledProtocols = make([]string, 0)
-		}
-
-		if _, err := input.GetSection("kafka.producer"); err == nil {
-			config.KafkaProducerProps = kafka.ConfigMap{}
-			kcfg := input.Section("kafka.producer").KeysHash()
-			for key, value := range kcfg {
-				config.KafkaProducerProps[key] = value
-			}
 		}
 
 	case "splunk":

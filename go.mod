@@ -5,7 +5,6 @@ require (
 	github.com/Shopify/sarama v1.26.4
 	github.com/aws/aws-sdk-go v1.13.49
 	github.com/carbonblack/ttlru v1.0.10-0.20190816192330-6ef8e99980e4
-	github.com/confluentinc/confluent-kafka-go v0.11.4
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-ini/ini v1.36.0
