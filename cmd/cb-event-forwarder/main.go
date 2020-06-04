@@ -25,6 +25,7 @@ import (
 	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/facebookgo/pidfile"
 
 	_ "net/http/pprof"
 )
@@ -90,8 +91,8 @@ func NewBufwriter(n int) bufwriter {
     return w
 }
 */
+
 func init() {
-	flag.Parse()
 }
 
 func setupMetrics() {
@@ -517,6 +518,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	pidFile := flag.String("pidfile", "", "PID file location")
+	flag.Parse()
+
+	defaultPidLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
+	if *pidFile == "" {
+		*pidFile = defaultPidLocation
+	}
+	log.Infof("PID file will be written to %s\n", *pidFile)
+	pidfile.SetPidfilePath(*pidFile)
+	pidfile.Write()
 
 	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	if flag.NArg() > 0 {

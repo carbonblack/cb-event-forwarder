@@ -7,6 +7,7 @@ Type=simple
 ExecStartPre=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.startup.log'
 ExecStart=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log'
 ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid
 KillMode=process
 Restart=on-failure
 
