@@ -519,15 +519,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pidFile := flag.String("pidfile", "", "PID file location")
+	pidFileLocation := flag.String("pidfile", "", "PID file location")
 	flag.Parse()
 
 	defaultPidLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
-	if *pidFile == "" {
-		*pidFile = defaultPidLocation
+	if *pidFileLocation == "" {
+		*pidFileLocation = defaultPidLocation
 	}
-	log.Infof("PID file will be written to %s\n", *pidFile)
-	pidfile.SetPidfilePath(*pidFile)
+	log.Infof("PID file will be written to %s\n", *pidFileLocation)
+	pidfile.SetPidfilePath(*pidFileLocation)
 	pidfile.Write()
 
 	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
