@@ -125,7 +125,6 @@ type Configuration struct {
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
 
-
 	//Splunkd
 	SplunkToken *string
 
@@ -637,18 +636,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.KafkaTopic = kafkaTopic
 		}
 
-		if input.Section("kafka").HasKey("protocol") {
-			key := input.Section("kafka").Key("protocol")
-			kafkaProtocol := key.Value()
-			config.KafkaProtocol = kafkaProtocol
-		}
-
-		if input.Section("kafka").HasKey("mechanism") {
-			key := input.Section("kafka").Key("mechanism")
-			kafkaMechanism := key.Value()
-			config.KafkaMechanism = kafkaMechanism
-		}
-
 		if input.Section("kafka").HasKey("username") {
 			key := input.Section("kafka").Key("username")
 			kafkaUsername := key.Value()
@@ -692,12 +679,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			key := input.Section("kafka").Key("ssl_key_location")
 			SSLKeyLocation := key.Value()
 			config.KafkaSSLKeyLocation = &SSLKeyLocation
-		}
-
-		if input.Section("kafka").HasKey("ssl_key_password") {
-			key := input.Section("kafka").Key("ssl_key_password")
-			SSLKeyPassword := key.Value()
-			config.KafkaSSLKeyPassword = &SSLKeyPassword
 		}
 
 	case "splunk":

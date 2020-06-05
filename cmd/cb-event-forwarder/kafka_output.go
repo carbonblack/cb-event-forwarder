@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +17,29 @@ import (
 	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 )
+
+func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
+	tlsConfig := tls.Config{}
+
+	// Load client cert
+	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+	if err != nil {
+		return &tlsConfig, err
+	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
+
+	// Load CA cert
+	caCert, err := ioutil.ReadFile(caCertFile)
+	if err != nil {
+		return &tlsConfig, err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig.RootCAs = caCertPool
+
+	tlsConfig.BuildNameToCertificate()
+	return &tlsConfig, err
+}
 
 type KafkaOutput struct {
 	brokers           []string
@@ -49,39 +71,13 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	sarama.MaxRequestSize = config.KafkaMaxRequestSize
 	kafkaConfig.Producer.Return.Successes = true
 
-	var useTLS = false
-	var tlsConfig = tls.Config{}
-	if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil {
-		useTLS = true
-		var sslKeyPair, err = tls.LoadX509KeyPair(*config.KafkaSSLKeyLocation, *config.KafkaSSLCertificateLocation)
-		if err != nil {
-			log.Fatalf("Could not load x509 pair for kafka client")
-		}
-		tlsConfig.Certificates = make([]tls.Certificate, 1)
-		tlsConfig.Certificates[0] = sslKeyPair
-	}
-	if config.KafkaSSLCALocation != nil {
-		useTLS = true
-		var certPool, err = x509.SystemCertPool()
-		if err != nil {
-			log.Fatalf("Could not create new cet pool for kafka client")
-		}
-		cf, e := ioutil.ReadFile(*config.KafkaSSLCALocation)
-		if e != nil {
-			log.Fatalf("Could not open ca cert file for kafka client")
-		}
-		cpb, _ := pem.Decode(cf)
-		crt, e := x509.ParseCertificate(cpb.Bytes)
-		if e != nil {
-			log.Fatalf("Could not parse ca cert for kafka client")
-		}
-		certPool.AddCert(crt)
-		tlsConfig.RootCAs = certPool
-	}
-
-	if useTLS {
+	if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil && config.KafkaSSLCALocation != nil {
 		kafkaConfig.Net.TLS.Enable = true
-		kafkaConfig.Net.TLS.Config = &tlsConfig
+		var tlsConfig, err = NewTLSConfig(*config.KafkaSSLCertificateLocation, *config.KafkaSSLKeyLocation, *config.KafkaSSLCALocation)
+		if err != nil {
+			log.Fatalf("Error setting up tls for kafka %v", err)
+		}
+		kafkaConfig.Net.TLS.Config = tlsConfig
 	}
 
 	if config.KafkaCompressionType != nil {
