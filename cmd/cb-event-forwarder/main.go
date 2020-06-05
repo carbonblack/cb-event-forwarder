@@ -31,6 +31,7 @@ import (
 )
 
 var (
+	pidFileLocation    = flag.String("pid-file", "", "PID file location")
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
@@ -93,6 +94,7 @@ func NewBufwriter(n int) bufwriter {
 */
 
 func init() {
+	flag.Parse()
 }
 
 func setupMetrics() {
@@ -519,8 +521,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pidFileLocation := flag.String("pid-file", "", "PID file location")
-	flag.Parse()
+	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+	if flag.NArg() > 0 {
+		configLocation = flag.Arg(0)
+	}
+	log.Infof("Using config file %s\n", configLocation)
+	config, err = ParseConfig(configLocation)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if *pidFileLocation == "" {
 		log.Info("PID file not specified, not written\n")
@@ -531,16 +540,6 @@ func main() {
 		if err != nil {
 			log.Warn("Could not write PID file: %s\n", err)
 		}
-	}
-
-	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
-	if flag.NArg() > 0 {
-		configLocation = flag.Arg(0)
-	}
-	log.Infof("Using config file %s\n", configLocation)
-	config, err = ParseConfig(configLocation)
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	if !config.RunMetrics {
