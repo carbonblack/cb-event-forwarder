@@ -5,6 +5,7 @@ services:
       context: .
       args:
         INIFILE: cb-event-forwarder.dockerkafkassl.ini
+        EFEXE: ./cb-event-forwarder
     hostname: eventforwarder
     container_name: eventforwarder
     volumes:
@@ -22,27 +23,8 @@ services:
       - kafka-ssl-1
       - kafka-ssl-2
       - kafka-ssl-3
-      - rabbitmq
       - grafana
       - graphite
-
-  kafkamanager:
-    build: ./kafkamanager
-    hostname: kafkamanager
-    container_name: kafkamanager
-    tty: true
-    command: -c 'rm /kafkamanager/RUNNING_PID ; /kafkamanager/bin/kafka-manager'
-    ports:
-      - "39000:9000"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-      - kafka-ssl-1
-      - kafka-ssl-2
-      - kafka-ssl-3
-    environment:
-      ZK_HOSTS: localhost:22181,localhost:32181,localhost:42181
 
   zookeeper-1:
     image: confluentinc/cp-zookeeper:latest
@@ -188,22 +170,4 @@ services:
       image: graphiteapp/graphite-statsd
       container_name: graphite
       restart: always
-
-  rabbitmq:
-    image: "rabbitmq:3.6.5-management"
-    hostname: "rabbitmq"
-    volumes:
-      - ./rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
-    ports:
-      - "15672:15672"
-      - "5672:5672"
-
-  stressrabbit:
-    build: ./test/stress_rabbit
-    hostname: stressrabbit
-    container_name: stressrabbit
-    depends_on:
-      - rabbitmq
-      - eventforwarder
 

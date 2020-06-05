@@ -114,21 +114,17 @@ type Configuration struct {
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
 	KafkaTopic          string
-	KafkaProtocol       string
-	KafkaMechanism      string
 	KafkaUsername       string
 	KafkaPassword       string
 	KafkaMaxRequestSize int32
 
 	KafkaCompressionType *string
 
-	KafkaSSLKeyPassword *string
 	KafkaSSLKeyLocation *string
 
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
 
-	KafkaSSLEnabledProtocols []string
 
 	//Splunkd
 	SplunkToken *string
