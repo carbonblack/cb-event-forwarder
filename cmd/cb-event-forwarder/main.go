@@ -522,18 +522,22 @@ func main() {
 	pidFileLocation := flag.String("pid-file", "", "PID file location")
 	flag.Parse()
 
-	defaultPidLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
 	if *pidFileLocation == "" {
-		*pidFileLocation = defaultPidLocation
+		log.Info("PID file not specified, not written\n")
+	} else {
+		log.Infof("PID file will be written to %s\n", *pidFileLocation)
+		pidfile.SetPidfilePath(*pidFileLocation)
+		err := pidfile.Write()
+		if err != nil {
+			log.Warn("Could not write PID file: %s\n", err)
+		}
 	}
-	log.Infof("PID file will be written to %s\n", *pidFileLocation)
-	pidfile.SetPidfilePath(*pidFileLocation)
-	pidfile.Write()
 
 	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
+	log.Infof("Using config file %s\n", configLocation)
 	config, err = ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)

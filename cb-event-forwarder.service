@@ -1,11 +1,11 @@
 [Unit]
-Description=Cb Response Event Forwarder
+Description=CB EDR Event Forwarder
 After=network.target
 
 [Service]
 Type=simple
 ExecStartPre=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.startup.log'
-ExecStart=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log'
+ExecStart=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -pid-file=/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log'
 ExecReload=/bin/kill -HUP $MAINPID
 PIDFile=/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid
 KillMode=process
