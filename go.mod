@@ -24,7 +24,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/streadway/amqp v0.0.0-20180315184602-8e4aba63da9f
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
-	golang.org/x/crypto v0.0.0-20200602180216-279210d13fed // indirect
+	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/oauth2 v0.0.0-20190212230446-3e8b2be13635
 	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 // indirect
