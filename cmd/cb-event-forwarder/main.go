@@ -557,19 +557,18 @@ func main() {
 		os.Exit(0)
 	}
 
+	defaultPidFileLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
 	if *pidFileLocation == "" {
-		log.Info("PID file not specified, not written\n")
-	} else {
-		log.Infof("PID file will be written to %s\n", *pidFileLocation)
-		pidfile.SetPidfilePath(*pidFileLocation)
-		err := pidfile.Write()
-		if err != nil {
-			log.Warn("Could not write PID file: %s\n", err)
-		}
+		*pidFileLocation = defaultPidFileLocation
+	}
+	log.Infof("PID file will be written to %s\n", *pidFileLocation)
+	pidfile.SetPidfilePath(*pidFileLocation)
+	err = pidfile.Write()
+	if err != nil {
+		log.Warn("Could not write PID file: %s\n", err)
 	}
 
 	addrs, err := net.InterfaceAddrs()
-
 	if err != nil {
 		log.Fatal("Could not get IP addresses")
 	}
