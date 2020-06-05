@@ -531,17 +531,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *pidFileLocation == "" {
-		log.Info("PID file not specified, not written\n")
-	} else {
-		log.Infof("PID file will be written to %s\n", *pidFileLocation)
-		pidfile.SetPidfilePath(*pidFileLocation)
-		err := pidfile.Write()
-		if err != nil {
-			log.Warn("Could not write PID file: %s\n", err)
-		}
-	}
-
 	if !config.RunMetrics {
 		log.Infof("Running without metrics")
 		metrics.UseNilMetrics = true
@@ -566,6 +555,17 @@ func main() {
 			log.Fatal(err)
 		}
 		os.Exit(0)
+	}
+
+	if *pidFileLocation == "" {
+		log.Info("PID file not specified, not written\n")
+	} else {
+		log.Infof("PID file will be written to %s\n", *pidFileLocation)
+		pidfile.SetPidfilePath(*pidFileLocation)
+		err := pidfile.Write()
+		if err != nil {
+			log.Warn("Could not write PID file: %s\n", err)
+		}
 	}
 
 	addrs, err := net.InterfaceAddrs()
