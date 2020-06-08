@@ -165,3 +165,5 @@ services:
     image: graphiteapp/graphite-statsd
     container_name: graphite
     restart: always
+    ports:
+        - 3000:3000
