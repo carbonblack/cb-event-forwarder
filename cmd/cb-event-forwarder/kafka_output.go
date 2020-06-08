@@ -38,6 +38,7 @@ func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config
 	tlsConfig.RootCAs = caCertPool
 
 	tlsConfig.BuildNameToCertificate()
+	tlsConfig.InsecureSkipVerify = !config.TLSVerify
 	return &tlsConfig, err
 }
 
