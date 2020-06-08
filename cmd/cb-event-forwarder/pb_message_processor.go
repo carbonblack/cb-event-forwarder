@@ -70,7 +70,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
         msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
         if err != nil {
-            log.Infof("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
+            log.Debugf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
             	i, err.Error())
         } else if msg != nil {
             msgs = append(msgs, msg)
