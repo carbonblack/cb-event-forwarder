@@ -25,11 +25,13 @@ import (
 	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/facebookgo/pidfile"
 
 	_ "net/http/pprof"
 )
 
 var (
+	pidFileLocation    = flag.String("pid-file", "", "PID file location")
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
@@ -90,6 +92,7 @@ func NewBufwriter(n int) bufwriter {
     return w
 }
 */
+
 func init() {
 	flag.Parse()
 }
@@ -522,6 +525,7 @@ func main() {
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
+	log.Infof("Using config file %s\n", configLocation)
 	config, err = ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)
@@ -553,8 +557,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	addrs, err := net.InterfaceAddrs()
+	defaultPidFileLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
+	if *pidFileLocation == "" {
+		*pidFileLocation = defaultPidFileLocation
+	}
+	log.Infof("PID file will be written to %s\n", *pidFileLocation)
+	pidfile.SetPidfilePath(*pidFileLocation)
+	err = pidfile.Write()
+	if err != nil {
+		log.Warn("Could not write PID file: %s\n", err)
+	}
 
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		log.Fatal("Could not get IP addresses")
 	}
