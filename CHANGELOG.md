@@ -1,5 +1,9 @@
 # CB Event Forwarder Changelog
 
+## v.3.7.0
+ * Reverted use of confluentinc kafak client library to pure go sarama client
+ * specify CA/Client cert/keys in PEM format
+
 ## v.3.6.3
 
 #### Features

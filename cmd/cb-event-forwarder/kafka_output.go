@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/rcrowley/go-metrics"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -49,7 +50,8 @@ type KafkaOutput struct {
 	producer          sarama.AsyncProducer
 	droppedEventCount int64
 	eventSentCount    int64
-
+	EventSent         metrics.Meter
+	DroppedEvent      metrics.Meter
 	sync.RWMutex
 }
 
@@ -71,6 +73,9 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	kafkaConfig := sarama.NewConfig()
 	sarama.MaxRequestSize = config.KafkaMaxRequestSize
 	kafkaConfig.Producer.Return.Successes = true
+
+	o.EventSent = metrics.NewRegisteredMeter("output.kafka.events_sent", metrics.DefaultRegistry)
+	o.DroppedEvent = metrics.NewRegisteredMeter("output.kafka.events_dropped", metrics.DefaultRegistry)
 
 	if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil && config.KafkaSSLCALocation != nil {
 		kafkaConfig.Net.TLS.Enable = true
@@ -161,6 +166,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 	go func() {
 		for range o.producer.Successes() {
 			atomic.AddInt64(&o.eventSentCount, 1)
+			o.EventSent.Mark(1)
 		}
 	}()
 
@@ -168,6 +174,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		for err := range o.producer.Errors() {
 			log.Info(err)
 			atomic.AddInt64(&o.droppedEventCount, 1)
+			o.DroppedEvent.Mark(1)
 			errorChan <- err
 		}
 	}()
