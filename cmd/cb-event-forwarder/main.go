@@ -147,7 +147,7 @@ func reportError(d string, errmsg string, err error) {
 func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	log.Errorf("Error while processing message through routing key %s:", routingKey)
 
-	var env *sensor_events.CbEnvironmentMsg
+	var env *CbEnvironmentMsg
 	env, err := createEnvMessage(headers)
 	if err != nil {
 		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
