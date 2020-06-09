@@ -6,7 +6,7 @@
 //
 // Copyright (c)2014, Joel Scoble (github.com/mohae), all rights reserved.
 // License: MIT, for more details check the included LICENSE.txt.
-package deepcopy
+package main
 
 import (
 	"encoding/json"

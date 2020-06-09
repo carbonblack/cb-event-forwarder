@@ -18,14 +18,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
+	"github.com/facebookgo/pidfile"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"github.com/facebookgo/pidfile"
 
 	_ "net/http/pprof"
 )
@@ -266,7 +265,7 @@ func outputMessage(msg map[string]interface{}) error {
 		b, err = json.Marshal(msg)
 		outmsg = string(b)
 	case LEEFOutputFormat:
-		outmsg, err = leef.Encode(msg)
+		outmsg, err = Encode(msg)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
 	}

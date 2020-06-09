@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"reflect"
@@ -236,14 +235,14 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 
 	// explode watchlist/feed hit messages that include a "docs" array
 	if val, ok := msg["docs"]; ok {
-		subdocs := deepcopy.Iface(val).([]interface{})
+		subdocs := Iface(val).([]interface{})
 		delete(msg, "docs")
 
 		for _, submsg := range subdocs {
 			submsg := submsg.(map[string]interface{})
-			newMsg := deepcopy.Iface(msg).(map[string]interface{})
+			newMsg := Iface(msg).(map[string]interface{})
 			newSlice := make([]map[string]interface{}, 0, 1)
-			newDoc := deepcopy.Iface(submsg).(map[string]interface{})
+			newDoc := Iface(submsg).(map[string]interface{})
 			fixupMessage(routingKey, newDoc)
 			newSlice = append(newSlice, newDoc)
 			newMsg["docs"] = newSlice
