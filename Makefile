@@ -21,7 +21,7 @@ endif
 build-no-static: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
+	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
@@ -29,14 +29,14 @@ build-no-static: librdkafka
 build: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
+	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go mod verify
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild: librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
-	protoc --gogofast_out=.  ./internal/sensor_events/sensor_events.proto
+	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 

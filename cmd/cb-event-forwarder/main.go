@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
 	"github.com/facebookgo/pidfile"
 	"github.com/rcrowley/go-metrics"
