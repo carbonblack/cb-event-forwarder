@@ -18,7 +18,7 @@ var (
 	formatter         *strings.Replacer
 )
 
-var jsonNumberType reflect.Type
+var le_jsonNumberType reflect.Type
 
 func init() {
 	productVendorName = "CB"
@@ -35,7 +35,7 @@ func init() {
 	)
 
 	var t json.Number
-	jsonNumberType = reflect.ValueOf(t).Type()
+	le_jsonNumberType = reflect.ValueOf(t).Type()
 }
 
 func generateHeader(cbVersion, eventType string) string {
