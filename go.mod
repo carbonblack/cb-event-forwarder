@@ -6,6 +6,8 @@ require (
 	github.com/carbonblack/ttlru v1.0.10-0.20190816192330-6ef8e99980e4
 	github.com/confluentinc/confluent-kafka-go v0.11.4
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
+	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
+	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-ini/ini v1.36.0
 	github.com/gogo/protobuf v1.3.1
@@ -35,3 +37,5 @@ require (
 	gopkg.in/ini.v1 v1.41.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
+
+go 1.13
