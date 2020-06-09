@@ -3,7 +3,6 @@ module github.com/carbonblack/cb-event-forwarder
 require (
 	github.com/RackSec/srslog v0.0.0-20180514150917-1f7cff998e92
 	github.com/aws/aws-sdk-go v1.13.49
-	github.com/carbonblack/ttlru v1.0.10-0.20190816192330-6ef8e99980e4
 	github.com/confluentinc/confluent-kafka-go v0.11.4
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
@@ -14,7 +13,6 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.2.0
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
-	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc
 	github.com/hpcloud/tail v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
