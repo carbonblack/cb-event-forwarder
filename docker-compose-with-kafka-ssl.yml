@@ -166,4 +166,4 @@ services:
     container_name: graphite
     restart: always
     ports:
-        - 3000:3000
+        - 2003:2003
