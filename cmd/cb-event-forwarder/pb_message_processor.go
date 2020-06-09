@@ -6,7 +6,6 @@ import (
     "encoding/binary"
     "errors"
     "fmt"
-    events "github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
     "github.com/golang/protobuf/proto"
     log "github.com/sirupsen/logrus"
     "github.com/streadway/amqp"

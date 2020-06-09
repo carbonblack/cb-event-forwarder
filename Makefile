@@ -18,25 +18,26 @@ ifeq ($TARGET_OS,"linux")
 	ldconfig -p | grep librdkafka
 endif
 
-build-no-static: librdkafka
+compile-protobufs:
+	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
+	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
+
+build-no-static: compile-protobufs librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
-build: librdkafka
+build: compile-protobufs librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
-	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go mod verify
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
-rpmbuild: librdkafka
+rpmbuild: compile-protobufs librdkafka
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
-	protoc --gogofast_out=./cmd/cb-event-forwarder  ./internal/sensor_events/sensor_events.proto
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
