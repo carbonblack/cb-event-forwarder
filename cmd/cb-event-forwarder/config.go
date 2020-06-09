@@ -105,7 +105,6 @@ type Configuration struct {
 
 	TLSConfig *tls.Config
 
-	// optional post processing of feed hits to retrieve titles
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
