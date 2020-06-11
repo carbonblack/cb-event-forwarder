@@ -18,9 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
+	"github.com/facebookgo/pidfile"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +29,7 @@ import (
 )
 
 var (
+	pidFileLocation    = flag.String("pid-file", "", "PID file location")
 	checkConfiguration = flag.Bool("check", false, "Check the configuration file and exit")
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
@@ -70,26 +70,6 @@ var (
 	outputErrors chan error
 )
 
-/*
- * Initializations
- *
-
-type bufwriter chan []byte
-
-func (bw bufwriter) Write(p []byte) (int, error) {
-    bw <- p
-    return len(p), nil
-}
-func NewBufwriter(n int) bufwriter {
-    w := make(bufwriter, n)
-    go func() {
-        for p := range w {
-            os.Stdout.Write(p)
-        }
-    }()
-    return w
-}
-*/
 func init() {
 	flag.Parse()
 }
@@ -161,13 +141,13 @@ type OutputHandler interface {
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
 	status.ErrorCount.Mark(1)
-	log.Errorf("%s when processing %s: %s", errmsg, d, err)
+	log.Debugf("%s when processing %s: %s", errmsg, d, err)
 }
 
 func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
 	log.Errorf("Error while processing message through routing key %s:", routingKey)
 
-	var env *sensor_events.CbEnvironmentMsg
+	var env *CbEnvironmentMsg
 	env, err := createEnvMessage(headers)
 	if err != nil {
 		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
@@ -256,16 +236,9 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	}
 
 	for _, msg := range msgs {
-		if config.PerformFeedPostprocessing {
-			go func(msg map[string]interface{}) {
-				outputMsg := PostprocessJSONMessage(msg)
-				outputMessage(outputMsg)
-			}(msg)
-		} else {
-			err = outputMessage(msg)
-			if err != nil {
-				reportError(string(body), "Error marshaling message", err)
-			}
+		err = outputMessage(msg)
+		if err != nil {
+			reportError(string(body), "Error marshaling message", err)
 		}
 	}
 }
@@ -291,7 +264,7 @@ func outputMessage(msg map[string]interface{}) error {
 		b, err = json.Marshal(msg)
 		outmsg = string(b)
 	case LEEFOutputFormat:
-		outmsg, err = leef.Encode(msg)
+		outmsg, err = Encode(msg)
 	default:
 		panic("Impossible: invalid output_format, exiting immediately")
 	}
@@ -522,6 +495,7 @@ func main() {
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
+	log.Infof("Using config file %s\n", configLocation)
 	config, err = ParseConfig(configLocation)
 	if err != nil {
 		log.Fatal(err)
@@ -537,15 +511,6 @@ func main() {
 
 	setupMetrics()
 
-	if config.PerformFeedPostprocessing {
-		apiVersion, err := GetCbVersion()
-		if err != nil {
-			log.Fatal("Could not get cb version: " + err.Error())
-		} else {
-			log.Infof("Enabling feed post-processing for server %s version %s.", config.CbServerURL, apiVersion)
-		}
-	}
-
 	if *checkConfiguration {
 		if err := startOutputs(); err != nil {
 			log.Fatal(err)
@@ -553,8 +518,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	addrs, err := net.InterfaceAddrs()
+	defaultPidFileLocation := "/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid"
+	if *pidFileLocation == "" {
+		*pidFileLocation = defaultPidFileLocation
+	}
+	log.Infof("PID file will be written to %s\n", *pidFileLocation)
+	pidfile.SetPidfilePath(*pidFileLocation)
+	err = pidfile.Write()
+	if err != nil {
+		log.Warn("Could not write PID file: %s\n", err)
+	}
 
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		log.Fatal("Could not get IP addresses")
 	}
@@ -585,24 +560,6 @@ func main() {
 	if err := startOutputs(); err != nil {
 		log.Fatalf("Could not startOutputs: %s", err)
 	}
-
-	/*
-		dirs := [...]string{
-			"/usr/share/cb/integrations/event-forwarder/content",
-			"./static",
-		}
-
-		for _, dirname := range dirs {
-			finfo, err := os.Stat(dirname)
-			if err == nil && finfo.IsDir() {
-				http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(dirname))))
-				http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-					http.Redirect(w, r, "/static/", 301)
-				})
-				log.Infof("Diagnostics available via HTTP at http://%s:%d/", hostname, config.HTTPServerPort)
-				break
-			}
-		} */
 
 	if *debug {
 		http.HandleFunc("/debug/sendmessage", func(w http.ResponseWriter, r *http.Request) {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/carbonblack/cb-event-forwarder/internal/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 	"reflect"
@@ -236,14 +235,14 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 
 	// explode watchlist/feed hit messages that include a "docs" array
 	if val, ok := msg["docs"]; ok {
-		subdocs := deepcopy.Iface(val).([]interface{})
+		subdocs := Iface(val).([]interface{})
 		delete(msg, "docs")
 
 		for _, submsg := range subdocs {
 			submsg := submsg.(map[string]interface{})
-			newMsg := deepcopy.Iface(msg).(map[string]interface{})
+			newMsg := Iface(msg).(map[string]interface{})
 			newSlice := make([]map[string]interface{}, 0, 1)
-			newDoc := deepcopy.Iface(submsg).(map[string]interface{})
+			newDoc := Iface(submsg).(map[string]interface{})
 			fixupMessage(routingKey, newDoc)
 			newSlice = append(newSlice, newDoc)
 			newMsg["docs"] = newSlice
@@ -254,71 +253,4 @@ func ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[st
 	}
 
 	return msgs, nil
-}
-
-/*
- * Used to perform postprocessing on messages.  For exmaple, for feed hits we need to grab the report_title.
- * To do this we must query the Cb Response Server's REST API to get the report_title.  NOTE: In order to do this
- * functionality we need the Cb Response Server URL and API Token set within the config.
- */
-func PostprocessJSONMessage(msg map[string]interface{}) map[string]interface{} {
-
-	if val, ok := msg["type"]; ok {
-		messageType := val.(string)
-
-		var reportIDString string
-
-		if strings.HasPrefix(messageType, "feed.") {
-			reportIDString = "report_id"
-		} else if strings.HasPrefix(messageType, "alert.") {
-			reportIDString = "watchlist_id"
-		} else {
-			return msg
-		}
-
-		feedID, feedIDPresent := msg["feed_id"]
-		reportID, reportIDPresent := msg[reportIDString]
-
-		/*
-		 * First make sure these fields are present
-		 */
-		if feedIDPresent && reportIDPresent {
-			/*
-			 * feedID should be of type json.Number which is typed as a string
-			 * reportID should be of type string as well
-			 */
-			if reflect.TypeOf(feedID).Kind() == reflect.String &&
-				reflect.TypeOf(reportID).Kind() == reflect.String {
-				iFeedID, err := feedID.(json.Number).Int64()
-				if err == nil && iFeedID != -1 {
-					/*
-					 * Get the report_title for this feed hit
-					 */
-					reportTitle, reportScore, reportLink, err := GetReport(int(iFeedID), reportID.(string))
-					log.Debugf("Report title = %s , Score = %d, link = %s", reportTitle, reportScore, reportLink)
-					if err == nil {
-						/*
-						 * Finally save the report_title into this message
-						 */
-						msg["report_title"] = reportTitle
-						msg["report_score"] = reportScore
-						msg["report_link"] = reportLink
-						/*
-							log.Infof("report title for id %s:%s == %s\n",
-								feedID.(json.Number).String(),
-								reportID.(string),
-								reportTitle)
-						*/
-					}
-
-				} else {
-					log.Debug("Unable to convert feed_id to int64 from json.Number")
-				}
-
-			} else {
-				log.Debug("Feed Id was an unexpected type")
-			}
-		}
-	}
-	return msg
 }

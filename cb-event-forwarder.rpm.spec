@@ -4,8 +4,8 @@
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
 %define bare_version 3.6.3
-%define build_timestamp %(date +%%y%%m%%d.%%H%%m)
-%define release 0
+%define build_timestamp %(date +%%y%%m%%d.%%H%%m%%S)
+%define release 1
 
 Summary: Carbon Black event forwarder
 Name: %{name}

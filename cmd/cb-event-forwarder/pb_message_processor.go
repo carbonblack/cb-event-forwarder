@@ -6,7 +6,6 @@ import (
     "encoding/binary"
     "errors"
     "fmt"
-    events "github.com/carbonblack/cb-event-forwarder/internal/sensor_events"
     "github.com/golang/protobuf/proto"
     log "github.com/sirupsen/logrus"
     "github.com/streadway/amqp"
@@ -19,7 +18,7 @@ import (
     "strings"
 )
 
-func getProcessGUID(m *events.CbEventMsg) string {
+func getProcessGUID(m *CbEventMsg) string {
     if m.Header.ProcessPid != nil && m.Header.ProcessCreateTime != nil && m.Env != nil && m.Env.Endpoint != nil &&
     		m.Env.Endpoint.SensorId != nil {
         pid := m.Header.GetProcessPid()
@@ -32,7 +31,7 @@ func getProcessGUID(m *events.CbEventMsg) string {
 }
 
 type convertedCbMessage struct {
-    OriginalMessage *events.CbEventMsg
+    OriginalMessage *CbEventMsg
 }
 
 func (inmsg *convertedCbMessage) getStringByGUID(guid int64) (string, error) {
@@ -70,7 +69,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
         msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
         if err != nil {
-            log.Infof("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
+            log.Debugf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
             	i, err.Error())
         } else if msg != nil {
             msgs = append(msgs, msg)
@@ -107,14 +106,14 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
     for i, zf := range zipReader.File {
         src, err := zf.Open()
         if err != nil {
-            log.Errorf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
+            log.Debugf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
             continue
         }
 
         unzippedFile, err := ioutil.ReadAll(src)
 		_ = src.Close()
         if err != nil {
-            log.Errorf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
+            log.Debugf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
             continue
         }
 
@@ -127,12 +126,12 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
                 func() {
                     debugZip, err := zf.Open()
                     if err != nil {
-                        log.Errorf("Error opening zip file %s for debugstore", zf.Name)
+                        log.Debugf("Error opening zip file %s for debugstore", zf.Name)
                     }
 
                     debugUnzipped, err := ioutil.ReadAll(debugZip)
                     if err != nil {
-                        log.Errorf("Error in ioutil.ReadAll for zip file %s", zf.Name)
+                        log.Debugf("Error in ioutil.ReadAll for zip file %s", zf.Name)
                     }
 
                     defer debugZip.Close()
@@ -140,7 +139,7 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
                     log.Debugf("Attempting to create file: %s", filepath.Join(config.DebugStore, zf.Name))
                     debugStoreFile, err := os.Create(filepath.Join(config.DebugStore, zf.Name))
                     if err != nil {
-                        log.Errorf("Error in create file %s", filepath.Join(config.DebugStore, zf.Name))
+                        log.Debugf("Error in create file %s", filepath.Join(config.DebugStore, zf.Name))
                     }
 
                     //noinspection GoNilness
@@ -177,8 +176,8 @@ func parseIntFromHeader(src interface{}) (int64, error) {
 }
 
 // TODO: This is currently called for *every* protobuf message in a bundle. This should be called only once *per bundle*.
-func createEnvMessage(headers amqp.Table) (*events.CbEnvironmentMsg, error) {
-    endpointMsg := &events.CbEndpointEnvironmentMsg{}
+func createEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
+    endpointMsg := &CbEndpointEnvironmentMsg{}
     if hostID, ok := headers["hostId"]; ok {
         val, err := parseIntFromHeader(hostID)
         if err != nil {
@@ -202,7 +201,7 @@ func createEnvMessage(headers amqp.Table) (*events.CbEnvironmentMsg, error) {
         endpointMsg.SensorId = &sensorID
     }
 
-    serverMsg := &events.CbServerEnvironmentMsg{}
+    serverMsg := &CbServerEnvironmentMsg{}
     if nodeID, ok := headers["nodeId"]; ok {
         val, err := parseIntFromHeader(nodeID)
         if err != nil {
@@ -212,14 +211,14 @@ func createEnvMessage(headers amqp.Table) (*events.CbEnvironmentMsg, error) {
         serverMsg.NodeId = &nodeID
     }
 
-    return &events.CbEnvironmentMsg{
+    return &CbEnvironmentMsg{
         Endpoint: endpointMsg,
         Server:   serverMsg,
     }, nil
 }
 
 func ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) (map[string]interface{}, error) {
-    cbMessage := new(events.CbEventMsg)
+    cbMessage := new(CbEventMsg)
     err := proto.Unmarshal(body, cbMessage)
     if err != nil {
         return nil, err
@@ -477,15 +476,15 @@ func writeModloadMessage(message *convertedCbMessage, kv map[string]interface{})
     kv["sha256"] = GetSha256Hexdigest(message.OriginalMessage.Modload.GetSha256Hash())
 }
 
-func filemodAction(a events.CbFileModMsg_CbFileModAction) string {
+func filemodAction(a CbFileModMsg_CbFileModAction) string {
     switch a {
-        case events.CbFileModMsg_actionFileModCreate:
+        case CbFileModMsg_actionFileModCreate:
             return "create"
-        case events.CbFileModMsg_actionFileModWrite:
+        case CbFileModMsg_actionFileModWrite:
             return "write"
-        case events.CbFileModMsg_actionFileModDelete:
+        case CbFileModMsg_actionFileModDelete:
             return "delete"
-        case events.CbFileModMsg_actionFileModLastWrite:
+        case CbFileModMsg_actionFileModLastWrite:
             return "lastwrite"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
@@ -504,7 +503,7 @@ func writeFilemodMessage(message *convertedCbMessage, kv map[string]interface{})
 
     fileType := message.OriginalMessage.Filemod.GetType()
     kv["filetype"] = int32(fileType)
-    kv["filetype_name"] = strings.TrimPrefix(events.CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
+    kv["filetype_name"] = strings.TrimPrefix(CbFileModMsg_CbFileType_name[int32(fileType)], "filetype")
 
     if message.OriginalMessage.Filemod.Md5Hash != nil {
         kv["file_md5"] = GetMd5Hexdigest(message.OriginalMessage.Filemod.GetMd5Hash())
@@ -552,7 +551,7 @@ func writeChildprocMessage(message *convertedCbMessage, kv map[string]interface{
     kv["sha256"] = GetSha256Hexdigest(om.Childproc.GetSha256Hash())
 
     childProcType := message.OriginalMessage.Childproc.GetChildProcType()
-    kv["childproc_type"] = strings.TrimPrefix(events.CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
+    kv["childproc_type"] = strings.TrimPrefix(CbChildProcessMsg_CbChildProcType_name[int32(childProcType)],
         "childProc")
 
     // handle suppressed children
@@ -566,15 +565,15 @@ func writeChildprocMessage(message *convertedCbMessage, kv map[string]interface{
     }
 }
 
-func regmodAction(a events.CbRegModMsg_CbRegModAction) string {
+func regmodAction(a CbRegModMsg_CbRegModAction) string {
     switch a {
-        case events.CbRegModMsg_actionRegModCreateKey:
+        case CbRegModMsg_actionRegModCreateKey:
             return "createkey"
-        case events.CbRegModMsg_actionRegModWriteValue:
+        case CbRegModMsg_actionRegModWriteValue:
             return "writeval"
-        case events.CbRegModMsg_actionRegModDeleteKey:
+        case CbRegModMsg_actionRegModDeleteKey:
             return "delkey"
-        case events.CbRegModMsg_actionRegModDeleteValue:
+        case CbRegModMsg_actionRegModDeleteValue:
             return "delval"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
@@ -624,7 +623,7 @@ func writeNetconnMessage(message *convertedCbMessage, kv map[string]interface{})
     }
 }
 
-func getIPAddress(ipAddress *events.CbIpAddr) string {
+func getIPAddress(ipAddress *CbIpAddr) string {
     if ipAddress.GetBIsIpv6() {
         b := make([]byte, 16)
         binary.LittleEndian.PutUint64(b[:8], ipAddress.GetIpv6High())
@@ -709,46 +708,46 @@ func writeModinfoMessage(message *convertedCbMessage, kv map[string]interface{})
     kv["digsig"] = digsig
 }
 
-func emetMitigationType(a *events.CbEmetMitigationAction) string {
+func emetMitigationType(a *CbEmetMitigationAction) string {
 
     mitigation := a.GetMitigationType()
 
     switch mitigation {
-        case events.CbEmetMitigationAction_actionDep:
+        case CbEmetMitigationAction_actionDep:
             return "Dep"
-        case events.CbEmetMitigationAction_actionSehop:
+        case CbEmetMitigationAction_actionSehop:
             return "Sehop"
-        case events.CbEmetMitigationAction_actionAsr:
+        case CbEmetMitigationAction_actionAsr:
             return "Asr"
-        case events.CbEmetMitigationAction_actionAslr:
+        case CbEmetMitigationAction_actionAslr:
             return "Aslr"
-        case events.CbEmetMitigationAction_actionNullPage:
+        case CbEmetMitigationAction_actionNullPage:
             return "NullPage"
-        case events.CbEmetMitigationAction_actionHeapSpray:
+        case CbEmetMitigationAction_actionHeapSpray:
             return "HeapSpray"
-        case events.CbEmetMitigationAction_actionMandatoryAslr:
+        case CbEmetMitigationAction_actionMandatoryAslr:
             return "MandatoryAslr"
-        case events.CbEmetMitigationAction_actionEaf:
+        case CbEmetMitigationAction_actionEaf:
             return "Eaf"
-        case events.CbEmetMitigationAction_actionEafPlus:
+        case CbEmetMitigationAction_actionEafPlus:
             return "EafPlus"
-        case events.CbEmetMitigationAction_actionBottomUpAslr:
+        case CbEmetMitigationAction_actionBottomUpAslr:
             return "BottomUpAslr"
-        case events.CbEmetMitigationAction_actionLoadLibrary:
+        case CbEmetMitigationAction_actionLoadLibrary:
             return "LoadLibrary"
-        case events.CbEmetMitigationAction_actionMemoryProtection:
+        case CbEmetMitigationAction_actionMemoryProtection:
             return "MemoryProtection"
-        case events.CbEmetMitigationAction_actionSimulateExecFlow:
+        case CbEmetMitigationAction_actionSimulateExecFlow:
             return "SimulateExecFlow"
-        case events.CbEmetMitigationAction_actionStackPivot:
+        case CbEmetMitigationAction_actionStackPivot:
             return "StackPivot"
-        case events.CbEmetMitigationAction_actionCallerChecks:
+        case CbEmetMitigationAction_actionCallerChecks:
             return "CallerChecks"
-        case events.CbEmetMitigationAction_actionBannedFunctions:
+        case CbEmetMitigationAction_actionBannedFunctions:
             return "BannedFunctions"
-        case events.CbEmetMitigationAction_actionDeepHooks:
+        case CbEmetMitigationAction_actionDeepHooks:
             return "DeepHooks"
-        case events.CbEmetMitigationAction_actionAntiDetours:
+        case CbEmetMitigationAction_actionAntiDetours:
             return "AntiDetours"
     }
     return fmt.Sprintf("unknown (%d)", int32(mitigation))
@@ -764,11 +763,11 @@ func writeEmetEvent(message *convertedCbMessage, kv map[string]interface{}) {
     kv["emet_timestamp"] = message.OriginalMessage.Emet.GetEmetTimstamp()
 }
 
-func crossprocOpenType(a events.CbCrossProcessOpenMsg_OpenType) string {
+func crossprocOpenType(a CbCrossProcessOpenMsg_OpenType) string {
     switch a {
-        case events.CbCrossProcessOpenMsg_OpenProcessHandle:
+        case CbCrossProcessOpenMsg_OpenProcessHandle:
             return "open_process"
-        case events.CbCrossProcessOpenMsg_OpenThreadHandle:
+        case CbCrossProcessOpenMsg_OpenThreadHandle:
             return "open_thread"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
@@ -813,17 +812,17 @@ func writeCrossProcMessage(message *convertedCbMessage, kv map[string]interface{
     }
 }
 
-func tamperAlertType(a events.CbTamperAlertMsg_CbTamperAlertType) string {
+func tamperAlertType(a CbTamperAlertMsg_CbTamperAlertType) string {
     switch a {
-        case events.CbTamperAlertMsg_AlertCoreDriverUnloaded:
+        case CbTamperAlertMsg_AlertCoreDriverUnloaded:
             return "CoreDriverUnloaded"
-        case events.CbTamperAlertMsg_AlertNetworkDriverUnloaded:
+        case CbTamperAlertMsg_AlertNetworkDriverUnloaded:
             return "NetworkDriverUnloaded"
-        case events.CbTamperAlertMsg_AlertCbServiceStopped:
+        case CbTamperAlertMsg_AlertCbServiceStopped:
             return "CbServiceStopped"
-        case events.CbTamperAlertMsg_AlertCbProcessTerminated:
+        case CbTamperAlertMsg_AlertCbProcessTerminated:
             return "CbProcessTerminated"
-        case events.CbTamperAlertMsg_AlertCbCodeInjection:
+        case CbTamperAlertMsg_AlertCbCodeInjection:
             return "CbCodeInjection"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
@@ -835,31 +834,31 @@ func writeTamperAlertMsg(message *convertedCbMessage, kv map[string]interface{})
     kv["tamper_type"] = tamperAlertType(message.OriginalMessage.TamperAlert.GetType())
 }
 
-func blockedProcessEventType(a events.CbProcessBlockedMsg_BlockEvent) string {
+func blockedProcessEventType(a CbProcessBlockedMsg_BlockEvent) string {
     switch a {
-        case events.CbProcessBlockedMsg_ProcessCreate:
+        case CbProcessBlockedMsg_ProcessCreate:
             return "ProcessCreate"
-        case events.CbProcessBlockedMsg_RunningProcess:
+        case CbProcessBlockedMsg_RunningProcess:
             return "RunningProcess"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
 }
 
-func blockedProcessResult(a events.CbProcessBlockedMsg_BlockResult) string {
+func blockedProcessResult(a CbProcessBlockedMsg_BlockResult) string {
     switch a {
-        case events.CbProcessBlockedMsg_ProcessTerminated:
+        case CbProcessBlockedMsg_ProcessTerminated:
             return "ProcessTerminated"
-        case events.CbProcessBlockedMsg_NotTerminatedCBProcess:
+        case CbProcessBlockedMsg_NotTerminatedCBProcess:
             return "NotTerminatedCBProcess"
-        case events.CbProcessBlockedMsg_NotTerminatedSystemProcess:
+        case CbProcessBlockedMsg_NotTerminatedSystemProcess:
             return "NotTerminatedSystemProcess"
-        case events.CbProcessBlockedMsg_NotTerminatedCriticalSystemProcess:
+        case CbProcessBlockedMsg_NotTerminatedCriticalSystemProcess:
             return "NotTerminatedCriticalSystemProcess"
-        case events.CbProcessBlockedMsg_NotTerminatedWhitelistedPath:
+        case CbProcessBlockedMsg_NotTerminatedWhitelistedPath:
             return "NotTerminatedWhitelistPath"
-        case events.CbProcessBlockedMsg_NotTerminatedOpenProcessError:
+        case CbProcessBlockedMsg_NotTerminatedOpenProcessError:
             return "NotTerminatedOpenProcessError"
-        case events.CbProcessBlockedMsg_NotTerminatedTerminateError:
+        case CbProcessBlockedMsg_NotTerminatedTerminateError:
             return "NotTerminatedTerminateError"
     }
     return fmt.Sprintf("unknown (%d)", int32(a))
@@ -870,7 +869,7 @@ func writeProcessBlockedMsg(message *convertedCbMessage, kv map[string]interface
     kv["event_type"] = "blocked_process"
     kv["type"] = "ingress.event.processblock"
 
-    if block.GetBlockedType() == events.CbProcessBlockedMsg_MD5Hash {
+    if block.GetBlockedType() == CbProcessBlockedMsg_MD5Hash {
         kv["blocked_reason"] = "Md5Hash"
     } else {
         kv["blocked_reason"] = fmt.Sprintf("unknown (%d)", int32(block.GetBlockedType()))
@@ -881,8 +880,8 @@ func writeProcessBlockedMsg(message *convertedCbMessage, kv map[string]interface
     kv["path"] = block.GetBlockedPath()
     kv["blocked_result"] = blockedProcessResult(block.GetBlockResult())
 
-    if block.GetBlockResult() == events.CbProcessBlockedMsg_NotTerminatedOpenProcessError ||
-        block.GetBlockResult() == events.CbProcessBlockedMsg_NotTerminatedTerminateError {
+    if block.GetBlockResult() == CbProcessBlockedMsg_NotTerminatedOpenProcessError ||
+        block.GetBlockResult() == CbProcessBlockedMsg_NotTerminatedTerminateError {
         kv["blocked_error"] = block.GetBlockError()
     }
 
@@ -900,8 +899,8 @@ func writeProcessBlockedMsg(message *convertedCbMessage, kv map[string]interface
 
     kv["command_line"] = block.GetBlockedCmdline()
 
-    if block.GetBlockedEvent() == events.CbProcessBlockedMsg_ProcessCreate &&
-        block.GetBlockResult() == events.CbProcessBlockedMsg_ProcessTerminated {
+    if block.GetBlockedEvent() == CbProcessBlockedMsg_ProcessCreate &&
+        block.GetBlockResult() == CbProcessBlockedMsg_ProcessTerminated {
         kv["uid"] = block.GetBlockedUid()
         kv["username"] = block.GetBlockedUsername()
     }
