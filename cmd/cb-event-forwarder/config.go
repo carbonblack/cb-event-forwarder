@@ -14,7 +14,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
@@ -109,23 +108,16 @@ type Configuration struct {
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
 	KafkaTopic          string
-	KafkaProtocol       string
-	KafkaMechanism      string
 	KafkaUsername       string
 	KafkaPassword       string
 	KafkaMaxRequestSize int32
 
 	KafkaCompressionType *string
 
-	KafkaSSLKeyPassword *string
 	KafkaSSLKeyLocation *string
 
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
-
-	KafkaSSLEnabledProtocols []string
-
-	KafkaProducerProps kafka.ConfigMap
 
 	//Splunkd
 	SplunkToken *string
@@ -638,18 +630,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.KafkaTopic = kafkaTopic
 		}
 
-		if input.Section("kafka").HasKey("protocol") {
-			key := input.Section("kafka").Key("protocol")
-			kafkaProtocol := key.Value()
-			config.KafkaProtocol = kafkaProtocol
-		}
-
-		if input.Section("kafka").HasKey("mechanism") {
-			key := input.Section("kafka").Key("mechanism")
-			kafkaMechanism := key.Value()
-			config.KafkaMechanism = kafkaMechanism
-		}
-
 		if input.Section("kafka").HasKey("username") {
 			key := input.Section("kafka").Key("username")
 			kafkaUsername := key.Value()
@@ -693,27 +673,6 @@ func ParseConfig(fn string) (Configuration, error) {
 			key := input.Section("kafka").Key("ssl_key_location")
 			SSLKeyLocation := key.Value()
 			config.KafkaSSLKeyLocation = &SSLKeyLocation
-		}
-
-		if input.Section("kafka").HasKey("ssl_key_password") {
-			key := input.Section("kafka").Key("ssl_key_password")
-			SSLKeyPassword := key.Value()
-			config.KafkaSSLKeyPassword = &SSLKeyPassword
-		}
-
-		if input.Section("kafka").HasKey("ssl_enabled_protocols") {
-			key := input.Section("kafka").Key("ssl_enabled_protocols")
-			config.KafkaSSLEnabledProtocols = strings.Split(key.Value(), ",")
-		} else {
-			config.KafkaSSLEnabledProtocols = make([]string, 0)
-		}
-
-		if _, err := input.GetSection("kafka.producer"); err == nil {
-			config.KafkaProducerProps = kafka.ConfigMap{}
-			kcfg := input.Section("kafka.producer").KeysHash()
-			for key, value := range kcfg {
-				config.KafkaProducerProps[key] = value
-			}
 		}
 
 	case "splunk":

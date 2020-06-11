@@ -1,51 +1,30 @@
 version: '3'
 services:
-  eventforwarder:
-    build:
-      context: .
-      args:
-        INIFILE: cb-event-forwarder.dockerkafkassl.ini
-    hostname: eventforwarder
-    container_name: eventforwarder
-    volumes:
-      - "./examples/kafka-client-ssl/secrets:/var/private/ssl:ro"
-    restart: always
-    tty: true
-    sysctls:
-      net.ipv6.conf.all.disable_ipv6 :  1
-    ports:
-      - "33706:33706"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-      - kafka-ssl-1
-      - kafka-ssl-2
-      - kafka-ssl-3
-      - rabbitmq
-      - grafana
-      - graphite
-
-  kafkamanager:
-    build: ./kafkamanager
-    hostname: kafkamanager
-    container_name: kafkamanager
-    tty: true
-    command: -c 'rm /kafkamanager/RUNNING_PID ; /kafkamanager/bin/kafka-manager'
-    ports:
-      - "39000:9000"
-    depends_on:
-      - zookeeper-1
-      - zookeeper-2
-      - zookeeper-3
-      - kafka-ssl-1
-      - kafka-ssl-2
-      - kafka-ssl-3
-    environment:
-      ZK_HOSTS: localhost:22181,localhost:32181,localhost:42181
+  #eventforwarder:
+  #  build:
+  #    context: .
+  #    args:
+  #      INIFILE: cb-event-forwarder.dockerkafkassl.ini
+  #      EFEXE: ./cb-event-forwarder
+  #  hostname: eventforwarder
+  #  container_name: eventforwarder
+  #  volumes:
+  #    - "./examples/kafka-client-ssl/secrets:/var/private/ssl:ro"
+  #  restart: always
+  #  tty: true
+  #  sysctls:
+  #    net.ipv6.conf.all.disable_ipv6 :  1
+  #  ports:
+  #    - "33706:33706"
+  #  depends_on:
+  #    - zookeeper-1
+  #    - zookeeper-2
+  #    - zookeeper-3
+  #    - kafka-ssl-1
+  #    - kafka-ssl-2
+  #    - kafka-ssl-3
 
   zookeeper-1:
-    image: confluentinc/cp-zookeeper:latest
     image: confluentinc/cp-zookeeper:latest
     ports:
       - 22181:22181
@@ -58,7 +37,7 @@ services:
       ZOOKEEPER_SERVERS: localhost:22888:23888;localhost:32888:33888;localhost:42888:43888
     network_mode: host
     extra_hosts:
-      - "moby:127.0.0.1"
+      - 'moby:127.0.0.1'
 
   zookeeper-2:
     image: confluentinc/cp-zookeeper:latest
@@ -73,7 +52,7 @@ services:
       ZOOKEEPER_SERVERS: localhost:22888:23888;localhost:32888:33888;localhost:42888:43888
     network_mode: host
     extra_hosts:
-      - "moby:127.0.0.1"
+      - 'moby:127.0.0.1'
 
   zookeeper-3:
     image: confluentinc/cp-zookeeper:latest
@@ -88,14 +67,14 @@ services:
       ZOOKEEPER_SERVERS: localhost:22888:23888;localhost:32888:33888;localhost:42888:43888
     network_mode: host
     extra_hosts:
-      - "moby:127.0.0.1"
+      - 'moby:127.0.0.1'
 
   kafka-ssl-1:
     image: confluentinc/cp-kafka:latest
     network_mode: host
     ports:
-      - "19092:19092"
-      - "19999:19999"
+      - '19092:19092'
+      - '19999:19999'
     depends_on:
       - zookeeper-1
       - zookeeper-2
@@ -109,14 +88,14 @@ services:
       KAFKA_SSL_KEY_CREDENTIALS: broker1_sslkey_creds
       KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.broker1.truststore.jks
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: broker1_truststore_creds
-      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: " "
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ' '
       KAFKA_SSL_CLIENT_AUTH: requested
       KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SSL
 
     volumes:
       - ./examples/kafka-cluster-ssl/secrets:/etc/kafka/secrets
     extra_hosts:
-      - "moby:127.0.0.1"
+      - 'moby:127.0.0.1'
 
   kafka-ssl-2:
     image: confluentinc/cp-kafka:latest
@@ -126,8 +105,8 @@ services:
       - zookeeper-2
       - zookeeper-3
     ports:
-      - "29092:29092"
-      - "29999:29999"
+      - '29092:29092'
+      - '29999:29999'
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: localhost:22181,localhost:32181,localhost:42181
@@ -137,14 +116,14 @@ services:
       KAFKA_SSL_KEY_CREDENTIALS: broker2_sslkey_creds
       KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.broker2.truststore.jks
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: broker2_truststore_creds
-      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: " "
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ' '
       KAFKA_SSL_CLIENT_AUTH: requested
       KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SSL
 
     volumes:
       - ./examples/kafka-cluster-ssl/secrets:/etc/kafka/secrets
     extra_hosts:
-      - "moby:127.0.0.1"
+      - 'moby:127.0.0.1'
 
   kafka-ssl-3:
     image: confluentinc/cp-kafka:latest
@@ -154,8 +133,8 @@ services:
       - zookeeper-2
       - zookeeper-3
     ports:
-      - "39092:39092"
-      - "39999:39999"
+      - '39092:39092'
+      - '39999:39999'
     environment:
       KAFKA_BROKER_ID: 3
       KAFKA_ZOOKEEPER_CONNECT: localhost:22181,localhost:32181,localhost:42181
@@ -165,45 +144,26 @@ services:
       KAFKA_SSL_KEY_CREDENTIALS: broker3_sslkey_creds
       KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.broker3.truststore.jks
       KAFKA_SSL_TRUSTSTORE_CREDENTIALS: broker3_truststore_creds
-      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: " "
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ' '
       KAFKA_SSL_CLIENT_AUTH: requested
       KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SSL
 
     volumes:
       - ./examples/kafka-cluster-ssl/secrets:/etc/kafka/secrets
     extra_hosts:
-      - "moby:127.0.0.1"
-
-
+      - 'moby:127.0.0.1'
   grafana:
-      image: grafana/grafana
-      container_name: grafana
-      hostname: grafana
-      restart: always
-      ports:
-        - 3000:3000
+    image: grafana/grafana
+    container_name: grafana
+    hostname: grafana
+    restart: always
+    ports:
+      - 3000:3000
 
   graphite:
-      hostname: graphite
-      image: graphiteapp/graphite-statsd
-      container_name: graphite
-      restart: always
-
-  rabbitmq:
-    image: "rabbitmq:3.6.5-management"
-    hostname: "rabbitmq"
-    volumes:
-      - ./rabbitmq/definitions.json:/opt/definitions.json:ro
-      - ./rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+    hostname: graphite
+    image: graphiteapp/graphite-statsd
+    container_name: graphite
+    restart: always
     ports:
-      - "15672:15672"
-      - "5672:5672"
-
-  stressrabbit:
-    build: ./test/stress_rabbit
-    hostname: stressrabbit
-    container_name: stressrabbit
-    depends_on:
-      - rabbitmq
-      - eventforwarder
-
+        - 2003:2003

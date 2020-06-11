@@ -4,48 +4,52 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
-	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/Shopify/sarama"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 var requestMaxSize = flag.Int("MaxRequestSize", 1000000, "sarama.MaxRequestSize")
-var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs (required)")
-var topicSuffix = flag.String("TopicSuffix", "", "Optional topic suffix to use")
+var filePath = flag.String("FilePath", "", "Path to files")
+var brokerList = flag.String("BrokerList", "", "Comma seperated list of kafka-broker:ip pairs")
+var topicSuffix = flag.String("topicSuffix", "", "Optional topic suffix to use")
+
+func NewProducer(brokers []string) (sarama.AsyncProducer, error) {
+	kafkaConfig := sarama.NewConfig()
+	sarama.MaxRequestSize = int32(*requestMaxSize)
+	kafkaConfig.Producer.Return.Successes = true
+	kafkaConfig.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
+	kafkaConfig.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
+	return sarama.NewAsyncProducer(brokers, kafkaConfig)
+}
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s -BrokerList localhost:9092,localhost:9093 [-TopicSuffix suffix -requestMaxSize 9000] files\n", os.Args[0])
-		flag.PrintDefaults()
+    flag.Parse()
+	if *filePath == "" || *brokerList == "" {
+		log.Fatal("Usage: -BrokerList localhost:9092,localhost:9093 -FilePath /path/to/event_bridge_output.json [-topicSuffix suffix -requestMaxSize 9000]")
 	}
-
-	flag.Parse()
-
-	if *brokerList == "" {
-		fmt.Fprintln(os.Stderr, "Error: -BrokerList option is required\n")
-		flag.Usage()
-		os.Exit(1)
+	files, err := filepath.Glob(*filePath)
+	if err != nil {
+		log.Fatalf("Filepath error %v", err)
 	}
-
-	log.Infof("Kafka Utility:")
-	files := flag.Args()
 	log.Infof("Files: %s", files)
 	brokers := strings.Split(*brokerList, ",")
 	log.Infof("Brokers: %s", brokers)
 	topic_suffix := *topicSuffix
 	log.Infof("Topic_Suffix: %s", topic_suffix)
-	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": brokers})
-	deliveryChannel := make(chan kafka.Event)
+	kafkaProducer, err := NewProducer(brokers)
+
 	if err != nil {
 		log.Fatalf("Error setting up kafka producer: %v", err)
 	} else {
-		log.Infof("Setup Ok")
+		log.Infof("Setup kafkaproducer Ok")
 		defer kafkaProducer.Close()
 	}
 	for _, file_name := range files {
-		log.Debugf("trying file %s", file_name)
+		log.Infof("trying file %s", file_name)
 		file, err := os.Open(file_name)
 		if err != nil {
 			log.Fatal(err)
@@ -65,28 +69,18 @@ func main() {
 				t, _ := m["type"].(string)
 				topic := strings.Replace(t, "ingress.event.", "", -1)
 				topic = topic + topic_suffix
-				kafkaProducer.Produce(&kafka.Message{
-					TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-					Value:          []byte(t),
-				}, deliveryChannel)
 				select {
-				case e := <-deliveryChannel:
-					m := e.(*kafka.Message)
-					if m.TopicPartition.Error != nil {
-						log.Infof("Delivery failed: %v\n", m.TopicPartition.Error)
-						log.Infof("Error %v", m.TopicPartition.Error)
-
-					} else {
-						log.Infof("Delivered message to topic %s [%d] at offset %v\n",
-							*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
-					}
-					log.Debugf("Produced message!")
+				case kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: topic, Key: nil, Value: sarama.ByteEncoder(b)}:
+				case err := <-kafkaProducer.Errors():
+					log.Infof("Failed to produce message", err)
+				case <-kafkaProducer.Successes():
+					log.Infof("Produced message!")
 				}
 			} else {
 				log.Infof("Error unmarshalling json: %v", err)
 			}
 
 		}
-		log.Infof("Done processing file ", file_name)
+		log.Infof("Done scanning file ", file_name)
 	}
 }

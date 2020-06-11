@@ -1,51 +1,56 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/rcrowley/go-metrics"
-	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
+	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/rcrowley/go-metrics"
+	log "github.com/sirupsen/logrus"
 )
 
-// Producer implements a High-level Apache Kafka Producer instance ZE 2018
-// This allows Mocking producers w/o actual contact to kafka broker for testing purposes
-type WrappedProducer interface {
-	String() string
+func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
+	tlsConfig := tls.Config{}
 
-	Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error
+	// Load client cert
+	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+	if err != nil {
+		return &tlsConfig, err
+	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
 
-	Events() chan kafka.Event
+	// Load CA cert
+	caCert, err := ioutil.ReadFile(caCertFile)
+	if err != nil {
+		return &tlsConfig, err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig.RootCAs = caCertPool
 
-	ProduceChannel() chan *kafka.Message
-
-	Len() int
-
-	Flush(timeoutMs int) int
-
-	Close()
-
-	GetMetadata(topic *string, allTopics bool, timeoutMs int) (*kafka.Metadata, error)
-
-	QueryWatermarkOffsets(topic string, partition int32, timeoutMs int) (low, high int64, err error)
-
-	OffsetsForTimes(times []kafka.TopicPartition, timeoutMs int) (offsets []kafka.TopicPartition, err error)
+	tlsConfig.BuildNameToCertificate()
+	tlsConfig.InsecureSkipVerify = !config.TLSVerify
+	return &tlsConfig, err
 }
 
 type KafkaOutput struct {
 	brokers           []string
 	topicSuffix       string
-	topic             string
-	producers         []WrappedProducer
+	topic             *string
+	producer          sarama.AsyncProducer
 	droppedEventCount int64
 	eventSentCount    int64
 	EventSent         metrics.Meter
-	EventSentBytes    metrics.Meter
 	DroppedEvent      metrics.Meter
 	sync.RWMutex
 }
@@ -59,155 +64,121 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.Lock()
 	defer o.Unlock()
 
-	o.brokers = strings.Split(*(config.KafkaBrokers), ",")
+	o.brokers = strings.Split(*config.KafkaBrokers, ",")
 	o.topicSuffix = config.KafkaTopicSuffix
-	o.topic = config.KafkaTopic
-	o.producers = make([]WrappedProducer, len(o.brokers))
+	if len(config.KafkaTopic) > 0 {
+		o.topic = &config.KafkaTopic
+	}
+
+	kafkaConfig := sarama.NewConfig()
+	sarama.MaxRequestSize = config.KafkaMaxRequestSize
+	kafkaConfig.Producer.Return.Successes = true
 
 	o.EventSent = metrics.NewRegisteredMeter("output.kafka.events_sent", metrics.DefaultRegistry)
 	o.DroppedEvent = metrics.NewRegisteredMeter("output.kafka.events_dropped", metrics.DefaultRegistry)
-	o.EventSentBytes = metrics.NewRegisteredMeter("output.kafka.data_sent", metrics.DefaultRegistry)
 
-	var kafkaConfig kafka.ConfigMap = nil
-	//PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
-	if config.KafkaProducerProps == nil {
-		switch config.KafkaProtocol {
-		case "PLAINTEXT":
-			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
-		case "SASL":
-			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-				"security.protocol": config.KafkaProtocol,
-				"sasl.mechanism":    config.KafkaMechanism,
-				"sasl.username":     config.KafkaUsername,
-				"sasl.password":     config.KafkaPassword}
-		case "SSL":
-			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers,
-				"security.protocol": config.KafkaProtocol}
+	if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil && config.KafkaSSLCALocation != nil {
+		kafkaConfig.Net.TLS.Enable = true
+		var tlsConfig, err = NewTLSConfig(*config.KafkaSSLCertificateLocation, *config.KafkaSSLKeyLocation, *config.KafkaSSLCALocation)
+		if err != nil {
+			log.Fatalf("Error setting up tls for kafka %v", err)
+		}
+		kafkaConfig.Net.TLS.Config = tlsConfig
+	}
 
-			if config.KafkaSSLCertificateLocation != nil {
-				kafkaConfig["ssl_certificate_location"] = config.KafkaSSLCertificateLocation
-			}
-
-			if config.KafkaSSLKeyLocation != nil && config.KafkaSSLKeyPassword != nil {
-				kafkaConfig["ssl_key_location"] = config.KafkaSSLKeyLocation
-				kafkaConfig["ssl_Key_password"] = config.KafkaSSLKeyPassword
-			}
-
-			if config.KafkaSSLEnabledProtocols != nil {
-				kafkaConfig["ssl.enabled.protocols"] = config.KafkaSSLEnabledProtocols
-			}
-
-			if config.KafkaSSLCALocation != nil {
-				kafkaConfig["ssl.ca.location"] = config.KafkaSSLCALocation
-			}
+	if config.KafkaCompressionType != nil {
+		var compressionTypeString = *config.KafkaCompressionType
+		var compresionCodec = sarama.CompressionNone
+		switch compressionTypeString {
+		case "gzip":
+			compresionCodec = sarama.CompressionGZIP
+		case "zstd":
+			compresionCodec = sarama.CompressionZSTD
+		case "snappy":
+			compresionCodec = sarama.CompressionSnappy
+		case "lz4":
+			compresionCodec = sarama.CompressionLZ4
 		default:
-			kafkaConfig = kafka.ConfigMap{"bootstrap.servers": *config.KafkaBrokers}
+			compresionCodec = sarama.CompressionNone
 		}
-
-		if config.KafkaCompressionType != nil {
-			kafkaConfig["compression.type"] = *config.KafkaCompressionType
-		}
-	} else {
-		kafkaConfig = config.KafkaProducerProps
-	}
-
-	for index, _ := range o.brokers {
-		if config.DryRun {
-			p, err := NewMockedKafkaProducer(".")
-			if err != nil {
-				panic(err)
-			}
-			o.producers[index] = p
-		} else {
-			p, err := kafka.NewProducer(&kafkaConfig)
-			if err != nil {
-				panic(err)
-			}
-			o.producers[index] = p
+		if compresionCodec != sarama.CompressionNone {
+			kafkaConfig.Producer.Compression = compresionCodec
 		}
 	}
+
+	if len(config.KafkaUsername) > 0 && len(config.KafkaPassword) > 0 {
+		kafkaConfig.Net.SASL.User = config.KafkaUsername
+		kafkaConfig.Net.SASL.Password = config.KafkaPassword
+		kafkaConfig.Net.SASL.Enable = true
+	}
+
+	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)
+
+	if err != nil {
+		panic(err)
+	}
+
+	o.producer = producer
 
 	return nil
 }
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
-
-	joinEventsChan := make(chan (kafka.Event), 100000)
-	sigs := make(chan os.Signal, 1)
-	stopProdChans := make([]chan struct{}, len(o.producers))
-
-	signal.Notify(sigs, syscall.SIGHUP)
-	signal.Notify(sigs, syscall.SIGTERM)
-	signal.Notify(sigs, syscall.SIGINT)
-
-	defer signal.Stop(sigs)
-
-	for workernum, producer := range o.producers {
-		stopProdChans[workernum] = make(chan struct{}, 1)
-		go func(workernum int32, producer WrappedProducer, stopProdChan <-chan struct{}) {
-
-			defer producer.Close()
-
-			partition := kafka.PartitionAny
-			shouldStop := false
-			if (len(o.producers)) > 0 {
-				partition = workernum
-			}
-
-			for {
-				select {
-				case message := <-messages:
-					var topic string = config.KafkaTopic
-					if topic == "" {
-						var parsedMsg map[string]interface{}
-						json.Unmarshal([]byte(message), &parsedMsg)
-						topicRaw := parsedMsg["type"]
-						if topicString, ok := topicRaw.(string); ok {
-							topicString = strings.Replace(topicString, "ingress.event.", "", -1)
-							topicString += o.topicSuffix
-							topic = topicString
-						} else {
-							log.Info("ERROR: Topic was not a string")
-						}
-					}
-					partition := kafka.TopicPartition{Topic: &topic, Partition: partition}
-					output(message, o.producers[workernum], partition)
-					o.EventSent.Mark(1)
-					o.EventSentBytes.Mark(int64(len(message)))
-				case <-stopProdChan:
-					shouldStop = true
-				case e := <-producer.Events():
-					joinEventsChan <- e
-				default:
-					if shouldStop {
-						return
-					}
-				}
-			}
-		}(int32(workernum), producer, stopProdChans[workernum])
-	}
 	go func() {
+		refreshTicker := time.NewTicker(1 * time.Second)
+		defer refreshTicker.Stop()
+
+		defer func() {
+			if err := o.producer.Close(); err != nil {
+				log.Fatalln(err)
+			}
+		}()
+
+		hup := make(chan os.Signal, 1)
+		signal.Notify(hup, syscall.SIGHUP)
+
+		defer signal.Stop(hup)
+
 		for {
 			select {
-			case e := <-joinEventsChan:
-				m := e.(*kafka.Message)
-				if m.TopicPartition.Error != nil {
-					o.DroppedEvent.Mark(1)
-					errorChan <- m.TopicPartition.Error
-				}
-			case sig := <-sigs:
-				switch sig {
-				case syscall.SIGTERM, syscall.SIGINT:
-					for _, stopChan := range stopProdChans {
-						stopChan <- struct{}{}
+			case message := <-messages:
+				if o.topic != nil {
+					o.output(*o.topic, message)
+				} else {
+					var parsedMsg map[string]interface{}
+
+					json.Unmarshal([]byte(message), &parsedMsg)
+					topic := parsedMsg["type"]
+					if topicString, ok := topic.(string); ok {
+						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+						topicString += o.topicSuffix
+
+						o.output(topicString, message)
+					} else {
+						log.Info("ERROR: Topic was not a string")
 					}
-					return
-				default:
-					log.Debugf("Signal was %s", sig)
 				}
 			}
 		}
+
 	}()
+
+	go func() {
+		for range o.producer.Successes() {
+			atomic.AddInt64(&o.eventSentCount, 1)
+			o.EventSent.Mark(1)
+		}
+	}()
+
+	go func() {
+		for err := range o.producer.Errors() {
+			log.Info(err)
+			atomic.AddInt64(&o.droppedEventCount, 1)
+			o.DroppedEvent.Mark(1)
+			errorChan <- err
+		}
+	}()
+
 	return nil
 }
 
@@ -232,17 +203,10 @@ func (o *KafkaOutput) Key() string {
 	return fmt.Sprintf("brokers:%s", o.brokers)
 }
 
-func output(m string, producer WrappedProducer, partition kafka.TopicPartition) {
-	kafkamsg := &kafka.Message{
-		TopicPartition: partition,
-		Value:          []byte(m),
+func (o *KafkaOutput) output(topic string, m string) {
+	o.producer.Input() <- &sarama.ProducerMessage{
+		Topic: topic,
+		Key:   nil,
+		Value: sarama.StringEncoder(m),
 	}
-	var err error = producer.Produce(kafkamsg, nil)
-
-	for err != nil {
-		log.Errorf("ERROR PRODUCING TO KAFKA %v", err)
-		producer.Flush(1)
-		err = producer.Produce(kafkamsg, nil)
-	}
-
 }
