@@ -69,7 +69,7 @@ func ProcessProtobufBundle(routingKey string, body []byte, headers amqp.Table) (
 
         msg, err := ProcessProtobufMessage(routingKey, body[bytesRead:bytesRead+messageLength], headers)
         if err != nil {
-            log.Infof("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
+            log.Debugf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
             	i, err.Error())
         } else if msg != nil {
             msgs = append(msgs, msg)
@@ -106,14 +106,14 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
     for i, zf := range zipReader.File {
         src, err := zf.Open()
         if err != nil {
-            log.Errorf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
+            log.Debugf("Error opening raw sensor event zip file content: %s. Continuing.", err.Error())
             continue
         }
 
         unzippedFile, err := ioutil.ReadAll(src)
 		_ = src.Close()
         if err != nil {
-            log.Errorf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
+            log.Debugf("Error opening raw sensor event file id %d from package: %s", i, err.Error())
             continue
         }
 
@@ -126,12 +126,12 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
                 func() {
                     debugZip, err := zf.Open()
                     if err != nil {
-                        log.Errorf("Error opening zip file %s for debugstore", zf.Name)
+                        log.Debugf("Error opening zip file %s for debugstore", zf.Name)
                     }
 
                     debugUnzipped, err := ioutil.ReadAll(debugZip)
                     if err != nil {
-                        log.Errorf("Error in ioutil.ReadAll for zip file %s", zf.Name)
+                        log.Debugf("Error in ioutil.ReadAll for zip file %s", zf.Name)
                     }
 
                     defer debugZip.Close()
@@ -139,7 +139,7 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
                     log.Debugf("Attempting to create file: %s", filepath.Join(config.DebugStore, zf.Name))
                     debugStoreFile, err := os.Create(filepath.Join(config.DebugStore, zf.Name))
                     if err != nil {
-                        log.Errorf("Error in create file %s", filepath.Join(config.DebugStore, zf.Name))
+                        log.Debugf("Error in create file %s", filepath.Join(config.DebugStore, zf.Name))
                     }
 
                     //noinspection GoNilness

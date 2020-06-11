@@ -141,7 +141,7 @@ type OutputHandler interface {
 // TODO: change this into an error channel
 func reportError(d string, errmsg string, err error) {
 	status.ErrorCount.Mark(1)
-	log.Errorf("%s when processing %s: %s", errmsg, d, err)
+	log.Debugf("%s when processing %s: %s", errmsg, d, err)
 }
 
 func reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
