@@ -105,12 +105,6 @@ type Configuration struct {
 
 	TLSConfig *tls.Config
 
-	// optional post processing of feed hits to retrieve titles
-	PerformFeedPostprocessing bool
-	CbAPIToken                string
-	CbAPIVerifySSL            bool
-	CbAPIProxyURL             string
-
 	// Kafka-specific configuration
 	KafkaBrokers        *string
 	KafkaTopicSuffix    string
@@ -888,27 +882,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 		}
-	}
-
-	if input.Section("bridge").HasKey("api_verify_ssl") {
-		key := input.Section("bridge").Key("api_verify_ssl")
-		config.CbAPIVerifySSL, err = key.Bool()
-		if err != nil {
-			errs.addErrorString("Unknown value for 'api_verify_ssl': valid values are true, false, 1, 0. Default is 'false'")
-		}
-	}
-
-	if input.Section("bridge").HasKey("api_token") {
-		key := input.Section("bridge").Key("api_token")
-		config.CbAPIToken = key.Value()
-		config.PerformFeedPostprocessing = true
-	}
-
-	config.CbAPIProxyURL = ""
-
-	if input.Section("bridge").HasKey("api_proxy_url") {
-		key := input.Section("bridge").Key("api_proxy_url")
-		config.CbAPIProxyURL = key.Value()
 	}
 
 	if input.Section("bridge").HasKey("message_processor_count") {

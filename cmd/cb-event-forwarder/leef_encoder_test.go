@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
-	"testing"
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "testing"
 )
 
 func generateLeefOutput(exampleJSONInput string) error {
@@ -26,7 +25,7 @@ func generateLeefOutput(exampleJSONInput string) error {
 	}
 
 	for i, msg := range msgs {
-		if _, err := leef.Encode(msg); err != nil {
+		if _, err := Encode(msg); err != nil {
 			return fmt.Errorf("Error encoding message %s [index %d]: %s", msg, i, err)
 		}
 	}

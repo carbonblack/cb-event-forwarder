@@ -6,7 +6,7 @@
 //
 // Copyright (c)2014, Joel Scoble (github.com/mohae), all rights reserved.
 // License: MIT, for more details check the included LICENSE.txt.
-package deepcopy
+package main
 
 import (
 	"encoding/json"
@@ -15,12 +15,12 @@ import (
 
 // JAG
 // ugly hack to deal with json.Number types
-var jsonNumberType reflect.Type
+var dc_jsonNumberType reflect.Type
 
 func init() {
 	var t json.Number
 
-	jsonNumberType = reflect.ValueOf(t).Type()
+	dc_jsonNumberType = reflect.ValueOf(t).Type()
 }
 
 // InterfaceToSliceOfStrings takes an interface that is either a slice of
@@ -130,7 +130,7 @@ func copyRecursive(original, cpy reflect.Value) {
 		}
 	// Set the actual values from here on.
 	case reflect.String:
-		if original.Type() == jsonNumberType {
+		if original.Type() == dc_jsonNumberType {
 			t := json.Number(original.String())
 			cpy.Set(reflect.ValueOf(t))
 		} else {

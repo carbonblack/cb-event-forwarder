@@ -1,7 +1,6 @@
 package main
 
 import (
-	leef "github.com/carbonblack/cb-event-forwarder/internal/leef"
 	"testing"
 )
 
@@ -10,7 +9,7 @@ func marshalLeef(msgs []map[string]interface{}) (string, error) {
 
 	for _, msg := range msgs {
 		msg["cb_server"] = "cbserver"
-		marshaled, err := leef.Encode(msg)
+		marshaled, err := Encode(msg)
 		if err != nil {
 			return "", err
 		}
