@@ -4,10 +4,14 @@
 
 #### Features
 
+ * New command-line option `-pid-file <pid_filename>` for better parity with other services, and to facilitate process monitoring.
+
 #### Bug Fixes / Changes
 
- * Reverted use of Confluent Kafka client library to the pure Go Sarama client
- * Specify CA/Client cert/keys in PEM format
+ * Reverted use of Confluent Kafka client library to the pure Go Sarama client.
+ * Removed configuration settings `api_token`, `api_verify_ssl`, and `api_proxy_ssl`. Event Forwarder no longer needs to use the EDR API to perform event post-processing. EDR now has built-in capability for adding report titles to feed hit events.
+ * Changed some log messages in the protobuf processing code to debug level, to avoid filling log files with unneeded entries.
+ * Specify CA/Client cert/keys in PEM format.
 
 ## v3.6.3
 

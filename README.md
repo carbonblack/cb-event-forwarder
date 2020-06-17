@@ -21,9 +21,9 @@ and via email to dev-support@carbonblack.com.
 
 ## Raw Sensor Events 
 
-We have seen a performance impact when exporting all raw sensor events onto the enterprise bus. We do not recommend
-exporting all the events. The performance impacts are seen when the events are broadcast on the bus, by enabling the
-"DatastoreBroadcastEventTypes". We recommend that at most, only process and netconn events be broadcast on the event
+We have seen a performance impact when exporting all raw sensor events onto the enterprise bus by setting
+"DatastoreBroadcastEventTypes=True" in the EDR configuration (more onm this below). We do not recommend exporting all
+the events, and recommend that you configure -- at most -- only process and netconn events for broadcasting on the event
 bus. 
 
 ## Quickstart Guide
@@ -31,7 +31,7 @@ bus.
 The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
 It can be installed on the same machine as the Cb EDR server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), or are forwarding events from a Cb EDR cluster, then installing it on a separate machine is recommended. 
+modifications), or are forwarding events from a Cb EDR cluster, we recommend installing it on a separate machine. 
 Otherwise, it is acceptable to install the cb-event-forwarder on the Cb EDR server itself.
 
 ### Installation
@@ -93,8 +93,8 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 
-Cb EDR needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
-`service cb-enterprise restart`. 
+Cb EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
+`service cb-enterprise restart`.
 
 If you are configuring the cb-event-forwarder on a Cb EDR cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
