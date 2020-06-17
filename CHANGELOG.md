@@ -1,10 +1,15 @@
-# CB Event Forwarder Changelog
+# CB EDR Event Forwarder Changelog
 
-## v.3.7.0
- * Reverted use of confluentinc kafak client library to pure go sarama client
- * specify CA/Client cert/keys in PEM format
+## v3.7.0
 
-## v.3.6.3
+#### Features
+
+#### Bug Fixes / Changes
+
+ * Reverted use of Confluent Kafka client library to the pure Go Sarama client
+ * Specify CA/Client cert/keys in PEM format
+
+## v3.6.3
 
 #### Features
 

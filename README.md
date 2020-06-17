@@ -2,13 +2,13 @@
 
 ## Overview
 
-The CB EDR Event Forwarder is a standalone service that will listen on the Cb EDR enterprise bus and export
-events (both watchlist/feed hits as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
+The CB EDR Event Forwarder is a standalone service which listens on the Cb EDR enterprise bus and exports
+events (watchlist/feed hits, as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
-The list of events to collect is configurable. By default all feed and watchlist hits, alerts, binary notifications, and
-raw sensor events are exported into JSON. The configuration file for the connector is stored in
+The list of events to collect is configurable. By default, Event Forwarder exports all feed and watchlist hits, alerts,
+binary notifications, and raw sensor events as JSON. You can find the configuration file for the connector at
 `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf`.
 
 Starting with version 7.1.0 of Carbon Black EDR, you can use the EDR web console to configure and control Event Forwarder,
@@ -16,7 +16,7 @@ as long as you follow the installation and configuration steps detailed below.
 
 ## Support
 
-The pre-built RPM is supported via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
+We support pre-built RPM via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
 and via email to dev-support@carbonblack.com. 
 
 ## Raw Sensor Events 
