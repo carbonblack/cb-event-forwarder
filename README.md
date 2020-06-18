@@ -104,16 +104,14 @@ the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 ### Starting and Stopping the Service
 
 #### CentOS 6.x
-Once the service is installed, it is managed by the Upstart init system in CentOS 6.x. You can control the service via the 
-initctl command.
-* To start the service, `initctl start cb-event-forwarder`
-* To stop the service, `initctl stop cb-event-forwarder`
+* To start the service: `service cb-event-forwarder start`
+* To stop the service: `service cb-event-forwarder stop`
 
 #### CentOS 7.x
-* To start the service, `systemctl start cb-event-forwarder`
-* To stop the service, `systemctl stop cb-event-forwarder`
+* To start the service: `systemctl start cb-event-forwarder`
+* To stop the service: `systemctl stop cb-event-forwarder`
 
-Once the service is installed, it is configured to start automatically on system boot.
+Once you install the service, it is configured to start automatically on system boot.
 
 ## Splunk
 

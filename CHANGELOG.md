@@ -12,6 +12,7 @@
  * Removed configuration settings `api_token`, `api_verify_ssl`, and `api_proxy_ssl`. Event Forwarder no longer needs to use the EDR API to perform event post-processing. EDR now has built-in capability for adding report titles to feed hit events.
  * Changed some log messages in the protobuf processing code to debug level, to avoid filling log files with unneeded entries.
  * Specify CA/Client cert/keys in PEM format.
+ * Deprecate Upstart in favor of sysvinit for service control on EL6 systems
 
 ## v3.6.3
 

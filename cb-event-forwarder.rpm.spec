@@ -62,6 +62,11 @@ rm -rf $RPM_BUILD_ROOT
 #!/bin/sh
 # since the "old" cb-event-forwarder controls itself through the file we're about to replace
 # we should stop it before we install anything on upgrade
+# but first we have to remove the old Upstart cruft
+if [ -f /etc/init/cb-event-forwarder.conf ] ; then
+    initctl stop cb-event-forwarder &> /dev/null || :
+    rm /etc/init/cb-event-forwarder.conf
+fi
 if [ -x /etc/init.d/cb-event-forwarder ] || [ -e /etc/systemd/system/cb-event-forwarder.service ]; then
     service cb-event-forwarder stop &> /dev/null || :
 fi
