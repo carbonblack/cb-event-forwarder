@@ -19,7 +19,7 @@ RELEASE ?= 0
 cb-event-forwarder: build
 
 compile-protobufs:
-	go get -u -v github.com/gogo/protobuf/protoc-gen-gogofast
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
 	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
 	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
