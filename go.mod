@@ -18,11 +18,13 @@ require (
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/klauspost/compress v1.10.4 // indirect
 	github.com/klauspost/pgzip v1.2.3
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/assertions v0.0.0-20190116191733-b6c0e53d7304 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/streadway/amqp v0.0.0-20180315184602-8e4aba63da9f
+	github.com/tools/godep v0.0.0-20180126220526-ce0bfadeb516 // indirect
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect

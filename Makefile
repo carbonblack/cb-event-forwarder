@@ -19,22 +19,25 @@ RELEASE ?= 0
 cb-event-forwarder: build
 
 compile-protobufs:
-	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
+	go get -u -v github.com/gogo/protobuf/protoc-gen-gogofast
 	go mod tidy
 	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
 	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
 
-build-no-static: compile-protobufs #librdkafka
+build-no-static: compile-protobufs
 	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
-build: compile-protobufs #librdkafka
+build: compile-protobufs
 	go mod verify
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
-rpmbuild: compile-protobufs #librdkafka
+rpmbuild:
+	go get -u -v github.com/gogo/protobuf/protoc-gen-gogofast
+	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
+	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
@@ -90,4 +93,4 @@ sdist:
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild --define 'release_pkg ${RELEASE}' --define 'version ${GIT_VERSION}' --define 'release 0' -bb cb-event-forwarder.rpm.spec
+	rpmbuild -v --define 'release_pkg ${RELEASE}' --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
