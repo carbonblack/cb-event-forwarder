@@ -35,7 +35,7 @@ build: compile-protobufs
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild:
-	go get -u -v github.com/gogo/protobuf/protoc-gen-gogofast
+	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
 	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
 	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
