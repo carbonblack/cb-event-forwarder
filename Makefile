@@ -6,7 +6,6 @@ VERSION := 3.7.0
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/lib/pkgconfig/:`find rdkafka.pc 2>/dev/null`
 export GO111MODULE=on
 
 # non-release builds include a timestamp in the RPM name
