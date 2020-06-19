@@ -13,10 +13,12 @@
 # defaults to 0.
 #
 # see https://backreference.org/2011/09/17/some-tips-on-rpm-conditional-macros/
-%if 0%{?release_pkg:0} && 0%{?release_pkg:1} == 1
+%if 0%{?release_pkg:1}
+%if "%{release_pkg}" == "1"
 %define decorated_version %{bare_version}
 %else
 %define decorated_version %{bare_version}.%{build_timestamp}
+%endif
 %endif
 
 %define release 1
@@ -63,7 +65,6 @@ rm -rf $RPM_BUILD_ROOT
 # since the "old" cb-event-forwarder controls itself through the file we're about to replace
 # we should stop it before we install anything on upgrade
 # but first we have to stop the service if already running under Upstart
-echo dist=%{dist}
 %if "%{dist}" == ".el6"
 initctl stop cb-event-forwarder &> /dev/null || :
 %endif
