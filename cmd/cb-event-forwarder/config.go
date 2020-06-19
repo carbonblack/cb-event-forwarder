@@ -206,6 +206,7 @@ func (c *Configuration) parseEventTypes(input *ini.File) {
 			"ingress.event.remotethread",
 			"ingress.event.processblock",
 			"ingress.event.emetmitigation",
+			"ingress.event.filelessscriptload",
 		}},
 		{"events_binary_observed", []string{
 			"binaryinfo.#",

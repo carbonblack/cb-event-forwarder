@@ -3,7 +3,10 @@
 //
 // Copyright 2015-2017 Carbon Black, Inc.
 //
-syntax="proto2";
+
+
+option java_package = "com.carbonblack.cbfs";
+option java_outer_classname = "CbEventsV2Protocol";
 
 message CbHeaderMsg
 {
@@ -39,8 +42,8 @@ message CbProcessMsg
 {
     optional    int32   pid                     = 1;    // deprecated; see process_pid in header
     optional    bool    created                 = 2;    // false means the process is exiting
-                                                        // on created filepath_string_guid will be
-                                                        // the path to the process base module on disk
+    // on created filepath_string_guid will be
+    // the path to the process base module on disk
     optional    int32   parent_pid              = 3;
     optional    int64   parent_create_time      = 4;
     optional    int64   parent_guid             = 5;    // deprecated; only for backwards compatibility
@@ -61,6 +64,7 @@ message CbProcessMsg
     optional    bool    bFilteringKnownDlls     = 18 [default=false];
     optional    bytes   sha256hash              = 19;
     optional    bytes   parent_sha256           = 20;
+    optional    int32   logon_type              = 21 [default=-2];
 }
 
 message CbSuppressedInfo
@@ -74,13 +78,13 @@ message CbSuppressedInfo
     optional  bool    bIsSuppressed           = 1 [default=false];
     optional  CbSuppressedProcessState state  = 2;
 }
-
 //
 // ChildProcessMsg is a subset of CbProcessMsg
 // It is used in support of allowing viewing of child processes in the event
 // stream (for example, in the UI's process analysis page) and in allowing
 // child processes to be tagged as events.
 //
+
 message CbChildProcessMsg
 {
     enum CbChildProcType
@@ -145,6 +149,9 @@ message CbFileModMsg
         filetypeArchiveRar      = 0x0043;
         filetypeArchiveTar      = 0x0044;
         filetypeArchive7zip     = 0x0045;
+        filetypeMsLnk           = 0x0060;
+        filetypeFlashFlv        = 0x0070;
+        filetypeFlashSwf        = 0x0071;
     }
 
     optional    int64               guid                = 1;  // deprecated
@@ -155,6 +162,7 @@ message CbFileModMsg
     optional    bool                tamper              = 6 [default=false];
     optional    bool                tamper_sent         = 7 [default=false]; // tamper event was already sent from kernel
     optional    bytes               sha256hash          = 8;
+
 }
 
 message CbRegModMsg
@@ -163,7 +171,7 @@ message CbRegModMsg
     {
         actionRegModCreateKey    = 1;
         actionRegModWriteValue   = 2;
-        actionRegModDeleteKey    = 4;
+        actionRegModDeleteKey    = 4; // yes 4, so we can AND/OR these
         actionRegModDeleteValue  = 8;
     }
 
@@ -174,7 +182,6 @@ message CbRegModMsg
     optional    bool                tamper              = 5 [default=false];
     optional    bool                tamper_sent         = 6 [default=false]; // tamper event was already sent from kernel
 }
-
 
 //
 // describes an inbound or outbound network connection
@@ -237,6 +244,8 @@ message CbNetConnMsgv2
     optional    uint32             remotePort          = 9; // foreign port
     optional    CbIpAddr           localIpAddress      = 10; // local address
     optional    uint32             localPort           = 11; // local port
+    optional    string             ja3                 = 12; // tls client handshake hash ja3
+    optional    string             ja3s                = 13; // tls server handshake hash ja3s
 }
 
 //
@@ -270,6 +279,8 @@ message CbNetConnBlockedMsgv2
     optional    uint32             remotePort          = 11; // foreign port
     optional    CbIpAddr           localIpAddress      = 12; // local address
     optional    uint32             localPort           = 13; // local port
+    optional    string             ja3                 = 14; // tls client handshake hash ja3
+    optional    string             ja3s                = 15; // tls server handshake hash ja3s
 }
 
 //
@@ -300,6 +311,7 @@ message CbCrossProcessOpenMsg
     optional string             targetProcPath       = 5; // the path of the target process
     optional bytes              targetProcMd5        = 6; // the md5 sum of the target process
     optional bytes              targetProcSha256     = 7; // the sha256 sum of the target process
+
 }
 
 message CbCreateRemoteThreadMsg
@@ -405,7 +417,7 @@ message CbNetConnBlockedMsg
 //
 message CbStatisticsMsg
 {
-    optional CbLinStatsMsg lin_stats = 1;                     // deprecated
+    optional CbLinStatsMsg lin_stats = 1; // deprecated
 }
 
 //
@@ -448,7 +460,6 @@ message CbModuleInfoMsg
 // file-write message
 //
 // describe the write of a single file
-//
 // WARNING: This is an unsupported message and subject to change
 //
 message CbVtWriteMsg
@@ -458,6 +469,7 @@ message CbVtWriteMsg
     optional bool                   FileWrittenIsPeModuleHint = 3;  // unsupported
     optional string                 WritingProcessFilename    = 4;  // unsupported
     optional string                 FileWrittenFilename       = 5;  // unsupported
+    optional bytes                  FileWrittenSha256         = 6;  // unsupported
 }
 
 //
@@ -565,12 +577,12 @@ message CbProcessMetadataMsg
     optional    string  uid                     = 6;
     optional    string  username                = 7;
     optional    bytes   commandline             = 8;
-// parent info
+    // parent info
     optional    int32   parent_pid              = 9;
     optional    int64   parent_create_time      = 10;
     optional    bytes   parent_md5              = 11;
     optional    string  parent_path             = 12;
-// Count fields contain cumulative event counts for this process
+    // Count fields contain cumulative event counts for this process
     optional    int32   modload_count           = 13;
     optional    int32   filemod_count           = 14;
     optional    int32   netconn_count           = 15;
@@ -579,36 +591,59 @@ message CbProcessMetadataMsg
     optional    int32   crossproc_count         = 18;
     optional    int32   emet_count              = 19;
     optional    int32   processblock_count      = 20;
-// segment type tracking
+    // segment type tracking
     optional    int64   sensor_start_time       = 21;
     optional    int64   sensor_segment          = 22;  // a per sensor-start segment id.  sensor_start_time.sensor_segment is unique
     optional    bool    creationobserved        = 23 [default=false];  // was the creation of this process observed, or
     repeated    CbEmetMitigationAction actions  = 24;
     optional    bytes   process_sha256          = 25;
     optional    bytes   parent_sha256           = 26;
+    optional    int32   logon_type              = 27 [default=-2];
 }
+
+message InternalUse
+{
+    // The DataGenSource indicates how the msg subject (md5 for modules, etc) was generated
+    enum DataGenSource {
+        known      = 1; // comes from known valid source
+        generated  = 2; // randomly generated
+        anonymized = 3; // anonymized from otherwise known source.
+    }
+
+    optional DataGenSource dataGenSource = 1;  // The existence of this field indicates the msg is from DataGen tool.
+}
+
+message CbScriptExecute
+{
+    optional string           script  = 1; // we won't send more than 65535 chars
+    optional string           sha256  = 2; // hash of entire script/command
+    optional bool             encoded = 3; // did the sensor detect any base64 encoding in the script?
+}
+
 
 message CbEventMsg
 {
-    required CbHeaderMsg            	header      	= 1;
-    repeated CbStringMsg            	strings     	= 2;
-    optional CbProcessMsg           	process     	= 3;
-    optional CbModuleLoadMsg        	modload     	= 4;
-    optional CbFileModMsg           	filemod     	= 5;
-    optional CbNetConnMsg           	network     	= 6;
-    optional CbRegModMsg            	regmod      	= 7;
-    optional CbStatisticsMsg        	stats       	= 8;  // deprecated
-    optional CbModuleInfoMsg        	module      	= 9;
-    optional CbVtWriteMsg               vtwrite         = 10; // unsupported
-    optional CbVtLoadMsg            	vtload      	= 11; // deprecated
-    optional CbChildProcessMsg      	childproc   	= 12;
-    optional CbEnvironmentMsg       	env         	= 13; // populated by server at event-export time
-    optional CbCrossProcessMsg      	crossproc   	= 14;
-    optional CbTamperAlertMsg       	tamperAlert 	= 15;
-    optional CbProcessBlockedMsg    	blocked     	= 16;
-    optional CbEmetMitigationMsg    	emet        	= 17;
-    optional CbNetConnBlockedMsg    	netconnBlocked	= 18;
-    optional CbProcessMetadataMsg    	processMeta	    = 19;
+    required CbHeaderMsg            	header      	    = 1;
+    repeated CbStringMsg            	strings     	    = 2;
+    optional CbProcessMsg           	process     	    = 3;
+    optional CbModuleLoadMsg        	modload     	    = 4;
+    optional CbFileModMsg           	filemod     	    = 5;
+    optional CbNetConnMsg           	network     	    = 6;  // deprecated
+    optional CbRegModMsg            	regmod      	    = 7;
+    optional CbStatisticsMsg        	stats       	    = 8;  // deprecated
+    optional CbModuleInfoMsg        	module      	    = 9; 
+    optional CbVtWriteMsg           	vtwrite     	    = 10; // unsupported
+    optional CbVtLoadMsg            	vtload      	    = 11; // deprecated
+    optional CbChildProcessMsg      	childproc   	    = 12;
+    optional CbEnvironmentMsg       	env         	    = 13; // populated by server at event-export time
+    optional CbCrossProcessMsg      	crossproc   	    = 14;
+    optional CbTamperAlertMsg       	tamperAlert 	    = 15;
+    optional CbProcessBlockedMsg    	blocked     	    = 16;
+    optional CbEmetMitigationMsg    	emet        	    = 17;
+    optional CbNetConnBlockedMsg    	netconnBlocked	    = 18; // deprecated
+    optional CbProcessMetadataMsg    	processMeta	        = 19;
     optional CbNetConnMsgv2             networkv2           = 20; // added post-5.2 for ipv6 support
     optional CbNetConnBlockedMsgv2      netconnBlockedv2    = 21; // added post-5.2 for ipv6 support
+    optional InternalUse                internalUse         = 22;
+    optional CbScriptExecute            scriptexe           = 23;
 }
