@@ -22,7 +22,7 @@ and via email to dev-support@carbonblack.com.
 ## Raw Sensor Events 
 
 We have seen a performance impact when exporting all raw sensor events onto the enterprise bus by setting
-"DatastoreBroadcastEventTypes=True" in the EDR configuration (more onm this below). We do not recommend exporting all
+"DatastoreBroadcastEventTypes=True" in the EDR configuration (more on this below). We do not recommend exporting all
 the events, and recommend that you configure -- at most -- only process and netconn events for broadcasting on the event
 bus. 
 
