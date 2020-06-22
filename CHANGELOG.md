@@ -4,6 +4,7 @@
 
 #### Features
 
+ * We now support Antimalware Scan Interface (AMSI) events. This event is called `ingress.event.filelessscriptload`. Please note that you will need EDR 7.2.0 in order to receive these events.
  * New command-line option `-pid-file <pid_filename>` for better parity with other services, and to facilitate process monitoring.
 
 #### Bug Fixes / Changes

@@ -1,8 +1,8 @@
-# CB Event Forwarder
+# CB EDR Event Forwarder
 
 ## Overview
 
-The CB EDR Event Forwarder is a standalone service which listens on the Cb EDR enterprise bus and exports
+The CB EDR Event Forwarder is a standalone service which listens on the CB EDR enterprise bus and exports
 events (watchlist/feed hits, as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
