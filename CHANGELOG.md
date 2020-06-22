@@ -1,10 +1,21 @@
-# CB Event Forwarder Changelog
+# CB EDR Event Forwarder Changelog
 
-## v.3.7.0
- * Reverted use of confluentinc kafak client library to pure go sarama client
- * specify CA/Client cert/keys in PEM format
+## v3.7.0
 
-## v.3.6.3
+#### Features
+
+ * We now support Antimalware Scan Interface (AMSI) events. This event is called `ingress.event.filelessscriptload`. Please note that you will need EDR 7.2.0 in order to receive these events.
+ * New command-line option `-pid-file <pid_filename>` for better parity with other services, and to facilitate process monitoring.
+
+#### Bug Fixes / Changes
+
+ * Reverted use of Confluent Kafka client library to the pure Go Sarama client.
+ * Removed configuration settings `api_token`, `api_verify_ssl`, and `api_proxy_ssl`. Event Forwarder no longer needs to use the EDR API to perform event post-processing. EDR now has built-in capability for adding report titles to feed hit events.
+ * Changed some log messages in the protobuf processing code to debug level, to avoid filling log files with unneeded entries.
+ * Specify CA/Client cert/keys in PEM format.
+ * Deprecate Upstart in favor of sysvinit for service control on EL6 systems
+
+## v3.6.3
 
 #### Features
 

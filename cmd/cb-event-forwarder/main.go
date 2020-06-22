@@ -34,7 +34,7 @@ var (
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
-var version = "NOT FOR RELEASE"
+var version = "3.7.0"
 
 var inputChannelSize = 100000
 var outputChannelSize = 1000000

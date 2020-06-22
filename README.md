@@ -1,14 +1,14 @@
-# CB Event Forwarder
+# CB EDR Event Forwarder
 
 ## Overview
 
-The CB EDR Event Forwarder is a standalone service that will listen on the Cb EDR enterprise bus and export
-events (both watchlist/feed hits as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
+The CB EDR Event Forwarder is a standalone service which listens on the CB EDR enterprise bus and exports
+events (watchlist/feed hits, as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
-The list of events to collect is configurable. By default all feed and watchlist hits, alerts, binary notifications, and
-raw sensor events are exported into JSON. The configuration file for the connector is stored in
+The list of events to collect is configurable. By default, Event Forwarder exports all feed and watchlist hits, alerts,
+binary notifications, and raw sensor events as JSON. You can find the configuration file for the connector at
 `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf`.
 
 Starting with version 7.1.0 of Carbon Black EDR, you can use the EDR web console to configure and control Event Forwarder,
@@ -16,14 +16,14 @@ as long as you follow the installation and configuration steps detailed below.
 
 ## Support
 
-The pre-built RPM is supported via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
+We support pre-built RPM via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
 and via email to dev-support@carbonblack.com. 
 
 ## Raw Sensor Events 
 
-We have seen a performance impact when exporting all raw sensor events onto the enterprise bus. We do not recommend
-exporting all the events. The performance impacts are seen when the events are broadcast on the bus, by enabling the
-"DatastoreBroadcastEventTypes". We recommend that at most, only process and netconn events be broadcast on the event
+We have seen a performance impact when exporting all raw sensor events onto the enterprise bus by setting
+"DatastoreBroadcastEventTypes=True" in the EDR configuration (more on this below). We do not recommend exporting all
+the events, and recommend that you configure -- at most -- only process and netconn events for broadcasting on the event
 bus. 
 
 ## Quickstart Guide
@@ -31,7 +31,7 @@ bus.
 The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
 It can be installed on the same machine as the Cb EDR server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), or are forwarding events from a Cb EDR cluster, then installing it on a separate machine is recommended. 
+modifications), or are forwarding events from a Cb EDR cluster, we recommend installing it on a separate machine. 
 Otherwise, it is acceptable to install the cb-event-forwarder on the Cb EDR server itself.
 
 ### Installation
@@ -93,8 +93,8 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 
-Cb EDR needs to be restarted if any variables were changed in `/etc/cb/cb.conf` by executing
-`service cb-enterprise restart`. 
+Cb EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
+`service cb-enterprise restart`.
 
 If you are configuring the cb-event-forwarder on a Cb EDR cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
@@ -104,16 +104,14 @@ the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 ### Starting and Stopping the Service
 
 #### CentOS 6.x
-Once the service is installed, it is managed by the Upstart init system in CentOS 6.x. You can control the service via the 
-initctl command.
-* To start the service, `initctl start cb-event-forwarder`
-* To stop the service, `initctl stop cb-event-forwarder`
+* To start the service: `service cb-event-forwarder start`
+* To stop the service: `service cb-event-forwarder stop`
 
 #### CentOS 7.x
-* To start the service, `systemctl start cb-event-forwarder`
-* To stop the service, `systemctl stop cb-event-forwarder`
+* To start the service: `systemctl start cb-event-forwarder`
+* To stop the service: `systemctl stop cb-event-forwarder`
 
-Once the service is installed, it is configured to start automatically on system boot.
+Once you install the service, it is configured to start automatically on system boot.
 
 ## Splunk
 
