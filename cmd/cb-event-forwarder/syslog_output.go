@@ -3,8 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	syslog "github.com/RackSec/srslog"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,6 +10,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	syslog "github.com/RackSec/srslog"
+	log "github.com/sirupsen/logrus"
 )
 
 type SyslogOutput struct {
@@ -131,7 +132,7 @@ func (o *SyslogOutput) output(m string) error {
 	return err
 }
 
-func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error, signals chan<- os.Signal) error {
 	if o.outputSocket == nil {
 		return errors.New("Output socket not open")
 	}
@@ -141,8 +142,12 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error 
 		defer refreshTicker.Stop()
 
 		hup := make(chan os.Signal, 1)
-		signal.Notify(hup, syscall.SIGHUP)
+		term := make(chan os.Signal, 1)
 
+		signal.Notify(hup, syscall.SIGHUP)
+		signal.Notify(term, syscall.SIGTERM)
+
+		defer signal.Stop(term)
 		defer signal.Stop(hup)
 
 		for {
@@ -159,6 +164,10 @@ func (o *SyslogOutput) Go(messages <-chan string, errorChan chan<- error) error 
 						o.closeAndScheduleReconnection()
 					}
 				}
+			case sigterm := <-term:
+				log.Infof("Syslog output handling SIGTERM")
+				signals <- sigterm
+				return
 			}
 		}
 

@@ -66,8 +66,9 @@ type Status struct {
 var status Status
 
 var (
-	results      chan string
-	outputErrors chan error
+	results       chan string
+	outputErrors  chan error
+	outputSignals chan os.Signal
 )
 
 func init() {
@@ -118,6 +119,7 @@ func setupMetrics() {
 
 	results = make(chan string, outputChannelSize)
 	outputErrors = make(chan error)
+	outputSignals = make(chan os.Signal)
 
 	status.StartTime = time.Now()
 }
@@ -128,7 +130,7 @@ func setupMetrics() {
 
 type OutputHandler interface {
 	Initialize(string) error
-	Go(messages <-chan string, errorChan chan<- error) error
+	Go(messages <-chan string, errorChan chan<- error, signalChan chan<- os.Signal) error
 	String() string
 	Statistics() interface{}
 	Key() string
@@ -387,14 +389,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 		select {
 		case outputError := <-outputErrors:
 			log.Errorf("ERROR during output: %s", outputError.Error())
-
-			// hack to exit if the error happens while we are writing to a file
-			if config.OutputType == FileOutputType || config.OutputType == SplunkOutputType || config.OutputType == HTTPOutputType || config.OutputType == S3OutputType || config.OutputType == SyslogOutputType {
-				log.Error("File output error; exiting immediately.")
-				c.Shutdown()
-				wg.Wait()
-				os.Exit(1)
-			}
+		case signal := <-outputSignals:
+			log.Errorf("%s- exiting immediately.", signal)
+			c.Shutdown()
+			wg.Wait()
+			os.Exit(1)
 
 		case closeError := <-c.connectionErrors:
 			status.IsConnected = false
@@ -482,7 +481,7 @@ func startOutputs() error {
 	}))
 
 	log.Infof("Initialized output: %s\n", outputHandler.String())
-	return outputHandler.Go(results, outputErrors)
+	return outputHandler.Go(results, outputErrors, outputSignals)
 }
 
 func main() {

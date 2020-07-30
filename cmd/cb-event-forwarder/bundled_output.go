@@ -223,7 +223,7 @@ func (o *BundledOutput) Statistics() interface{} {
 	}
 }
 
-func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, signals chan<- os.Signal) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
@@ -293,11 +293,12 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error) error
 					errorChan <- err
 					return
 				}
-			case <-term:
+			case sigterm := <-term:
 				// handle exit gracefully
 				errorChan <- errors.New("SIGTERM received")
 				refreshTicker.Stop()
 				log.Info("Received SIGTERM. Exiting")
+				signals <- sigterm
 				return
 			}
 		}
