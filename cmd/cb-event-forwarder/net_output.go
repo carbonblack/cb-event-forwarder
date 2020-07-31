@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"os/signal"
@@ -12,6 +11,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type NetOutput struct {
@@ -143,7 +144,7 @@ func (o *NetOutput) output(m string) error {
 	return err
 }
 
-func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error, signals chan<- os.Signal) error {
 	if o.outputSocket == nil {
 		return errors.New("Output socket not open")
 	}
@@ -154,7 +155,10 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 
 		hup := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
+		term := make(chan os.Signal, 1)
+		signal.Notify(term, syscall.SIGTERM)
 
+		defer signal.Stop(term)
 		defer signal.Stop(hup)
 
 		for {
@@ -171,6 +175,10 @@ func (o *NetOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						o.closeAndScheduleReconnection()
 					}
 				}
+			case sigterm := <-term:
+				log.Infof("Net output handling SIGTERM")
+				signals <- sigterm
+				return
 			}
 		}
 

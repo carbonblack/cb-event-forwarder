@@ -94,7 +94,7 @@ func (o *FileOutput) Initialize(fileName string) error {
 	return nil
 }
 
-func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error, signalChan chan<- os.Signal) error {
 	if o.outputFile == nil {
 		return errors.New("No output file specified")
 	}
@@ -141,10 +141,10 @@ func (o *FileOutput) Go(messages <-chan string, errorChan chan<- error) error {
 					return
 				}
 
-			case <-term:
+			case sigterm := <-term:
 				// handle exit gracefully
 				log.Info("Received SIGTERM. Exiting")
-				errorChan <- errors.New("SIGTERM received")
+				signalChan <- sigterm
 				return
 			}
 		}

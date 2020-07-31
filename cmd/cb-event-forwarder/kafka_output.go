@@ -123,7 +123,7 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	return nil
 }
 
-func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
+func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, signals chan<- os.Signal) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 		defer refreshTicker.Stop()
@@ -135,9 +135,12 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 		}()
 
 		hup := make(chan os.Signal, 1)
+		term := make(chan os.Signal, 1)
 		signal.Notify(hup, syscall.SIGHUP)
+		signal.Notify(term, syscall.SIGTERM)
 
 		defer signal.Stop(hup)
+		defer signal.Stop(term)
 
 		for {
 			select {
@@ -158,6 +161,10 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error) error {
 						log.Info("ERROR: Topic was not a string")
 					}
 				}
+			case sigterm := <-term:
+				log.Infof("Kafka output handling SIGTERM...")
+				signals <- sigterm
+				return
 			}
 		}
 
