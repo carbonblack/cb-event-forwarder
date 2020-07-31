@@ -388,7 +388,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 	for {
 		select {
 		case outputError := <-outputErrors:
-			log.Errorf("ERROR during output: %s", outputError.Error())
+			log.Debugf("ERROR during output: %s", outputError.Error())
 		case signal := <-outputSignals:
 			log.Errorf("%s- exiting immediately.", signal)
 			c.Shutdown()
