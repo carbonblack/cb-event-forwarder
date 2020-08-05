@@ -1,5 +1,15 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.1
+
+#### Features
+
+ * EDR Event Forwarder continues to run during communication outages.  Previously, it would exit on timeout.
+
+#### Bug Fixes / Changes
+
+ * Corrected signal handling, permitting EDR Event Forwarder to continue to execute during communication outages.
+
 ## v3.7.0
 
 #### Features
