@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
+	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -442,6 +443,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			val = val + "/"
 		}
 		config.CbServerURL = val
+	} else {
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil {
+			log.Errorf("Error getting fqdn for host: %s", err)
+		} else {
+			config.CbServerURL = fmt.Sprintf("https://%s", fqdn)
+			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
+		}
 	}
 
 	if input.Section("bridge").HasKey("output_format") {
