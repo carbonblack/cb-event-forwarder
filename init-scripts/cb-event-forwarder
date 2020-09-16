@@ -41,19 +41,26 @@ stop() {
     echo -n "Shutting down $prog: "
     if [ ! -f "$pidfile" ] || ! kill -0 $(cat "$pidfile"); then
         echo "Ok"
-        return 1
+        return 0
     fi
-	  kill -15 $(cat $pidfile) && rm -f $pidfile
-	  echo "Ok"
-    return 0
+    if kill -15 $(cat $pidfile) ; then
+	rm -f $pidfile
+	echo "Ok"
+    	return 0
+    else 
+	echo "Failed"
+	return 1
+    fi
 }
 
 status() {
     echo -n "Status of $prog: "
     if [ -f "$pidfile" ] && kill -0 $(cat "$pidfile"); then
         echo "Running"
+        return 0
     else
         echo "Stopped"
+        return 1
     fi
 }
 
