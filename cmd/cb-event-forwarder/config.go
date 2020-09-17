@@ -293,7 +293,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			log.Errorf("Error getting fqdn for host: %s", err)
 		} else {
-			log.Infof("Setting server_name to FQDN")
+			log.Infof("Automatically set server_name to %s", fqdn)
 			config.ServerName = fqdn
 		}
 	}
