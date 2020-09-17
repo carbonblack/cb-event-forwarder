@@ -275,11 +275,27 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// required values
 
+	shouldSetServerNameToFqdn := false
+
 	if !input.Section("bridge").HasKey("server_name") {
 		config.ServerName = "CB" 
+		shouldSetServerNameToFqdn = true
 	} else {
 		key := input.Section("bridge").Key("server_name")
 		config.ServerName = key.Value()
+		if config.ServerName == "cbresponse" {
+			shouldSetServerNameToFqdn = true
+		}
+	}
+
+	if shouldSetServerNameToFqdn {
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil {
+			log.Errorf("Error getting fqdn for host: %s", err)
+		} else {
+			log.Infof("Setting server_name to FQDN")
+			config.ServerName = fqdn
+		}
 	}
 
 	if input.Section("bridge").HasKey("debug") {
@@ -450,10 +466,6 @@ func ParseConfig(fn string) (Configuration, error) {
 		} else {
 			config.CbServerURL = fmt.Sprintf("https://%s", fqdn)
 			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
-			if (config.ServerName == "cbresponse" || config.ServerName == "CB") {
-				log.Infof("Overriding server_name to FQDN")
-				config.ServerName = fqdn
-			}
 		}
 	}
 
