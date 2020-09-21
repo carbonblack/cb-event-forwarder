@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
+	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -274,11 +275,27 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	// required values
 
+	shouldSetServerNameToFqdn := false
+
 	if !input.Section("bridge").HasKey("server_name") {
-		config.ServerName = "CB"
+		config.ServerName = "CB" 
+		shouldSetServerNameToFqdn = true
 	} else {
 		key := input.Section("bridge").Key("server_name")
 		config.ServerName = key.Value()
+		if config.ServerName == "cbresponse" {
+			shouldSetServerNameToFqdn = true
+		}
+	}
+
+	if shouldSetServerNameToFqdn {
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil {
+			log.Errorf("Error getting fqdn for host: %s", err)
+		} else {
+			log.Infof("Automatically set server_name to %s", fqdn)
+			config.ServerName = fqdn
+		}
 	}
 
 	if input.Section("bridge").HasKey("debug") {
@@ -442,6 +459,14 @@ func ParseConfig(fn string) (Configuration, error) {
 			val = val + "/"
 		}
 		config.CbServerURL = val
+	} else {
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil {
+			log.Errorf("Error getting fqdn for host: %s", err)
+		} else {
+			config.CbServerURL = fmt.Sprintf("https://%s", fqdn)
+			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
+		}
 	}
 
 	if input.Section("bridge").HasKey("output_format") {
