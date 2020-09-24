@@ -1,8 +1,8 @@
-# CB EDR Event Forwarder
+# VMware Carbon Black EDR Event Forwarder
 
 ## Overview
 
-The CB EDR Event Forwarder is a standalone service which listens on the CB EDR enterprise bus and exports
+The VMware Carbon Black EDR Event Forwarder is a standalone service which listens on the EDR enterprise bus and exports
 events (watchlist/feed hits, as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
@@ -11,13 +11,16 @@ The list of events to collect is configurable. By default, Event Forwarder expor
 binary notifications, and raw sensor events as JSON. You can find the configuration file for the connector at
 `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf`.
 
-Starting with version 7.1.0 of Carbon Black EDR, you can use the EDR web console to configure and control Event Forwarder,
+Starting with version 7.1.0 of EDR, you can use the EDR web console to configure and control Event Forwarder,
 as long as you follow the installation and configuration steps detailed below.
 
 ## Support
 
-We support pre-built RPM via our [User eXchange (Jive)](https://community.carbonblack.com/community/developer-relations) 
-and via email to dev-support@carbonblack.com. 
+* View all API and integration offerings on the [Developer Network](https://developer.carbonblack.com/) along with
+ reference documentation, video tutorials, and how-to guides.
+* Use the [Developer Community Forum](https://community.carbonblack.com/community/resources/developer-relations) to 
+discuss issues and get answers from other API developers in the VMware Carbon Black Community.
+* Report bugs and change requests to [Carbon Black Support](http://carbonblack.com/resources/support/)
 
 ## Raw Sensor Events 
 
@@ -29,16 +32,16 @@ bus.
 ## Quickstart Guide
 
 The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
-It can be installed on the same machine as the Cb EDR server, or another machine. 
+It can be installed on the same machine as the EDR server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), or are forwarding events from a Cb EDR cluster, we recommend installing it on a separate machine. 
-Otherwise, it is acceptable to install the cb-event-forwarder on the Cb EDR server itself.
+modifications), or are forwarding events from a EDR cluster, we recommend installing it on a separate machine. 
+Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server itself.
 
 ### Installation
 
 To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
-to use the CD EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
-CB EDR is installed (in the case of a cluster installer, this means the master node).
+to use the EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
+EDR is installed (in the case of a cluster installer, this means the master node).
 
 1. Install the CbOpenSource repository if it isn't already present:
 
@@ -51,7 +54,7 @@ CB EDR is installed (in the case of a cluster installer, this means the master n
    ```
    yum install cb-event-forwarder
    ```
-3. If you are using CB EDR 7.1.0 or greater and wish to use the CB EDR console to configure and operate the Event
+3. If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
 Forwarder, run the following script to set the appropriate permissions needed by EDR:
 
    ```
@@ -60,21 +63,21 @@ Forwarder, run the following script to set the appropriate permissions needed by
 
 ### Configure the cb-event-forwarder
 
-1. If installing on a machine *other than* the Cb EDR server, copy the RabbitMQ username and password into the 
+1. If installing on a machine *other than* the EDR server, copy the RabbitMQ username and password into the 
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
-file. Also fill out the `cb_server_hostname` with the hostname or IP address where the Cb EDR server can be reached.
-If the cb-event-forwarder is forwarding events from a Cb EDR cluster, the `cb_server_hostname` should be set
-to the hostname or IP address of the Cb EDR master node.
+file. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached.
+If the cb-event-forwarder is forwarding events from a EDR cluster, the `cb_server_hostname` should be set
+to the hostname or IP address of the EDR master node.
    
 2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
-### Configure Cb EDR
+### Configure EDR
 
 #### Console Support
 
-If you are using CB EDR 7.1.0 or greater and wish to use the CB EDR console to configure and operate the Event
+If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
 Forwarder, you will need to add the following setting to `/etc/cb/cb.conf` (on the master node, if this is a cluster):
 
     EventForwarderEnabled=True
@@ -93,10 +96,10 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 
-Cb EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
+EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
 `service cb-enterprise restart`.
 
-If you are configuring the cb-event-forwarder on a Cb EDR cluster, the `DatastoreBroadcastEventTypes` and/or
+If you are configuring the cb-event-forwarder on a EDR cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
 must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster stopped and started using
 the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
@@ -115,15 +118,15 @@ Once you install the service, it is configured to start automatically on system 
 
 ## Splunk
 
-The Cb EDR Event Forwarder can be used to export Cb EDR events in a way easily configured for Splunk. You'll
-need to install and configure the Splunk TA to consume the Cb EDR event data. We recommend that the event
+The EDR Event Forwarder can be used to export EDR events in a way easily configured for Splunk. You'll
+need to install and configure the Splunk TA to consume the EDR event data. We recommend that the event
 bridge use a file-based output with the Splunk universal forwarder configured to monitor the file. 
 
 More information about configuring the Splunk TA can be found [here](http://docs.splunk.com/Documentation/AddOns/latest/Bit9CarbonBlack/About)
 
 ## QRadar
 
-The Cb EDR Event Forwarder can forward Cb EDR events in the LEEF format to QRadar. To forward Cb EDR
+The EDR Event Forwarder can forward EDR events in the LEEF format to QRadar. To forward EDR
 events to a QRadar server:
 
 1. Modify `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to include 

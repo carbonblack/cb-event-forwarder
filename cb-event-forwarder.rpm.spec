@@ -23,7 +23,7 @@
 
 %define release 1
 
-Summary: Carbon Black Event Forwarder
+Summary: VMware Carbon Black EDR Event Forwarder
 Name: %{name}
 Version: %{decorated_version}
 Release: %{release}%{?dist}
@@ -33,12 +33,12 @@ Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
 BuildArch: x86_64
-Vendor: Carbon Black
+Vendor: VMware Carbon Black
 Url: http://www.carbonblack.com/
 
 %description
-Carbon Black Event Forwarder is a standalone service that will listen on the Carbon Black enterprise bus and export
-events (both watchlist/feed hits as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
+VMware Carbon Black EDR Event Forwarder is a standalone service that will listen on the EDR enterprise bus and
+export events (both watchlist/feed hits as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
 
