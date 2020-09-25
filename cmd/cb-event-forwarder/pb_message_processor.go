@@ -30,6 +30,18 @@ func getProcessGUID(m *CbEventMsg) string {
     return fmt.Sprintf("%d", m.Header.GetProcessGuid())
 }
 
+func getParentProcessGUID(m *CbEventMsg) string {
+    if m.Header.ProcessPid != nil && m.Header.ProcessCreateTime != nil && m.Env != nil && m.Env.Endpoint != nil &&
+    		m.Env.Endpoint.SensorId != nil {
+        pid := m.Header.GetProcessPid()
+        createTime := m.Header.GetProcessCreateTime()
+        sensorID := m.Env.Endpoint.GetSensorId()
+
+        return MakeGUID(sensorID, pid, createTime)
+    }
+    return fmt.Sprintf("%d", m.Header.GetProcessGuid())
+}
+
 type convertedCbMessage struct {
     OriginalMessage *CbEventMsg
 }
@@ -553,7 +565,15 @@ func writeChildprocMessage(message *convertedCbMessage, kv map[string]interface{
     kv["child_pid"] = om.Childproc.GetPid()
     kv["tamper"] = om.Childproc.GetTamper()
     kv["tamper_sent"] = om.Childproc.GetTamperSent()
-    kv["parent_guid"] = om.Childproc.GetParentGuid()
+
+    sensorID := om.Env.Endpoint.GetSensorId()
+    if om.Header.ProcessCreateTime != nil {
+        processCreateTime := om.Header.GetProcessCreateTime()
+        processPid := om.Header.GetProcessPid()
+        kv["parent_guid"] = MakeGUID(sensorID, processPid, processCreateTime)
+    } else { 
+        kv["parent_guid"] = om.Childproc.GetParentGuid()
+    }
 
     // add link to process in the Cb UI if the Cb hostname is set
     if config.CbServerURL != "" {
