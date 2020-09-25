@@ -567,7 +567,7 @@ func writeChildprocMessage(message *convertedCbMessage, kv map[string]interface{
     kv["tamper_sent"] = om.Childproc.GetTamperSent()
 
     sensorID := om.Env.Endpoint.GetSensorId()
-    if om.Header.ProcessCreateTime != nil {
+    if om.Header.ProcessCreateTime != nil  && om.Header.ProcessPid != nil {
         processCreateTime := om.Header.GetProcessCreateTime()
         processPid := om.Header.GetProcessPid()
         kv["parent_guid"] = MakeGUID(sensorID, processPid, processCreateTime)

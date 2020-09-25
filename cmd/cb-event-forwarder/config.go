@@ -464,7 +464,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err != nil {
 			log.Errorf("Error getting fqdn for host: %s", err)
 		} else {
-			config.CbServerURL = fmt.Sprintf("https://%s", fqdn)
+			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
 			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
 		}
 	}
