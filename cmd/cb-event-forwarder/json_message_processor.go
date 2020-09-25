@@ -31,7 +31,7 @@ func parseFullGUID(v string) (string, uint64, error) {
 		if err != nil {
 			segmentNumber = 1
 		}
-	case len(v) == 49: // Cb Response versions 6.x and above
+	case len(v) == 49: // EDR versions 6.x and above
 		segmentNumber, err = strconv.ParseUint(v[37:], 16, 64)
 	default:
 		err = errors.New("Truncated GUID")

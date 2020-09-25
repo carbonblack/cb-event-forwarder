@@ -33,9 +33,9 @@ class RawEventOutput(EventOutput):
         super(RawEventOutput, self).__init__('file')
         self.destdir = outdir
 
-        os.makedirs(outdir, 0700)
-        os.mkdir(os.path.join(outdir, 'json'), 0700)
-        os.mkdir(os.path.join(outdir, 'protobuf'), 0700)
+        os.makedirs(outdir, 0o0700)
+        os.mkdir(os.path.join(outdir, 'json'), 0o0700)
+        os.mkdir(os.path.join(outdir, 'protobuf'), 0o0700)
 
         self.counts = collections.defaultdict(int)
 
@@ -43,7 +43,7 @@ class RawEventOutput(EventOutput):
         count_key = "%s/%s" % (mime_type, routing_key)
         pathname = os.path.join(self.destdir, mime_type, routing_key)
         if not os.path.isdir(pathname):
-            os.mkdir(pathname, 0700)
+            os.mkdir(pathname, 0o0700)
 
         open(os.path.join(self.destdir, mime_type, routing_key,
                           "%d.%s" % (self.counts[count_key], mime_type)),
@@ -113,7 +113,8 @@ def bus_event_loop(cb_hostname, rabbit_mq_user, rabbit_mq_pass):
 
 
 def build_cli_parser():
-    parser = optparse.OptionParser(usage="%prog [options]", description="Process Cb Response Sensor Event Logs")
+    parser = optparse.OptionParser(usage="%prog [options]",
+                                   description="Process VMware Carbon Black EDR sensor event logs")
 
     #
     # CB server info (needed for host information lookups)
@@ -122,7 +123,7 @@ def build_cli_parser():
     group.add_option("-c", "--cburl", action="store", default=None, dest="url",
                       help="CB server's URL. e.g., http://127.0.0.1; only useful when -A is specified")
     group.add_option("-a", "--apitoken", action="store", default=None, dest="token",
-                      help="API Token for Cb Response server; only useful when -A and -c are specified")
+                      help="API Token for EDR server; only useful when -A and -c are specified")
     group.add_option("-n", "--no-ssl-verify", action="store_false", default=True, dest="ssl_verify",
                       help="Do not verify server SSL certificate; only useful when -c is specified.")
     parser.add_option_group(group)

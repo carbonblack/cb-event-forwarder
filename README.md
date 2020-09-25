@@ -41,7 +41,7 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server 
 
 To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
 to use the EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
-EDR is installed (in the case of a cluster installer, this means the master node).
+EDR is installed (in the case of a cluster installer, this means the primary node).
 
 1. Install the CbOpenSource repository if it isn't already present:
 
@@ -67,7 +67,7 @@ Forwarder, run the following script to set the appropriate permissions needed by
 `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
 file. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached.
 If the cb-event-forwarder is forwarding events from a EDR cluster, the `cb_server_hostname` should be set
-to the hostname or IP address of the EDR master node.
+to the hostname or IP address of the EDR primary node.
    
 2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
@@ -78,7 +78,7 @@ message starting with "Initialized output”. If there are any errors, those err
 #### Console Support
 
 If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
-Forwarder, you will need to add the following setting to `/etc/cb/cb.conf` (on the master node, if this is a cluster):
+Forwarder, you will need to add the following setting to `/etc/cb/cb.conf` (on the primary node, if this is a cluster):
 
     EventForwarderEnabled=True
  

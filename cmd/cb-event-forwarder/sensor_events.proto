@@ -1,7 +1,7 @@
 //
 // Google Protobuf Definition for VMware Carbon Black EDR sensor events
 //
-// Copyright 2015 Bit9, Inc.
+// Copyright © 2014-2020 VMware, Inc. All Rights Reserved.
 //
 
 option java_package = "com.carbonblack.cbfs";
