@@ -754,9 +754,9 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.UseRawSensorExchange = boolval
 			if boolval {
-				log.Warn("Configured to listen on the Carbon Black Enterprise Response raw sensor event feed.")
+				log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
 				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Warn("- Ensure that raw sensor events are enabled in your Cb server (master & minion) via")
+				log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
 				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
 			}
 		} else {

@@ -112,18 +112,18 @@ cb-event-forwarder would stop rolling over files after the first of a new month.
    * These links allow you to directly access the relevant sensor, binary, or process context for each event output
     by the cb-event-forwarder.
    * The new variable `cb_server_url` has been added to the configuration file to support this new feature. Set this
-    variable to the base URL of the Carbon Black web UI. **If this variable is not set, then no links are generated.**
+    variable to the base URL of the EDR web UI. **If this variable is not set, then no links are generated.**
    * The new links are available in the `link_process`, `link_child` (in child process events), `link_md5` and 
     `link_sensor` keys of the JSON or LEEF output.
    * Note that links to processes and binaries may result in 404 errors until the process and binary data is committed
-    to disk on the Carbon Black server. Process events received via the event-forwarder may take up to 15 minutes or 
-    longer before they're visible on the Carbon Black web UI.
-* All Carbon Black 5.1 event types are now supported
+    to disk on the EDR server. Process events received via the event-forwarder may take up to 15 minutes or 
+    longer before they are visible on the EDR web UI.
+* All EDR 5.1 event types are now supported
    * Microsoft EMET
-   * Carbon Black Tamper events
+   * EDR Tamper events
    * Cross-process (process open/thread create) events
-   * Carbon Black process/network blocking events
-* Network events now include the local IP and port number of the network connection (available on Carbon Black 5.1 
+   * EDR process/network blocking events
+* Network events now include the local IP and port number of the network connection (available on EDR 5.1 
   servers and sensors)
    * The IP four-tuple is now available as (`local_ip`, `local_port`, `remote_ip`, and `remote_port`) in the JSON/LEEF
     output

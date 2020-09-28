@@ -14,7 +14,7 @@ class EventParser(object):
 
     def parse_event_pb(self, protobuf_bytes, routing_key):
         """
-        Parse a Carbon Black event bus message that is in a protobuf format
+        Parse an EDR event bus message that is in a protobuf format
         """
 
         (sensor_id, event_obj) = event_helpers.protobuf_to_obj_and_host(protobuf_bytes)
@@ -66,7 +66,7 @@ class EventParser(object):
 
     def parse_event_json(self, msg_body, routing_key):
         """
-        Parse a Carbon Black event bus message that is in a JSON format
+        Parse an EDR event bus message that is in a JSON format
         """
 
         json_obj = json.loads(msg_body)

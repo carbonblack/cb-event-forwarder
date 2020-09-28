@@ -1,20 +1,20 @@
 # Output Formats Supported by the Event Forwarder
 
-The Cb Response Event Forwarder provides a way to easily connect arbitrary tools, applications, SIEMs, and analytics
-to the [Cb Response message bus](https://developer.carbonblack.com/reference/enterprise-response/message-bus/). 
+The VMware Carbon Black EDR Event Forwarder provides a way to easily connect arbitrary tools, applications, SIEMs, and analytics
+to the [EDR message bus](https://developer.carbonblack.com/reference/enterprise-response/message-bus/). 
 The Event Forwarder helps by providing the most critical data points from each event
 in a consistent output format (currently JSON or LEEF) over a standard transport mechanism (currently a flat file,
 TCP/UDP socket, Amazon S3 bucket, syslog or TCP+TLS encrypted syslog). This document describes the fields that the Event 
 Forwarder appends to the input when generating the output JSON or LEEF data.
 
 The Event Forwarder performs this normalization because, for performance reasons, two different data formats are used
-for incoming events on the Cb Response message bus: 
+for incoming events on the EDR message bus: 
 [Google Protocol Buffers (or protobufs)](https://developers.google.com/protocol-buffers/) and [JSON](http://json.org).
 Raw sensor events, such as file modification events and module load events, are sent on the bus as protobufs as they
 require very high performance due to the very high event rate (which can reach hundreds of thousands of events per
 second on a busy server). While we publish the current [protobuf definition](https://github.com/carbonblack/cbapi/blob/master/server_apis/proto/sensor_events.proto)
-associated with the latest publicly released version of Cb Response, the protobuf definition, the event format itself,
-and even the message bus transport mechanism are all subject to change in future releases of the Cb Response server.
+associated with the latest publicly released version of EDR, the protobuf definition, the event format itself,
+and even the message bus transport mechanism are all subject to change in future releases of the EDR server.
 
 More infrequent events, such as alerts or watchlist/feed hits, are sent as JSON over the event bus.
 
@@ -24,7 +24,7 @@ or analysis rather than the details of how to acquire the data in the first plac
 
 ## Output Format Normalization
 
-The Cb Response Event Forwarder supports two output formats: JSON and LEEF.
+The EDR Event Forwarder supports two output formats: JSON and LEEF.
 No matter whether JSON or LEEF format is selected, some basic normalization is performed on the messages received
 on the bus. Here are some highlights:
 
@@ -42,12 +42,12 @@ on the bus. Here are some highlights:
   `watchlist.hit.process`.
 * The `computer_name` key contains the hostname of the affected endpoint.
 
-### Cb Response Deep Links
+### EDR Deep Links
 
-If configured, the Cb Response Event Forwarder will emit deep links into the Cb Response web UI for the relevant
+If configured, the EDR Event Forwarder will emit deep links into the EDR web UI for the relevant
 sensor, binary, and/or process associated with a given event.
 In addition, if the `cb_server_url` variable is set in the cb-event-forwarder configuration file, deep links will 
-be created to the Cb Response web UI for the following keys. Note that only links that make sense for the given event
+be created to the EDR web UI for the following keys. Note that only links that make sense for the given event
 type (for example, there is no "child" process link for a process start event) will be included in the output:
 
 * The `link_process` key contains a direct link to the associated process (and segment, if known). Note that
@@ -56,29 +56,29 @@ type (for example, there is no "child" process link for a process start event) w
   the event described in the output message.
 * The `link_parent` key contains a direct link to the associated parent process.
 * The `link_child` key contains a direct link to the associated child process.
-* The `link_sensor` key contains a direct link to the associated endpoint host record in the Cb Response UI.
+* The `link_sensor` key contains a direct link to the associated endpoint host record in the EDR UI.
 * The `link_md5`, `link_process_md5`, or `link_parent_md5` keys contain direct links to binaries related to this event
-  in the Cb Response UI.
+  in the EDR UI.
 
 ### JavaScript Object Notation (JSON)
 
 [JSON](http://json.org) is a lightweight 
 [international data interchange standard](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf)
-originally derived as a subset of the JavaScript language. The Cb Response Event Forwarder generates JSON by default
+originally derived as a subset of the JavaScript language. The EDR Event Forwarder generates JSON by default
 as it is highly interoperable with a variety of different languages and is also easy to read by hand when necessary.
-JSON is the data format required to send events to the Cb Response [Splunk app](https://splunkbase.splunk.com/app/3099/).
+JSON is the data format required to send events to the EDR [Splunk app](https://splunkbase.splunk.com/app/3099/).
 
 ### QRadar Log Event Extended Format (LEEF)
 
 The [LEEF](https://www.ibm.com/developerworks/community/wikis/form/anonymous/api/wiki/9989d3d7-02c1-444e-92be-576b33d2f2be/page/3dc63f46-4a33-4e0b-98bf-4e55b74e556b/attachment/a19b9122-5940-4c89-ba3e-4b4fc25e2328/media/QRadar_LEEF_Format_Guide.pdf)
-format is supported by Cb Response Event Forwarder to interoperate with IBM QRadar.
+format is supported by EDR Event Forwarder to interoperate with IBM QRadar.
 Each LEEF log message consists of a header followed by a set of tab-separated key-value pairs ("event attributes").
 A set of keys, defined in the [IBM QRadar LEEF Format Guide](https://www.ibm.com/developerworks/community/wikis/form/anonymous/api/wiki/9989d3d7-02c1-444e-92be-576b33d2f2be/page/3dc63f46-4a33-4e0b-98bf-4e55b74e556b/attachment/a19b9122-5940-4c89-ba3e-4b4fc25e2328/media/QRadar_LEEF_Format_Guide.pdf),
 have special meaning to QRadar ("pre-defined event attributes"). The pre-defined event attributes help QRadar identify
 fields that are shared across multiple log sources, such as IP addresses and usernames, so that these log files
 can be correlated with each other.
 
-The LEEF header generated by Cb Response Event forwarder contains the following information:
+The LEEF header generated by EDR Event forwarder contains the following information:
 
 ```
 LEEF:1.0|CB|CB|5.1.0.150625.500|watchlist.hit.process
@@ -93,7 +93,7 @@ LEEF:1.0|CB|CB|5.1.0.150625.500|watchlist.hit.process
    the Event Forwarder.
 
 
-The Cb Response Event Forwarder has special support for mapping certain fields in the event message bus into LEEF
+The EDR Event Forwarder has special support for mapping certain fields in the event message bus into LEEF
 pre-defined event attributes to support the log correlation and alerting features present in QRadar. The following
 normalization is performed on incoming messages to map their attributes to QRadar's pre-defined event attributes:
 
