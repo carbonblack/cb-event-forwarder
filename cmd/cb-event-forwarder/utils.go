@@ -60,7 +60,6 @@ func MakeGUID(sensorID, pid int32, createTime int64) string {
 
 func GetIPv4Address(addr uint32) string {
 	buf := make([]byte, 4)
-
 	binary.LittleEndian.PutUint32(buf, addr)
 	return net.IP(buf).String()
 }

@@ -553,7 +553,15 @@ func writeChildprocMessage(message *convertedCbMessage, kv map[string]interface{
     kv["child_pid"] = om.Childproc.GetPid()
     kv["tamper"] = om.Childproc.GetTamper()
     kv["tamper_sent"] = om.Childproc.GetTamperSent()
-    kv["parent_guid"] = om.Childproc.GetParentGuid()
+
+    sensorID := om.Env.Endpoint.GetSensorId()
+    if om.Header.ProcessCreateTime != nil  && om.Header.ProcessPid != nil {
+        processCreateTime := om.Header.GetProcessCreateTime()
+        processPid := om.Header.GetProcessPid()
+        kv["parent_guid"] = MakeGUID(sensorID, processPid, processCreateTime)
+    } else { 
+        kv["parent_guid"] = om.Childproc.GetParentGuid()
+    }
 
     // add link to process in the Cb UI if the Cb hostname is set
     if config.CbServerURL != "" {
