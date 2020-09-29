@@ -74,7 +74,7 @@ def on_bus_msg(channel, method_frame, header_frame, body):
             sys.stderr.flush()
         else:
             g_output.output(header_frame.content_type.replace("application/", ""), method_frame.routing_key, body, header_frame)
-    except Exception, e:
+    except Exception as e:
         sys.stderr.write("-> Exception processing bus msg: %s\n" % e)
 
 
@@ -111,7 +111,8 @@ def bus_event_loop(cb_hostname, rabbit_mq_user, rabbit_mq_pass):
 
 
 def build_cli_parser():
-    parser = optparse.OptionParser(usage="%prog [options]", description="Process Cb Response Sensor Event Logs")
+    parser = optparse.OptionParser(usage="%prog [options]",
+                                   description="Process VMware Carbon Black EDR sensor event logs")
 
     #
     # CB server info (needed for host information lookups)
@@ -120,7 +121,7 @@ def build_cli_parser():
     group.add_option("-c", "--cburl", action="store", default=None, dest="url",
                       help="CB server's URL. e.g., http://127.0.0.1; only useful when -A is specified")
     group.add_option("-a", "--apitoken", action="store", default=None, dest="token",
-                      help="API Token for Cb Response server; only useful when -A and -c are specified")
+                      help="API Token for EDR server; only useful when -A and -c are specified")
     group.add_option("-n", "--no-ssl-verify", action="store_false", default=True, dest="ssl_verify",
                       help="Do not verify server SSL certificate; only useful when -c is specified.")
     parser.add_option_group(group)

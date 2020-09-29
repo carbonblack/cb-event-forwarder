@@ -27,7 +27,7 @@ def process_event(event_processor, event):
 
 class CarbonBlackEventForwarder(CbIntegrationDaemon):
     """
-    Integration daemon for Carbon Black Forwarding from the Event bus
+    Integration daemon for VMware Carbon Black EDR Forwarding from the Event bus
     """
 
     def __init__(self, name, configfile):
@@ -98,7 +98,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
     def on_starting(self):
         """
-        Determine which Carbon Black events should be sent to forwarder
+        Determine which EDR events should be sent to forwarder
         """
 
         self.set_capture_events_from_config()
@@ -188,7 +188,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
     def consume_message_bus(self, test=False):
         """
-        Subscribe to Carbon Black's event bus and begin consuming messages
+        Subscribe to the EDR event bus and begin consuming messages
         """
         if test:
             from test_fake_bus import FakeChannel, FakeConnection
@@ -211,7 +211,7 @@ class CarbonBlackEventForwarder(CbIntegrationDaemon):
 
     def on_bus_message(self, channel, method_frame, header_frame, body):
         """
-        Callback that gets called for any event on the Carbon Black event bus
+        Callback that gets called for any event on the EDR event bus
         """
 
         try:

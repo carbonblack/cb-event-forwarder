@@ -11,6 +11,7 @@ import pprint
 g_stats = {}
 g_stats_lock = threading.RLock()
 
+
 def get_mq_user_from_cbconf():
     for line in open('/etc/cb/cb.conf').readlines():
         if line.strip().startswith('RabbitMQUser'):
@@ -95,7 +96,8 @@ def bus_raw_event_loop(cb_hostname, rabbit_mq_user, rabbit_mq_pass):
 
 
 def build_cli_parser():
-    parser = optparse.OptionParser(usage="%prog [options]", description="Process Cb Response Sensor Event Logs")
+    parser = optparse.OptionParser(usage="%prog [options]",
+                                   description="Process VMware Carbon Black EDR Sensor Event Logs")
 
     parser.add_option("-u", "--user",
                       action="store",
@@ -113,14 +115,16 @@ def build_cli_parser():
                       action="store",
                       default="localhost",
                       dest="connect",
-                      help="hostname of the Cb Response server")
+                      help="hostname of the EDR server")
     return parser
+
 
 def output_counter():
     while(True):
         if g_stats:
             pprint.pprint(g_stats)
         time.sleep(3)
+
 
 if __name__ == '__main__':
     parser = build_cli_parser()
@@ -145,4 +149,3 @@ if __name__ == '__main__':
 
     while True:
         time.sleep(1)
-

@@ -244,7 +244,7 @@ class EventProcessor(object):
 
     def process_event(self, content_type, routing_key, body):
         """
-        Parse an event from the Carbon Black event bus and write the resulting events to the configured output
+        Parse an event from the EDR event bus and write the resulting events to the configured output
         """
 
         events = self.event_parser.parse_events(content_type, routing_key, body)
