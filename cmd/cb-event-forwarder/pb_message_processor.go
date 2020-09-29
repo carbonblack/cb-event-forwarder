@@ -30,18 +30,6 @@ func getProcessGUID(m *CbEventMsg) string {
     return fmt.Sprintf("%d", m.Header.GetProcessGuid())
 }
 
-func getParentProcessGUID(m *CbEventMsg) string {
-    if m.Header.ProcessPid != nil && m.Header.ProcessCreateTime != nil && m.Env != nil && m.Env.Endpoint != nil &&
-    		m.Env.Endpoint.SensorId != nil {
-        pid := m.Header.GetProcessPid()
-        createTime := m.Header.GetProcessCreateTime()
-        sensorID := m.Env.Endpoint.GetSensorId()
-
-        return MakeGUID(sensorID, pid, createTime)
-    }
-    return fmt.Sprintf("%d", m.Header.GetProcessGuid())
-}
-
 type convertedCbMessage struct {
     OriginalMessage *CbEventMsg
 }
