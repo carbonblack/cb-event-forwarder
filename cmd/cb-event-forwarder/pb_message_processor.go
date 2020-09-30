@@ -695,7 +695,7 @@ func writeNetconn2Message(message *convertedCbMessage, kv map[string]interface{}
         kv["ja3"] = message.OriginalMessage.Networkv2.GetJa3()
     }
     if message.OriginalMessage.Networkv2.Ja3S != nil {
-        kv["jas3"] = message.OriginalMessage.Networkv2.GetJa3S()
+        kv["ja3s"] = message.OriginalMessage.Networkv2.GetJa3S()
     }
 }
 
