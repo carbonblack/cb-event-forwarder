@@ -913,6 +913,11 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.parseEventTypes(input)
 
+	outputParameterError := config.validateOutputParameters()
+	if outputParameterError != nil {
+		errs.addError(outputParameterError)
+	}
+
 	if !errs.Empty {
 		return config, errs
 	}
@@ -964,6 +969,18 @@ func configureTLS(config Configuration) *tls.Config {
 	}
 
 	return tlsConfig
+}
+
+func (c * Configuration) validateOutputParameters() error {
+	outputParameter := c.OutputParameters
+	switch (c.OutputType) {
+		case HTTPOutputType:
+			if !(strings.HasPrefix(outputParameter, "http://") || strings.HasPrefix(outputParameter, "https://")) {
+				return fmt.Errorf("Output destination for HTTP/s must include the protocol prefix http(s)://")
+			}
+
+	}
+	return nil
 }
 
 // parseOAuthConfiguration parses OAuth related configuration from input and populates config with
