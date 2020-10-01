@@ -690,6 +690,13 @@ func writeNetconn2Message(message *convertedCbMessage, kv map[string]interface{}
 
     kv["local_ip"] = getIPAddress(message.OriginalMessage.Networkv2.GetLocalIpAddress())
     kv["local_port"] = ntohs(uint16(message.OriginalMessage.Networkv2.GetLocalPort()))
+
+    if message.OriginalMessage.Networkv2.Ja3 != nil {
+        kv["ja3"] = message.OriginalMessage.Networkv2.GetJa3()
+    }
+    if message.OriginalMessage.Networkv2.Ja3S != nil {
+        kv["ja3s"] = message.OriginalMessage.Networkv2.GetJa3S()
+    }
 }
 
 func writeModinfoMessage(message *convertedCbMessage, kv map[string]interface{}) {
