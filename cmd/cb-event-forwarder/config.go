@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"regexp"
 
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
@@ -975,8 +976,9 @@ func (c * Configuration) validateOutputParameters() error {
 	outputParameter := c.OutputParameters
 	switch (c.OutputType) {
 		case HTTPOutputType:
-			if !(strings.HasPrefix(outputParameter, "http://") || strings.HasPrefix(outputParameter, "https://")) {
-				return fmt.Errorf("Output destination for HTTP/s must include the protocol prefix http(s)://")
+			matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
+			if !matched {
+				return fmt.Errorf("httpout destination must be set to a valid http(s):// prefixed url")
 			}
 
 	}

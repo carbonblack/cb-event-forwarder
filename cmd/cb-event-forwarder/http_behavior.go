@@ -167,5 +167,6 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 		return UploadStatus{fileName: fileName, result: err, status: 200}
 
 	}
+	fp.Close()
 	return UploadStatus{fileName: fileName, result: err, status: 500}
 }
