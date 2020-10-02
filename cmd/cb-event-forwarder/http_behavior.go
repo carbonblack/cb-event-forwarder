@@ -124,44 +124,48 @@ func (this *HTTPBehavior) Upload(fileName string, fp *os.File) UploadStatus {
 
 	request, err := http.NewRequest("POST", this.dest, reader)
 
-	go func() {
-		defer fp.Close()
-		defer writer.Close()
+	if err == nil {
+		/*This has to happen in another context because of the pipe used to read-write the outgoing message*/
+		go func() {
+			defer fp.Close()
+			defer writer.Close()
 
-		var httpWriter io.Writer = writer
+			var httpWriter io.Writer = writer
 
-		// if we are using compression, chain the GzipWriter inline
-		if config.CompressHTTPPayload {
-			gzw := gzip.NewWriter(writer)
-			defer gzw.Close()
-			httpWriter = gzw
+			// if we are using compression, chain the GzipWriter inline
+			if config.CompressHTTPPayload {
+				gzw := gzip.NewWriter(writer)
+				defer gzw.Close()
+				httpWriter = gzw
+			}
+
+			go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+
+			this.HTTPPostTemplate.Execute(httpWriter, uploadData)
+		}()
+
+		/* Set the header values of the post */
+		for key, value := range this.headers {
+			request.Header.Set(key, value)
 		}
 
-		// spawn goroutine to read from the file
-		go convertFileIntoTemplate(fp, uploadData.Events, this.firstEventTemplate, this.subsequentEventTemplate)
+		/* Execute the POST */
+		resp, err := this.client.Do(request)
+		if err != nil {
+			return UploadStatus{fileName: fileName, result: err}
+		}
+		defer resp.Body.Close()
 
-		this.HTTPPostTemplate.Execute(httpWriter, uploadData)
-	}()
+		/* Some sort of issue with the POST */
+		if resp.StatusCode != 200 {
+			body, _ := ioutil.ReadAll(resp.Body)
+			errorData := resp.Status + "\n" + string(body)
 
-	/* Set the header values of the post */
-	for key, value := range this.headers {
-		request.Header.Set(key, value)
+			return UploadStatus{fileName: fileName,
+				result: fmt.Errorf("HTTP request failed: Error code %s", errorData), status: resp.StatusCode}
+		}
+		return UploadStatus{fileName: fileName, result: err, status: 200}
+
 	}
-
-	/* Execute the POST */
-	resp, err := this.client.Do(request)
-	if err != nil {
-		return UploadStatus{fileName: fileName, result: err}
-	}
-	defer resp.Body.Close()
-
-	/* Some sort of issue with the POST */
-	if resp.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
-		errorData := resp.Status + "\n" + string(body)
-
-		return UploadStatus{fileName: fileName,
-			result: fmt.Errorf("HTTP request failed: Error code %s", errorData), status: resp.StatusCode}
-	}
-	return UploadStatus{fileName: fileName, result: err, status: 200}
+	return UploadStatus{fileName: fileName, result: err, status: 500}
 }
