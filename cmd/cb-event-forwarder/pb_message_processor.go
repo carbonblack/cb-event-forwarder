@@ -119,7 +119,7 @@ func ProcessRawZipBundle(routingKey string, body []byte, headers amqp.Table) ([]
 
         newMsgs, err := ProcessProtobufBundle(routingKey, unzippedFile, headers)
         if err != nil {
-            log.Errorf("Error processing zip filename %s: %s", zf.Name, err.Error())
+            log.Debugf("Error processing zip filename %s: %s", zf.Name, err.Error())
 
             if config.DebugFlag {
                 // using anonymous func to encapsulate the defers
