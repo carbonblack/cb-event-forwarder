@@ -1,5 +1,15 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.2
+
+#### Features
+
+ * EDR Event Forwarder automatically sets cb_server_url and cb_server_name using the FQDN of the host it is running on , unless these options are explicitly set in the configuration file
+
+#### Bug Fixes / Changes
+
+ * HTTP Output handler detects errors at runtime, and will not allow configurations lacking a protocol-prefix like http(s)://
+
 ## v3.7.1
 
 #### Features
