@@ -4,11 +4,11 @@
 #
 # chkconfig: 3456 20 80
 . /etc/init.d/functions
-
+/usr/share/cb/integrations/event-forwarder/cb-edr-event/cb-edr-fix-permissions.sh
 prog="cb-event-forwarder"
 piddir="/var/run/cb/integrations/event-forwarder"
 pidfile="$piddir/$prog.pid"
-precommand="/usr/share/cb/integrations/event-forwarder/cb-edr-event/cb-edr-fix-permissions.sh ; /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
+precommand="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 command="/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -pid-file ${pidfile} /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 
 start() {
