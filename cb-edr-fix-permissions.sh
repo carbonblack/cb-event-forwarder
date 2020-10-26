@@ -39,8 +39,8 @@ cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl restart cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl status cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl enable --now cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl disable --now cb-event-forwarder
-cb ALL=(ALL)  NOPASSWD: /usr/bin/chkconfig --add cb-event-forwarder
-cb ALL=(ALL)  NOPASSWD: /usr/bin/chkconfig --del cb-event-forwarder
-cb ALL=(ALL)  NOPASSWD: /usr/bin/chkconfig cb-event-forwarder off
+cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig --add cb-event-forwarder
+cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig --del cb-event-forwarder
+cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig cb-event-forwarder off
 __EOF__
 ) >/etc/sudoers.d/cb-ef
