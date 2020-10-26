@@ -2,6 +2,7 @@
 #
 #       /etc/rc.d/init.d/cb-event-forwarder
 #
+# chkconfig: 3456 20 80
 . /etc/init.d/functions
 
 prog="cb-event-forwarder"
