@@ -7,13 +7,13 @@
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run by a root user"
-  exit 1
+  exit 0
 fi
 
 id -u cb >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
   echo "No cb user, please install CB EDR before running this script"
-  exit 2
+  exit 0
 fi
 
 chown cb:cb /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
@@ -39,6 +39,7 @@ cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl restart cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl status cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl enable --now cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /usr/bin/systemctl disable --now cb-event-forwarder
+cb ALL=(ALL)  NOPASSWD: /sbin/service cb-event-forwarder status
 cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig --add cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig --del cb-event-forwarder
 cb ALL=(ALL)  NOPASSWD: /sbin/chkconfig cb-event-forwarder off
