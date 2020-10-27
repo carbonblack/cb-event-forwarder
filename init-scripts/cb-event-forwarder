@@ -4,7 +4,7 @@
 #
 # chkconfig: 3456 20 80
 . /etc/init.d/functions
-/usr/share/cb/integrations/event-forwarder/cb-edr-event/cb-edr-fix-permissions.sh
+/usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
 prog="cb-event-forwarder"
 piddir="/var/run/cb/integrations/event-forwarder"
 pidfile="$piddir/$prog.pid"
