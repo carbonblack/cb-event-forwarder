@@ -617,14 +617,16 @@ func main() {
 		queueName = config.AMQPQueueName
 	}
 
-	go func(consumerNumber int) {
-		log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
-		for {
-			err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
-			log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
-			time.Sleep(30 * time.Second)
-		}
-	}(1)
+	if config.RunConsumer {
+		go func(consumerNumber int) {
+			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, config.AMQPURL(), queueName)
+			for {
+				err := messageProcessingLoop(config.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
+				time.Sleep(30 * time.Second)
+			}
+		}(1)
+	}
 
 	if config.AuditLog == true {
 		log.Info("starting log file processing loop")

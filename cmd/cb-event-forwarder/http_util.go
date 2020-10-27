@@ -42,6 +42,7 @@ func convertFileIntoTemplate(fp *os.File, events chan<- UploadEvent, firstEventT
 	}
 
 	scanner := bufio.NewScanner(fileReader)
+	scanner.Buffer(make([]byte, bufio.MaxScanTokenSize), 10*bufio.MaxScanTokenSize)
 	var i int64
 
 	for scanner.Scan() {

@@ -63,6 +63,9 @@ type Configuration struct {
 	DryRun bool
 	//CannedInput bool CONTROLS REAL INPUT - WHEN CANNEDINPUT IS TRUE, bundles from stress_rabbit will be used instead
 	CannedInput bool
+	//RunConsumer bool
+	//Controls whether or not a rabbitmq consumer is bound
+	RunConsumer bool
 
 	// this is a hack for S3 specific configuration
 	S3ServerSideEncryption  *string
@@ -444,6 +447,24 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.CannedInput = boolval
 			} else {
 				errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
+			}
+		}
+	}
+
+	config.RunConsumer = true
+
+	runConsumerEnvVar := os.Getenv("EF_RUN_CONSUMER")
+
+	if runConsumerEnvVar != "" {
+		config.RunConsumer, _ = strconv.ParseBool(runConsumerEnvVar)
+	} else {
+		if input.Section("bridge").HasKey("run_consumer") {
+			key := input.Section("bridge").Key("run_consumer")
+			boolval, err := key.Bool()
+			if err == nil {
+				config.RunConsumer = boolval
+			} else {
+				errs.addErrorString("Unknown value for 'run_consumer': valid values are true, false, 1, 0. Default is 'false'")
 			}
 		}
 	}
