@@ -7,13 +7,13 @@
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run by a root user"
-  exit 0
+  exit 1
 fi
 
 id -u cb >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
   echo "No cb user, please install CB EDR before running this script"
-  exit 0
+  exit 2
 fi
 
 chown cb:cb /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
