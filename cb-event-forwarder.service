@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
+ExecStartPre=/bin/bash -c /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
 ExecStartPre=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.startup.log'
 ExecStart=/bin/sh -c 'exec /usr/share/cb/integrations/event-forwarder/cb-event-forwarder -pid-file=/run/cb/integrations/cb-event-forwarder/cb-event-forwarder.pid /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf &> /var/log/cb/integrations/cb-event-forwarder/cb-event-forwarder.log'
 ExecReload=/bin/kill -HUP $MAINPID
