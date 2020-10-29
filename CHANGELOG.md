@@ -1,5 +1,11 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.3
+
+#### Bug Fixes / Changes
+
+ * Fixed an error in the HTTPOutput that would cause the forwarder to send empty-files to the remote even when not configured to do so.
+
 ## v3.7.2
 
 #### Features
