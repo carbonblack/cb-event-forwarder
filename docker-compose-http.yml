@@ -4,7 +4,7 @@ services:
     build:
       context: .
       args:
-        INIFILE: cb-event-forwarder.docker.ini
+        INIFILE: cb-event-forwarder.dockerhttp.ini
         EFEXE: cb-event-forwarder
     hostname: eventforwarder
     container_name: eventforwarder
@@ -12,7 +12,8 @@ services:
     cpu_count: 6
     tty: true
     environment:
-      - EF_CANNED_INPUT=1
+      - EF_CANNED_INPUT=0
+      - EF_RUN_CONSUMER=0
     sysctls:
       net.ipv6.conf.all.disable_ipv6 :  1
     ports:
@@ -20,7 +21,7 @@ services:
     depends_on:
       - grafana
       - graphite
-      - s3server
+      - httpserver
 
   grafana:
       image: grafana/grafana
@@ -36,17 +37,11 @@ services:
       container_name: graphite
       restart: always
 
-  s3server:
-      container_name: s3server
-      hostname: s3serer
+  httpserver:
+      container_name: httpserver
+      hostname: httpserver
       tty: true
-      environment:
-        - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
-        - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       build:
         context: .
-        dockerfile: Dockerfile.s3server
+        dockerfile: Dockerfile.httpserver
       restart: always
-      command: server /tmp
-      ports:
-        - 9000:9000
