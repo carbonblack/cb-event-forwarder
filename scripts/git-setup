@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+git remote set-url --add --push origin git@gitlab.bit9.local:carbonblack/integrations/event-forwarder
+git remote set-url --add --push origin git@github.com:carbonblack/cb-event-forwarder.git
+git remote set-url origin git@gitlab.bit9.local:carbonblack/integrations/event-forwarder.git
+git remote -v
