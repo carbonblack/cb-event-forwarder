@@ -10,10 +10,10 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# can't set permissions unless the cb user exists, but the user won't exist if it's a dedicated EF machine
 id -u cb >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
-  echo "No cb user, please install CB EDR before running this script"
-  exit 2
+  exit 0
 fi
 
 chown cb:cb /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
