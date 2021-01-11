@@ -1,5 +1,11 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.4
+
+#### Bug Fixes / Changes
+
+ * Changed the startup permissions script to operate more gracefully on systems where EDR is not installed. 
+
 ## v3.7.3
 
 #### Bug Fixes / Changes
