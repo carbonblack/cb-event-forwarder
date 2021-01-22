@@ -222,9 +222,6 @@ func (c *Configuration) parseEventTypes(input *ini.File) {
 		{"events_storage_partition", []string{
 			"events.partition.#",
 		}},
-		{"audit_log", []string{
-			"audit.log.#",
-		}},
 		{"task_errors", []string{
 			"task.error.logged",
 		}},
