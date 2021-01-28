@@ -25,13 +25,16 @@ val osVersionClassifier: String
 buildDir = file("build/$osVersionClassifier")
 
 val buildTask = tasks.named("build") {
-    	val outputDir = File("${project.buildDir}/rpm")
-	val gopath = System.getenv("GOPATH")
-	project.delete(outputDir)
-	project.exec {
-		environment("GOPATH" , gopath)
-		environment("RPM_OUTPUT_DIR" , outputDir)
-		commandLine = listOf("make", "rpm")
+	dependsOn("formatCode")
+	doLast {
+    		val outputDir = File("${project.buildDir}/rpm")
+		val gopath = System.getenv("GOPATH")
+		project.delete(outputDir)
+		project.exec {
+			environment("GOPATH" , gopath)
+			environment("RPM_OUTPUT_DIR" , outputDir)
+			commandLine = listOf("make", "rpm")
+		}
 	}
 }
 
@@ -48,4 +51,9 @@ val formatTask = tasks.register<Exec>("formatCode") {
 	val formatArgs = listOf("fmt") + sourceFiles
 	executable("go")
 	args(formatArgs)
+}
+
+val criticTask = tasks.register<Exec>("criticizeCode") {
+	executable("make")
+	args("critic")
 }

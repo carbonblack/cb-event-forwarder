@@ -23,6 +23,10 @@ RUN yum config-manager --set-enabled PowerTools
 #INSTALL PROTOBUF
 RUN yum -y install protobuf-devel protobuf-compiler
 
+#INSTALL GOCRITIC
+RUN curl -OL https://github.com/go-critic/go-critic/releases/download/v0.5.3/gocritic-linux-amd64.zip
+RUN unzip gocritic-linux-amd64.zip -d /usr/bin
+
 ADD entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

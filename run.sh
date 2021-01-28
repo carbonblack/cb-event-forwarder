@@ -11,7 +11,7 @@ print_help() {
   echo "  build          Build the connector"
   echo "  unitTest       Run the unit tests"
   echo "  smokeTest      Run the smoke tests"
-  echo "  pepperReport   Generate a pepper report"
+  echo "  codeReport   Generate a code report"
   exit 2
 }
 
@@ -55,12 +55,12 @@ if [[ "${OSVERSION}" == "8" ]]; then
   OS_ADDON="env DOCKERIZED_BUILD_ENV=centos8 "
 fi
 
-if [[ "${1^^}" =~ ^(BUILD|UNITTEST|PEPPERREPORT|SMOKETEST)$ ]]; then
+if [[ "${1^^}" =~ ^(BUILD|UNITTEST|CODEREPORT|SMOKETEST)$ ]]; then
   echo "run: RHEL${OSVERSION} - running ${1}..."
   case "${1^^}" in
     BUILD) ${OS_ADDON}./gradlew build ;;
     UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;; 
-    PEPPERREPORT) ${OS_ADDON}./gradlew format ;;
+    CODEREPORT) ${OS_ADDON}./gradlew criticizeCode ;;
     SMOKETEST) ${OS_ADDON}./gradlew runSmokeTest ;;
   esac
 else

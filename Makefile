@@ -93,3 +93,6 @@ rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
 	rpmbuild -v --define 'release_pkg ${RELEASE}' --define 'version ${GIT_VERSION}' --define 'release 1' --define '_rpmdir ${RPM_OUTPUT_DIR}' -bb cb-event-forwarder.rpm.spec
+
+critic: 
+	gocritic check -enableAll -disable='#experimental,#opinionated' ./cmd/cb-event-forwarder/*.go
