@@ -1,0 +1,69 @@
+#!/bin/bash
+
+print_help() {
+  echo "Usage: run COMMAND [options]"
+  echo
+  echo "Options:"
+  echo "  -o, --osversion [7|8]  The RHEL version to build against.  Default is 7."
+  echo "  -h, --help             Print this help message."
+  echo
+  echo "COMMANDs:"
+  echo "  build          Build the connector"
+  echo "  unitTest       Run the unit tests"
+  echo "  smokeTest      Run the smoke tests"
+  echo "  pepperReport   Generate a pepper report"
+  exit 2
+}
+
+OSVERSION=7
+
+PARSED=$(getopt -n run -o o: --long osversion:,help -- "$@")
+
+if [ "${?}" != "0" ]; then
+  print_help
+fi
+
+eval set -- "$PARSED"
+
+while :
+do
+  case "$1" in
+    -o | --osversion)
+      if [[ "${2}" =~ ^(7|8)$ ]]; then
+        OSVERSION="${2}"
+        shift 2
+      else
+        echo "run: invalid value for '${1}': ${2}"
+        echo
+        print_help
+      fi
+      ;;
+    -h | --help)
+      print_help
+      ;;
+    --) shift; break ;;
+    *) echo "run: invalid option: ${1}"; print_help ;;
+  esac
+done
+
+if [[ "${1}" == "" ]]; then
+  echo "COMMAND required"; print_help
+fi
+
+OS_ADDON=""
+if [[ "${OSVERSION}" == "8" ]]; then
+  OS_ADDON="env DOCKERIZED_BUILD_ENV=centos8 "
+fi
+
+if [[ "${1^^}" =~ ^(BUILD|UNITTEST|PEPPERREPORT|SMOKETEST)$ ]]; then
+  echo "run: RHEL${OSVERSION} - running ${1}..."
+  case "${1^^}" in
+    BUILD) ${OS_ADDON}./gradlew build ;;
+    UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;; 
+    PEPPERREPORT) ${OS_ADDON}./gradlew format ;;
+    SMOKETEST) ${OS_ADDON}./gradlew runSmokeTest ;;
+  esac
+else
+  echo "run: invalid command '${1}'"; print_help
+fi
+
