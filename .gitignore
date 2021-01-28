@@ -42,6 +42,7 @@ tests/output.txt
 VERSION
 dist/
 build/
+.gradle
 
 *.pb.go
 .DS_Store
