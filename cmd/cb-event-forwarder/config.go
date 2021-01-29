@@ -8,16 +8,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
-	"regexp"
 
+	"github.com/Showmax/go-fqdn"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
-	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -282,7 +282,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	shouldSetServerNameToFqdn := false
 
 	if !input.Section("bridge").HasKey("server_name") {
-		config.ServerName = "CB" 
+		config.ServerName = "CB"
 		shouldSetServerNameToFqdn = true
 	} else {
 		key := input.Section("bridge").Key("server_name")
@@ -993,14 +993,14 @@ func configureTLS(config Configuration) *tls.Config {
 	return tlsConfig
 }
 
-func (c * Configuration) validateOutputParameters() error {
+func (c *Configuration) validateOutputParameters() error {
 	outputParameter := c.OutputParameters
-	switch (c.OutputType) {
-		case HTTPOutputType:
-			matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
-			if !matched {
-				return fmt.Errorf("httpout destination must be set to a valid http(s):// prefixed url")
-			}
+	switch c.OutputType {
+	case HTTPOutputType:
+		matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
+		if !matched {
+			return fmt.Errorf("httpout destination must be set to a valid http(s):// prefixed url")
+		}
 
 	}
 	return nil
