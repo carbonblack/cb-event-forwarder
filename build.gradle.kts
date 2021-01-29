@@ -25,16 +25,28 @@ val osVersionClassifier: String
 buildDir = file("build/$osVersionClassifier")
 
 val buildTask = tasks.named("build") {
+	inputs.dir("cmd/cb-event-forwarder")
+    	val outputDir = File("${project.buildDir}/rpm")
+	outputs.dir(outputDir)
+	outputs.file("cb-event-forwarder")
+	dependsOn("getDeps")
 	doLast {
-    		val outputDir = File("${project.buildDir}/rpm")
-		val gopath = System.getenv("GOPATH")
 		project.delete(outputDir)
 		project.exec {
-			environment("GOPATH" , gopath)
 			environment("RPM_OUTPUT_DIR" , outputDir)
 			commandLine = listOf("make", "rpm")
 		}
 	}
+}
+
+val depTask = tasks.register<Exec>("getDeps") {
+	val gomodPath = "${System.getenv("GOPATH")}/pkg/mod"
+	val gomodFile = File(gomodPath)
+	inputs.dir(gomodFile)
+	outputs.dir(gomodFile)
+	inputs.files("go.sum", "go.mod")
+	executable("make")
+	args("getdeps")
 }
 
 val unitTestTask = tasks.register<Exec>("runUnitTests") {

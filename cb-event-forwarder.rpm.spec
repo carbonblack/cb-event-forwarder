@@ -45,12 +45,6 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 %prep
 %setup -n %{name}-%{bare_version}
 
-%build
-export GOPATH=$PWD
-export PATH=$PATH:$GOPATH/bin
-export GO111MODULE=on
-cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild
-
 %install
 export GOPATH=$PWD
 export PATH=$PATH:$GOPATH/bin
