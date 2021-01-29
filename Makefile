@@ -23,12 +23,15 @@ compile-protobufs:
 	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
 	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
 
-build-no-static: compile-protobufs
+format:
+	go fmt cmd/cb-event-forwarder/*.go
+
+build-no-static: compile-protobufs format
 	go mod verify
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
-build: compile-protobufs
+build: compile-protobufs format
 	go mod verify
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util

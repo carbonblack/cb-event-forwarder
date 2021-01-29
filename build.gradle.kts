@@ -25,7 +25,6 @@ val osVersionClassifier: String
 buildDir = file("build/$osVersionClassifier")
 
 val buildTask = tasks.named("build") {
-	dependsOn("formatCode")
 	doLast {
     		val outputDir = File("${project.buildDir}/rpm")
 		val gopath = System.getenv("GOPATH")
@@ -41,16 +40,6 @@ val buildTask = tasks.named("build") {
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
 	executable("go")
 	args("test", "./cmd/cb-event-forwarder")
-}
-
-val formatTask = tasks.register<Exec>("formatCode") {
-	val tree = fileTree("cmd/cb-event-forwarder") {
-    		include("*.go")
-	}
-	val sourceFiles = tree.getFiles().map{ it -> "cmd/cb-event-forwarder/${it.name}"}
-	val formatArgs = listOf("fmt") + sourceFiles
-	executable("go")
-	args(formatArgs)
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {
