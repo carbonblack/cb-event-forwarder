@@ -32,6 +32,7 @@ val buildTask = tasks.named("build") {
 	outputs.dir(outputDir)
 	outputs.file("cb-event-forwarder")
 	dependsOn("getDeps")
+	dependsOn("compileProtobufs")
 	dependsOn("runUnitTests")
 	doLast {
 		project.delete(outputDir)
@@ -57,11 +58,20 @@ val depTask = tasks.register<Exec>("getDeps") {
 	args("getdeps")
 }
 
-val unitTestTask = tasks.register<Exec>("runUnitTests") {
-	inputs.dir("cmd/cb-event-forwarder")
-	outputs.dir("cmd/cb-event-forwarder")
+val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
+	inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
+	outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
 	executable("make")
-	args("unittest")
+	args("compile-protobufs")
+}
+
+val unitTestTask = tasks.register<Exec>("runUnitTests") {
+	dependsOn("compileProtobufs")
+	inputs.dir("cmd/cb-event-forwarder")
+	inputs.dir("test/raw_data")
+	outputs.dir("cmd/cb-event-forwarder")
+	executable("go")
+	args("test", "./cmd/cb-event-forwarder")
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {

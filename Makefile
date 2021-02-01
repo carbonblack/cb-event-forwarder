@@ -31,7 +31,7 @@ build-no-static: compile-protobufs format
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
-build: compile-protobufs 
+build: 
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
