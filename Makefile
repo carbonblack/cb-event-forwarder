@@ -53,13 +53,15 @@ endif
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 
-test:
+unittest: compile-protobufs
+	go test ./cmd/cb-event-forwarder
+
+test: unittest
 	rm -rf test_output/gold_output
 	rm -rf test_output/go_output
 	rm -rf test_output/leef_output
 	mkdir test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
-	go test ./cmd/cb-event-forwarder
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:

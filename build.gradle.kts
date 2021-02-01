@@ -59,8 +59,8 @@ val depTask = tasks.register<Exec>("getDeps") {
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
 	inputs.dir("cmd/cb-event-forwarder")
 	outputs.dir("cmd/cb-event-forwarder")
-	executable("go")
-	args("test", "./cmd/cb-event-forwarder")
+	executable("make")
+	args("unittest")
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {
