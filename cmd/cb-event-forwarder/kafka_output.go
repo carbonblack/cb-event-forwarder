@@ -21,13 +21,17 @@ import (
 
 func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
+        
+	// check that the client cert auth is in the config
+	if clientCertFile != nil && clientKeyFile != nil {
 
-	// Load client cert
-	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
-	if err != nil {
-		return &tlsConfig, err
+		// Load client cert
+		cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+		if err != nil {
+			return &tlsConfig, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	// Load CA cert
 	caCert, err := ioutil.ReadFile(caCertFile)
@@ -77,9 +81,13 @@ func (o *KafkaOutput) Initialize(unused string) error {
 	o.EventSent = metrics.NewRegisteredMeter("output.kafka.events_sent", metrics.DefaultRegistry)
 	o.DroppedEvent = metrics.NewRegisteredMeter("output.kafka.events_dropped", metrics.DefaultRegistry)
 
-	if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil && config.KafkaSSLCALocation != nil {
+	if config.KafkaSSLCALocation != nil {
 		kafkaConfig.Net.TLS.Enable = true
-		var tlsConfig, err = NewTLSConfig(*config.KafkaSSLCertificateLocation, *config.KafkaSSLKeyLocation, *config.KafkaSSLCALocation)
+		if config.KafkaSSLKeyLocation != nil && config.KafkaSSLCertificateLocation != nil {
+			var tlsConfig, err = NewTLSConfig(*config.KafkaSSLCertificateLocation, *config.KafkaSSLKeyLocation, *config.KafkaSSLCALocation)
+		} else {
+			var tlsConfig, err = NewTLSConfig(nil, nil, *config.KafkaSSLCALocation)
+		}
 		if err != nil {
 			log.Fatalf("Error setting up tls for kafka %v", err)
 		}
