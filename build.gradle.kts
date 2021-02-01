@@ -26,6 +26,8 @@ buildDir = file("build/$osVersionClassifier")
 
 val buildTask = tasks.named("build") {
 	inputs.dir("cmd/cb-event-forwarder")
+	inputs.dir("scripts/")
+	inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "makefile")
     	val outputDir = File("${project.buildDir}/rpm")
 	outputs.dir(outputDir)
 	outputs.file("cb-event-forwarder")

@@ -43,6 +43,7 @@ VERSION
 dist/
 build/
 .gradle
+src
 
 *.pb.go
 .DS_Store

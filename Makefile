@@ -9,11 +9,6 @@ TARGET_OS=linux
 export GO111MODULE=on
 PROTOCGENGOGOFAST := $GOBIN/protoc-gen-gogofast
 
-# non-release builds include a timestamp in the RPM name
-# use "RELEASE=1 make rpm" for a release build, which will not use the timestamp
-# RELEASE has a default value of 0
-RELEASE ?= 0
-
 .PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
@@ -79,7 +74,6 @@ bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
 
 sdist: build
-	$(info RELEASE is ${RELEASE})
 	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
 	cp -rp kafka-util cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
@@ -92,7 +86,7 @@ sdist: build
 rpm: sdist
 	mkdir -p ${HOME}/rpmbuild/SOURCES
 	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild -v --define 'release_pkg ${RELEASE}' --define 'version ${GIT_VERSION}' --define 'release 1' --define '_rpmdir ${RPM_OUTPUT_DIR}' -bb cb-event-forwarder.rpm.spec
+	rpmbuild -v --define 'version ${GIT_VERSION}' --define 'release 1' --define '_rpmdir ${RPM_OUTPUT_DIR}' -bb cb-event-forwarder.rpm.spec
 
 critic: 
 	gocritic check -enableAll -disable='#experimental,#opinionated' ./cmd/cb-event-forwarder/*.go

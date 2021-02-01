@@ -84,7 +84,7 @@ if [ "$DOCKERIZED" = "1" ] ; then
     CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 else
     CLASSPATH=$APP_HOME/gradle/wrapper-dockerized/gradle-wrapper.jar
-    GOPATH=${GOPATH:-$PWD/../../..}
+    GOPATH=${GOPATH:-$PWD/src}
     export GOPATH=$GOPATH
     export DOCKERIZED_BUILD_VOLUMES=$GOPATH:$GOPATH
 fi

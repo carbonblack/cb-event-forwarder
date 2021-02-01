@@ -9,28 +9,16 @@ require (
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
-	github.com/go-critic/go-critic v0.5.3 // indirect
 	github.com/go-ini/ini v1.36.0
-	github.com/go-toolsmith/astinfo v1.0.0 // indirect
-	github.com/go-toolsmith/pkgload v1.0.1 // indirect
-	github.com/gogo/protobuf v1.3.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.4
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
 	github.com/hpcloud/tail v1.0.0
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/klauspost/compress v1.10.4 // indirect
 	github.com/klauspost/pgzip v1.2.3
-	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
-	github.com/mattn/goveralls v0.0.7 // indirect
-	github.com/pborman/uuid v1.2.1 // indirect
-	github.com/quasilyte/go-consistent v0.0.0-20200404105227-766526bf1e96 // indirect
-	github.com/quasilyte/go-ruleguard v0.3.0 // indirect
-	github.com/quasilyte/go-ruleguard/dsl v0.3.0 // indirect
-	github.com/quasilyte/go-ruleguard/rules v0.0.0-20210125091851-f953b71a3ba3 // indirect
-	github.com/quasilyte/regex/syntax v0.0.0-20200805063351-8f842688393c // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	github.com/sirupsen/logrus v1.3.0
 	github.com/smartystreets/assertions v0.0.0-20190116191733-b6c0e53d7304 // indirect
