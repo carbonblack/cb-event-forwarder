@@ -44,6 +44,9 @@ val buildTask = tasks.named("build") {
 val depTask = tasks.register<Exec>("getDeps") {
 	val gomodPath = "${System.getenv("GOPATH")}/pkg/mod"
 	val gomodFile = File(gomodPath)
+	if (! gomodFile.exists()) {
+	     gomodFile.mkdirs()
+	}
 	inputs.dir(gomodFile)
 	outputs.dir(gomodFile)
 	inputs.files("go.sum", "go.mod")
