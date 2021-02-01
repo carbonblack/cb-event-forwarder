@@ -32,6 +32,7 @@ val buildTask = tasks.named("build") {
 	outputs.dir(outputDir)
 	outputs.file("cb-event-forwarder")
 	dependsOn("getDeps")
+	dependsOn("runUnitTests")
 	doLast {
 		project.delete(outputDir)
 		project.exec {
@@ -56,6 +57,8 @@ val depTask = tasks.register<Exec>("getDeps") {
 }
 
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
+	inputs.dir("cmd/cb-event-forwarder")
+	outputs.dir("cmd/cb-event-forwarder")
 	executable("go")
 	args("test", "./cmd/cb-event-forwarder")
 }

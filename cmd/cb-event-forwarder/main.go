@@ -71,10 +71,6 @@ var (
 	outputSignals chan os.Signal
 )
 
-func init() {
-	flag.Parse()
-}
-
 func setupMetrics() {
 	status.InputEventCount = metrics.NewRegisteredMeter("core.input.events", metrics.DefaultRegistry)
 	status.InputByteCount = metrics.NewRegisteredMeter("core.input.data", metrics.DefaultRegistry)
@@ -485,6 +481,7 @@ func startOutputs() error {
 }
 
 func main() {
+	flag.Parse()
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal(err)
@@ -525,7 +522,7 @@ func main() {
 	pidfile.SetPidfilePath(*pidFileLocation)
 	err = pidfile.Write()
 	if err != nil {
-		log.Warn("Could not write PID file: %s\n", err)
+		log.Warnf("Could not write PID file: %v\n", err)
 	}
 
 	addrs, err := net.InterfaceAddrs()

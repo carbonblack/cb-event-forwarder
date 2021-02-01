@@ -1,16 +1,31 @@
 package main
 
 import (
-	"testing"
-
+	"fmt"
+	ini "github.com/go-ini/ini"
 	"github.com/google/go-cmp/cmp"
-	ini "github.com/vaughan0/go-ini"
+	"testing"
 )
+
+type mapString = map[string]string
+
+func iniFromMap(inputMap map[string]mapString) []byte {
+	outputString := ""
+	for section, content := range inputMap {
+		sectionString := fmt.Sprintf("[%s]\n", section)
+		for key, value := range content {
+			contentString := fmt.Sprintf("%s=%s\n", key, value)
+			sectionString = sectionString + contentString
+		}
+		outputString += sectionString
+	}
+	return []byte(outputString)
+}
 
 func TestParseOAuthConfiguration(t *testing.T) {
 	for _, test := range []struct {
 		desc           string
-		input          *ini.File
+		input          map[string]mapString
 		config         *Configuration
 		errs           *ConfigurationError
 		expectedConfig *Configuration
@@ -18,8 +33,8 @@ func TestParseOAuthConfiguration(t *testing.T) {
 	}{
 		{
 			desc: "All OAuth fields configured",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -40,8 +55,8 @@ func TestParseOAuthConfiguration(t *testing.T) {
 		},
 		{
 			desc: "Only required OAuth fields configured",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_private_key":  "private_key",
 					"oauth_jwt_token_url":    "https://example.com/oauth2/token",
@@ -58,8 +73,8 @@ func TestParseOAuthConfiguration(t *testing.T) {
 		},
 		{
 			desc: "Replace the escaped version of line break character to the non-escaped version",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "-----BEGIN PRIVATE KEY-----\\nVcgdkPBHC\\n-----END PRIVATE KEY-----\\n",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -85,7 +100,11 @@ func TestParseOAuthConfiguration(t *testing.T) {
 
 			errs := test.errs
 			config := test.config
-			parseOAuthConfiguration(test.input, config, errs)
+			file, loadErr := ini.Load(iniFromMap(test.input))
+			if loadErr != nil {
+				t.Fatalf("Error loading test data %v", loadErr)
+			}
+			parseOAuthConfiguration(file, config, errs)
 
 			if diff := cmp.Diff(config, test.expectedConfig); diff != "" {
 				t.Errorf("config different from expected, diff: %s", diff)
@@ -101,7 +120,7 @@ func TestParseOAuthConfiguration(t *testing.T) {
 func TestParseOAuthConfigurationErrors(t *testing.T) {
 	for _, test := range []struct {
 		desc           string
-		input          *ini.File
+		input          map[string]mapString
 		config         *Configuration
 		errs           *ConfigurationError
 		expectedConfig *Configuration
@@ -109,8 +128,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 	}{
 		{
 			desc: "Empty value for oauth_jwt_client_email",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -135,8 +154,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Empty value for oauth_jwt_private_key",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -161,8 +180,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Empty value for oauth_jwt_private_key_id",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "",
@@ -186,8 +205,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Empty value for oauth_jwt_scopes",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -211,8 +230,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Empty value for oauth_jwt_token_url",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -237,8 +256,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Missing required field: oauth_jwt_client_email",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_private_key": "private_key",
 					"oauth_jwt_token_url":   "https://example.com/oauth2/token",
 				},
@@ -257,8 +276,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Missing required field: oauth_jwt_private_key",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_token_url":    "https://example.com/oauth2/token",
 				},
@@ -277,8 +296,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "Missing required field: oauth_jwt_token_url",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_private_key":  "private_key",
 				},
@@ -297,8 +316,8 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		},
 		{
 			desc: "oauth_jwt_scopes contains empty scope",
-			input: &ini.File{
-				"http": {
+			input: map[string]mapString{
+				"http": map[string]string{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -328,7 +347,11 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 
 			errs := test.errs
 			config := test.config
-			parseOAuthConfiguration(test.input, config, errs)
+			file, loadErr := ini.Load(iniFromMap(test.input))
+			if loadErr != nil {
+				t.Fatalf("Error loading test input : %v", loadErr)
+			}
+			parseOAuthConfiguration(file, config, errs)
 
 			if diff := cmp.Diff(config, test.expectedConfig); diff != "" {
 				t.Errorf("config different from expected, diff: %s", diff)
