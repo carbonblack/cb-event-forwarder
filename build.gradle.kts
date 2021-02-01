@@ -42,6 +42,7 @@ val buildTask = tasks.named("build") {
 }
 
 val depTask = tasks.register<Exec>("getDeps") {
+	inputs.dir("cmd/cb-event-forwarder")
 	val gomodPath = "${System.getenv("GOPATH")}/pkg/mod"
 	val gomodFile = File(gomodPath)
 	if (! gomodFile.exists()) {
