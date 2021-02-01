@@ -49,6 +49,7 @@ val depTask = tasks.register<Exec>("getDeps") {
 	if (! gomodFile.exists()) {
 	     gomodFile.mkdirs()
 	}
+	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir(gomodFile)
 	outputs.dir(gomodFile)
 	inputs.files("go.sum", "go.mod")
