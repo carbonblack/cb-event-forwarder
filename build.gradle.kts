@@ -61,7 +61,6 @@ val depTask = tasks.register<Exec>("getDeps") {
 		}.getExitValue()
 		exitValue == 0
 	}
-	inputs.files("go.sum", "go.mod")
 	executable("make")
 	environment("GOPATH", goPath)
 	args("getdeps")
@@ -99,6 +98,7 @@ val unitTestTask = tasks.register<Exec>("runUnitTests") {
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {
+	environment("GOPATH", goPath)
 	executable("make")
 	args("critic")
 }
