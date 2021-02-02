@@ -79,7 +79,8 @@ bench:
 sdist: build
 	mkdir -p ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp kafka-util cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	mv kafka-util cb-event-forwarder ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST${EL_VERSION} ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	cd ${RPM_OUTPUT_DIR} ; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
 	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES 
