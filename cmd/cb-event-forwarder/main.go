@@ -661,3 +661,4 @@ func main() {
 
 	log.Info("cb-event-forwarder exiting")
 }
+
