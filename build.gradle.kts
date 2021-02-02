@@ -69,9 +69,20 @@ val unitTestTask = tasks.register<Exec>("runUnitTests") {
 	dependsOn("compileProtobufs")
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir("test/raw_data")
-	outputs.dir("cmd/cb-event-forwarder")
+	val unitTestResultsFileName = "$buildDir/unittest.out"
+	val unitTestResultsFile = File(unitTestResultsFileName)
+	val unitTestResultsFileStream = unitTestResultsFile.outputStream()
+	outputs.file(unitTestResultsFile)
+	doFirst {
+		unitTestResultsFile.createNewFile()
+	}
+        outputs.file(unitTestResultsFile)
 	executable("go")
-	args("test", "./cmd/cb-event-forwarder")
+       	args("test", "./cmd/cb-event-forwarder")
+	standardOutput =  unitTestResultsFileStream
+	doLast { 
+		unitTestResultsFile.inputStream().copyTo(System.out)
+	}
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {
