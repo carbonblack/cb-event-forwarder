@@ -16,6 +16,7 @@ cb-event-forwarder: build
 getdeps: 
 	go mod download -x
 	go mod verify
+	chmod -R u+w "${GOPATH}"
 
 protocgengo: 
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast

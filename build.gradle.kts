@@ -23,7 +23,7 @@ val osVersionClassifier: String
     }
 
 buildDir = file("build/$osVersionClassifier")
-val goPath = "$buildDir/.gopath"
+val goPath = "$buildDir/gopath"
 File(goPath).mkdirs()
 
 val buildTask = tasks.named("build") {
@@ -54,9 +54,13 @@ val depTask = tasks.register<Exec>("getDeps") {
 	     gomodFile.mkdirs()
 	}
 	inputs.dir("cmd/cb-event-forwarder")
-	inputs.dir(gomodFile)
+	inputs.files("go.mod", "go.sum")
 	outputs.upToDateWhen {
-		gomodFile.exists()
+		val exitValue = project.exec {
+			environment("GOPATH", goPath)
+			commandLine = listOf("go","mod", "verify")
+		}.getExitValue()
+		exitValue == 0
 	}
 	inputs.files("go.sum", "go.mod")
 	executable("make")
