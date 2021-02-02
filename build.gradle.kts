@@ -29,7 +29,7 @@ File(goPath).mkdirs()
 val buildTask = tasks.named("build") {
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir("scripts/")
-	inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "makefile")
+	inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
     	val outputDir = File("${project.buildDir}/rpm")
 	outputs.dir(outputDir)
 	outputs.file("cb-event-forwarder")

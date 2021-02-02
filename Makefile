@@ -77,17 +77,15 @@ bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
 
 sdist: build
-	mkdir -p build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
-	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp kafka-util cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
-	cp -rp MANIFEST${EL_VERSION} build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
-	cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
-	mkdir -p dist
-	cp -p build/cb-event-forwarder-${GIT_VERSION}.tar.gz dist/
+	mkdir -p ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/VERSION
+	cp -rp kafka-util cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp MANIFEST${EL_VERSION} ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/MANIFEST
+	cd ${RPM_OUTPUT_DIR} ; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
+	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES 
+	cp -p ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}.tar.gz ${RPM_OUTPUT_DIR}/SOURCES
 
 rpm: sdist
-	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES
-	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${RPM_OUTPUT_DIR}/SOURCES/
 	rpmbuild --define '_topdir ${RPM_OUTPUT_DIR}'  --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
 
 critic: 
