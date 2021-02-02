@@ -32,7 +32,6 @@ val buildTask = tasks.named("build") {
 	inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
     	val outputDir = File("${project.buildDir}/rpm")
 	outputs.dir(outputDir)
-	outputs.file("cb-event-forwarder")
 	dependsOn("getDeps")
 	dependsOn("compileProtobufs")
 	dependsOn("runUnitTests")
