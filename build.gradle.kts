@@ -71,8 +71,12 @@ val unitTestTask = tasks.register<Exec>("runUnitTests") {
 	inputs.dir("test/raw_data")
 	val unitTestResultsFileName = "$buildDir/unittest.out"
 	val unitTestResultsFile = File(unitTestResultsFileName)
-	val unitTestResultsFileStream = unitTestResultsFile.outputStream()
+	if (!unitTestResultsFile.exists()) {
+		File("$buildDir").mkdirs()
+		unitTestResultsFile.createNewFile()
+	}
 	inputs.file(unitTestResultsFile)
+	val unitTestResultsFileStream = unitTestResultsFile.outputStream()
 	executable("go")
        	args("test", "./cmd/cb-event-forwarder")
 	standardOutput =  unitTestResultsFileStream
