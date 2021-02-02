@@ -23,6 +23,8 @@ val osVersionClassifier: String
     }
 
 buildDir = file("build/$osVersionClassifier")
+val goPath = "$buildDir/.gopath"
+File(goPath).mkdirs()
 
 val buildTask = tasks.named("build") {
 	inputs.dir("cmd/cb-event-forwarder")
@@ -38,6 +40,7 @@ val buildTask = tasks.named("build") {
 		project.delete(outputDir)
 		project.exec {
 			environment("RPM_OUTPUT_DIR" , outputDir)
+			environment("GOPATH" , goPath)
 			commandLine = listOf("make", "rpm")
 		}
 	}
@@ -45,22 +48,26 @@ val buildTask = tasks.named("build") {
 
 val depTask = tasks.register<Exec>("getDeps") {
 	inputs.dir("cmd/cb-event-forwarder")
-	val gomodPath = "${System.getenv("GOPATH")}/pkg/mod"
+	val gomodPath = "$goPath/pkg/mod"
 	val gomodFile = File(gomodPath)
 	if (! gomodFile.exists()) {
 	     gomodFile.mkdirs()
 	}
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir(gomodFile)
-	outputs.dir(gomodFile)
+	outputs.upToDateWhen {
+		gomodFile.exists()
+	}
 	inputs.files("go.sum", "go.mod")
 	executable("make")
+	environment("GOPATH", goPath)
 	args("getdeps")
 }
 
 val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
 	inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
 	outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
+	environment("GOPATH", goPath)
 	executable("make")
 	args("compile-protobufs")
 }
@@ -75,10 +82,10 @@ val unitTestTask = tasks.register<Exec>("runUnitTests") {
 		File("$buildDir").mkdirs()
 		unitTestResultsFile.createNewFile()
 	}
-	inputs.file(unitTestResultsFile)
 	val unitTestResultsFileStream = unitTestResultsFile.outputStream()
 	executable("go")
        	args("test", "./cmd/cb-event-forwarder")
+	environment("GOPATH", goPath)
 	standardOutput =  unitTestResultsFileStream
 	outputs.upToDateWhen {
 		unitTestResultsFile.exists()

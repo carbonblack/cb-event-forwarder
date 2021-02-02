@@ -80,15 +80,14 @@ sdist: build
 	echo "${GIT_VERSION}" > build/cb-event-forwarder-${GIT_VERSION}/VERSION
 	cp -rp kafka-util cb-event-forwarder cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts build/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST${EL_VERSION} build/cb-event-forwarder-${GIT_VERSION}/MANIFEST
-	(cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION})
-	sleep 1
+	cd build; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
 	mkdir -p dist
 	cp -p build/cb-event-forwarder-${GIT_VERSION}.tar.gz dist/
 
 rpm: sdist
-	mkdir -p ${HOME}/rpmbuild/SOURCES
-	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${HOME}/rpmbuild/SOURCES/
-	rpmbuild -v --define 'version ${GIT_VERSION}' --define 'release 1' --define '_rpmdir ${RPM_OUTPUT_DIR}' -bb cb-event-forwarder.rpm.spec
+	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES
+	cp -p dist/cb-event-forwarder-${GIT_VERSION}.tar.gz ${RPM_OUTPUT_DIR}/SOURCES/
+	rpmbuild --define '_topdir ${RPM_OUTPUT_DIR}'  --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
 
 critic: 
 	gocritic check -enableAll -disable='#experimental,#opinionated' ./cmd/cb-event-forwarder/*.go
