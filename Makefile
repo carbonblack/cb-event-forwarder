@@ -7,7 +7,6 @@ GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
 export GO111MODULE=on
-PROTOCGENGOGOFAST := $GOBIN/protoc-gen-gogofast
 
 .PHONY: clean test rpmbuild rpminstall build rpm
 
