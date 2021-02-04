@@ -26,6 +26,14 @@ buildDir = file("build/$osVersionClassifier")
 val goPath = "$buildDir/gopath"
 File(goPath).mkdirs()
 
+tasks.named("clean"){
+	doFirst {
+		project.exec {
+			commandLine("chmod","-R", "u+w", "$goPath")
+		}
+	}
+}
+
 val buildTask = tasks.named("build") {
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir("scripts/")
@@ -54,13 +62,7 @@ val depTask = tasks.register<Exec>("getDeps") {
 	}
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.files("go.mod", "go.sum")
-	outputs.upToDateWhen {
-		val exitValue = project.exec {
-			environment("GOPATH", goPath)
-			commandLine = listOf("go","mod", "verify")
-		}.getExitValue()
-		exitValue == 0
-	}
+	outputs.dir(gomodPath)
 	executable("make")
 	environment("GOPATH", goPath)
 	args("getdeps")
@@ -76,6 +78,7 @@ val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
 
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
 	dependsOn("compileProtobufs")
+	dependsOn("getDeps")
 	inputs.dir("cmd/cb-event-forwarder")
 	inputs.dir("test/raw_data")
 	val unitTestResultsFileName = "$buildDir/unittest.out"

@@ -16,7 +16,6 @@ cb-event-forwarder: build
 getdeps: 
 	go mod download -x
 	go mod verify
-	chmod -R u+w "${GOPATH}"
 
 protocgengo: 
 	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
@@ -33,6 +32,10 @@ build-no-static: compile-protobufs format
 	go build ./cmd/kafka-util
 
 build: 
+	go build -tags static ./cmd/cb-event-forwarder
+	go build -tags static ./cmd/kafka-util
+
+rpmbuild:
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
@@ -76,15 +79,12 @@ clean:
 bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
 
-sdist: build
-	mkdir -p ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
-	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
-	mv kafka-util cb-event-forwarder ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
-	cp -rp MANIFEST${EL_VERSION} ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}/MANIFEST
-	cd ${RPM_OUTPUT_DIR} ; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
-	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES 
-	cp -p ${RPM_OUTPUT_DIR}/cb-event-forwarder-${GIT_VERSION}.tar.gz ${RPM_OUTPUT_DIR}/SOURCES
+sdist: 
+	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/VERSION
+	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp MANIFEST${EL_VERSION} ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/MANIFEST
+	cd ${RPM_OUTPUT_DIR}/SOURCES ; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
 
 rpm: sdist
 	rpmbuild --define '_topdir ${RPM_OUTPUT_DIR}'  --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
