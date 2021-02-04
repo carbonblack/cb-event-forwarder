@@ -71,6 +71,7 @@ val depTask = tasks.register<Exec>("getDeps") {
 val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
     inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
     outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
+    dependsOn("getDeps")
     environment("GOPATH", goPath)
     executable("make")
     args("compile-protobufs")
