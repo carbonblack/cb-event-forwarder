@@ -165,7 +165,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 		normalizeAddToMap(msg, msg)
 	}
 
-	for key, _ := range msg {
+	for key := range msg {
 		keyNames = append(keyNames, key)
 	}
 

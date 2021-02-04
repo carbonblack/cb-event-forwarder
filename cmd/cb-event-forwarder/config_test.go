@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	ini "github.com/go-ini/ini"
+	"github.com/go-ini/ini"
 	"github.com/google/go-cmp/cmp"
 	"testing"
 )
 
-type mapString = map[string]string
+type mapString map[string] string
 
 func iniFromMap(inputMap map[string]mapString) []byte {
 	outputString := ""
@@ -34,7 +34,7 @@ func TestParseOAuthConfiguration(t *testing.T) {
 		{
 			desc: "All OAuth fields configured",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -56,7 +56,7 @@ func TestParseOAuthConfiguration(t *testing.T) {
 		{
 			desc: "Only required OAuth fields configured",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_private_key":  "private_key",
 					"oauth_jwt_token_url":    "https://example.com/oauth2/token",
@@ -74,7 +74,7 @@ func TestParseOAuthConfiguration(t *testing.T) {
 		{
 			desc: "Replace the escaped version of line break character to the non-escaped version",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "-----BEGIN PRIVATE KEY-----\\nVcgdkPBHC\\n-----END PRIVATE KEY-----\\n",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -129,7 +129,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Empty value for oauth_jwt_client_email",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -155,7 +155,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Empty value for oauth_jwt_private_key",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -181,7 +181,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Empty value for oauth_jwt_private_key_id",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "",
@@ -206,7 +206,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Empty value for oauth_jwt_scopes",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -231,7 +231,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Empty value for oauth_jwt_token_url",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",
@@ -257,7 +257,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Missing required field: oauth_jwt_client_email",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_private_key": "private_key",
 					"oauth_jwt_token_url":   "https://example.com/oauth2/token",
 				},
@@ -277,7 +277,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Missing required field: oauth_jwt_private_key",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_token_url":    "https://example.com/oauth2/token",
 				},
@@ -297,7 +297,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "Missing required field: oauth_jwt_token_url",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email": "example@serviceaccount.com",
 					"oauth_jwt_private_key":  "private_key",
 				},
@@ -317,7 +317,7 @@ func TestParseOAuthConfigurationErrors(t *testing.T) {
 		{
 			desc: "oauth_jwt_scopes contains empty scope",
 			input: map[string]mapString{
-				"http": map[string]string{
+				"http": mapString{
 					"oauth_jwt_client_email":   "example@serviceaccount.com",
 					"oauth_jwt_private_key":    "private_key",
 					"oauth_jwt_private_key_id": "private_key_id",

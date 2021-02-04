@@ -353,7 +353,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 		dialer = StreadwayAMQPDialer{}
 	}
 
-	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
+	var c = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
 
 	messages := make(chan amqp.Delivery, inputChannelSize)
 
@@ -661,4 +661,3 @@ func main() {
 
 	log.Info("cb-event-forwarder exiting")
 }
-

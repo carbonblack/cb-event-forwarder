@@ -26,82 +26,82 @@ buildDir = file("build/$osVersionClassifier")
 val goPath = "$buildDir/gopath"
 File(goPath).mkdirs()
 
-tasks.named("clean"){
-	doFirst {
-		project.exec {
-			commandLine("chmod","-R", "u+w", "$goPath")
-		}
-	}
+tasks.named("clean") {
+    doFirst {
+        project.exec {
+            commandLine("chmod", "-R", "u+w", "$goPath")
+        }
+    }
 }
 
 val buildTask = tasks.named("build") {
-	inputs.dir("cmd/cb-event-forwarder")
-	inputs.dir("scripts/")
-	inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
-    	val outputDir = File("${project.buildDir}/rpm")
-	outputs.dir(outputDir)
-	dependsOn("getDeps")
-	dependsOn("compileProtobufs")
-	dependsOn("runUnitTests")
-	doLast {
-		project.delete(outputDir)
-		project.exec {
-			environment("RPM_OUTPUT_DIR" , outputDir)
-			environment("GOPATH" , goPath)
-			commandLine = listOf("make", "rpm")
-		}
-	}
+    inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("scripts/")
+    inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
+    val outputDir = File("${project.buildDir}/rpm")
+    outputs.dir(outputDir)
+    dependsOn("getDeps")
+    dependsOn("compileProtobufs")
+    dependsOn("runUnitTests")
+    doLast {
+        project.delete(outputDir)
+        project.exec {
+            environment("RPM_OUTPUT_DIR", outputDir)
+            environment("GOPATH", goPath)
+            commandLine = listOf("make", "rpm")
+        }
+    }
 }
 
 val depTask = tasks.register<Exec>("getDeps") {
-	inputs.dir("cmd/cb-event-forwarder")
-	val gomodPath = "$goPath/pkg/mod"
-	val gomodFile = File(gomodPath)
-	if (! gomodFile.exists()) {
-	     gomodFile.mkdirs()
-	}
-	inputs.dir("cmd/cb-event-forwarder")
-	inputs.files("go.mod", "go.sum")
-	outputs.dir(gomodPath)
-	executable("make")
-	environment("GOPATH", goPath)
-	args("getdeps")
+    inputs.dir("cmd/cb-event-forwarder")
+    val gomodPath = "$goPath/pkg/mod"
+    val gomodFile = File(gomodPath)
+    if (!gomodFile.exists()) {
+        gomodFile.mkdirs()
+    }
+    inputs.dir("cmd/cb-event-forwarder")
+    inputs.files("go.mod", "go.sum")
+    outputs.dir(gomodPath)
+    executable("make")
+    environment("GOPATH", goPath)
+    args("getdeps")
 }
 
 val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
-	inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
-	outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
-	environment("GOPATH", goPath)
-	executable("make")
-	args("compile-protobufs")
+    inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
+    outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
+    environment("GOPATH", goPath)
+    executable("make")
+    args("compile-protobufs")
 }
 
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
-	dependsOn("compileProtobufs")
-	dependsOn("getDeps")
-	inputs.dir("cmd/cb-event-forwarder")
-	inputs.dir("test/raw_data")
-	val unitTestResultsFileName = "$buildDir/unittest.out"
-	val unitTestResultsFile = File(unitTestResultsFileName)
-	if (!unitTestResultsFile.exists()) {
-		File("$buildDir").mkdirs()
-		unitTestResultsFile.createNewFile()
-	}
-	val unitTestResultsFileStream = unitTestResultsFile.outputStream()
-	executable("go")
-       	args("test", "./cmd/cb-event-forwarder")
-	environment("GOPATH", goPath)
-	standardOutput =  unitTestResultsFileStream
-	outputs.upToDateWhen {
-		unitTestResultsFile.exists()
-	}
-	doLast { 
-		unitTestResultsFile.inputStream().copyTo(System.out)
-	}
+    dependsOn("compileProtobufs")
+    dependsOn("getDeps")
+    inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("test/raw_data")
+    val unitTestResultsFileName = "$buildDir/unittest.out"
+    val unitTestResultsFile = File(unitTestResultsFileName)
+    if (!unitTestResultsFile.exists()) {
+        File("$buildDir").mkdirs()
+        unitTestResultsFile.createNewFile()
+    }
+    val unitTestResultsFileStream = unitTestResultsFile.outputStream()
+    executable("go")
+    args("test", "./cmd/cb-event-forwarder")
+    environment("GOPATH", goPath)
+    standardOutput = unitTestResultsFileStream
+    outputs.upToDateWhen {
+        unitTestResultsFile.exists()
+    }
+    doLast {
+        unitTestResultsFile.inputStream().copyTo(System.out)
+    }
 }
 
 val criticTask = tasks.register<Exec>("criticizeCode") {
-	environment("GOPATH", goPath)
-	executable("make")
-	args("critic")
+    environment("GOPATH", goPath)
+    executable("make")
+    args("critic")
 }
