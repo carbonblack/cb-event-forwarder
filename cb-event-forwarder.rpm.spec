@@ -30,11 +30,9 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 %setup -n %{name}-%{bare_version}
 
 $build
-export GO111MODULE=on
-cd ./src/github.com/carbonblack/cb-event-forwarder && make build 
+cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild 
 
 %install
-export GO111MODULE=on
 cd ./src/github.com/carbonblack/cb-event-forwarder && make rpminstall
 
 %clean
