@@ -101,17 +101,15 @@ func fixupMessage(messageType string, msg map[string]interface{}) {
 						iocType["md5"] = strings.ToUpper(md5)
 					}
 				}
-			} else {
-				if iocType, ok := value.(string); ok {
-					if iocType == "query" {
-						// decode the IOC query
-						if rawIocValue, ok := msg["ioc_value"].(string); ok {
-							var iocValue map[string]string
-							if json.Unmarshal([]byte(rawIocValue), &iocValue) == nil {
-								if queryIndex, rawQuery, err := parseQueryString(iocValue); err == nil {
-									msg["ioc_query_index"] = queryIndex
-									msg["ioc_query_string"] = rawQuery
-								}
+			} else if iocType, ok := value.(string); ok {
+				if iocType == "query" {
+					// decode the IOC query
+					if rawIocValue, ok := msg["ioc_value"].(string); ok {
+						var iocValue map[string]string
+						if json.Unmarshal([]byte(rawIocValue), &iocValue) == nil {
+							if queryIndex, rawQuery, err := parseQueryString(iocValue); err == nil {
+								msg["ioc_query_index"] = queryIndex
+								msg["ioc_query_string"] = rawQuery
 							}
 						}
 					}
