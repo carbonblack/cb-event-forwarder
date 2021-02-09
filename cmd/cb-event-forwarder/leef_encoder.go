@@ -165,7 +165,7 @@ func Encode(msg map[string]interface{}) (string, error) {
 		normalizeAddToMap(msg, msg)
 	}
 
-	for key, _ := range msg {
+	for key := range msg {
 		keyNames = append(keyNames, key)
 	}
 
@@ -204,16 +204,17 @@ func Encode(msg map[string]interface{}) (string, error) {
 			case []string:
 				// if the value is a map, array or slice, then format as JSON
 				length_of_array := len(typed_msg_val)
-				if length_of_array == 0 {
+				switch length_of_array {
+				case 0:
 					val = ""
-				} else if length_of_array == 1 {
+				case 1:
 					if key == "type" {
 						messageType = typed_msg_val[0]
 					} else if key == "cb_version" {
 						cbVersion = typed_msg_val[0]
 					}
 					val = typed_msg_val[0]
-				} else {
+				default:
 					t, err := json.Marshal(typed_msg_val)
 					if err != nil {
 						log.Infof("Could not marshal key %s with value %v into JSON: %s, skipping", key, msg[key], err.Error())

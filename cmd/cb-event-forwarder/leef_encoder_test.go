@@ -1,10 +1,10 @@
 package main
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "testing"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"testing"
 )
 
 func generateLeefOutput(exampleJSONInput string) error {

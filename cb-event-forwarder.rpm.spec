@@ -4,28 +4,12 @@
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
 %define bare_version 3.7.4
-%define build_timestamp %(date +%%y%%m%%d.%%H%%m%%S)
-
-# If release_pkg is defined and has the value of 1, use a plain version string;
-# otherwise, use the version string with a timestamp appended.
-#
-# if not otherwise defined (we do so on the rpmbuild command-line), release_pkg
-# defaults to 0.
-#
-# see https://backreference.org/2011/09/17/some-tips-on-rpm-conditional-macros/
-%if 0%{?release_pkg:1}
-%if "%{release_pkg}" == "1"
-%define decorated_version %{bare_version}
-%else
-%define decorated_version %{bare_version}.%{build_timestamp}
-%endif
-%endif
 
 %define release 1
 
 Summary: VMware Carbon Black EDR Event Forwarder
 Name: %{name}
-Version: %{decorated_version}
+Version: %{bare_version}
 Release: %{release}%{?dist}
 Source0: %{name}-%{bare_version}.tar.gz
 License: MIT
@@ -45,16 +29,10 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 %prep
 %setup -n %{name}-%{bare_version}
 
-%build
-export GOPATH=$PWD
-export PATH=$PATH:$GOPATH/bin
-export GO111MODULE=on
-cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild
+$build
+cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild 
 
 %install
-export GOPATH=$PWD
-export PATH=$PATH:$GOPATH/bin
-export GO111MODULE=on
 cd ./src/github.com/carbonblack/cb-event-forwarder && make rpminstall
 
 %clean

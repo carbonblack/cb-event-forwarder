@@ -128,7 +128,7 @@ func (o *NetOutput) Statistics() interface{} {
 
 func (o *NetOutput) output(m string) error {
 	if o.addNewline {
-		m = m + "\r\n"
+		m += "\r\n"
 	}
 
 	if !o.connected {

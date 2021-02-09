@@ -63,7 +63,7 @@ func convertFileIntoTemplate(fp *os.File, events chan<- UploadEvent, firstEventT
 			}
 			eventText = b.String()
 		} else {
-			eventText = eventText + "\n"
+			eventText += "\n"
 		}
 		if err != nil {
 			log.Debug(err)

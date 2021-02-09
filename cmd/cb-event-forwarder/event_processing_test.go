@@ -10,6 +10,24 @@ import (
 	"testing"
 )
 
+var ALLRAWEVENTS = map[string]bool{
+	"ingress.event.process":            true,
+	"ingress.event.procstart":          true,
+	"ingress.event.netconn":            true,
+	"ingress.event.procend":            true,
+	"ingress.event.childproc":          true,
+	"ingress.event.moduleload":         true,
+	"ingress.event.module":             true,
+	"ingress.event.filemod":            true,
+	"ingress.event.regmod":             true,
+	"ingress.event.tamper":             true,
+	"ingress.event.crossprocopen":      true,
+	"ingress.event.remotethread":       true,
+	"ingress.event.processblock":       true,
+	"ingress.event.emetmitigation":     true,
+	"ingress.event.filelessscriptload": true,
+}
+
 func processJSON(routingKey string, indata []byte) ([]map[string]interface{}, error) {
 	var msg map[string]interface{}
 
@@ -103,7 +121,7 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 	}{{"json", processJSON}, {"protobuf", processProtobuf}}
 
 	config.CbServerURL = "https://cbtests/"
-	config.EventMap = make(map[string]bool)
+	config.EventMap = ALLRAWEVENTS
 
 	for _, format := range formats {
 		pathname := path.Join("../../test/raw_data", format.formatType)
@@ -128,9 +146,6 @@ func processTestEvents(t *testing.T, outputDir string, outputFunc outputMessageF
 
 			routingKey := info.Name()
 			os.MkdirAll(path.Join("../../test_output", outputDir, format.formatType, routingKey), 0755)
-
-			// add this routing key into the filtering map
-			config.EventMap[routingKey] = true
 
 			// process all files inside this directory
 			routingDir := path.Join(pathname, info.Name())

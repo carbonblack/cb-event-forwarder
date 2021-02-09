@@ -33,7 +33,7 @@ func TestCreateTransport(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			transport := createTransport(test.config)
+			transport := createTransport(&test.config)
 			if reflect.TypeOf(transport) != test.expectedType {
 				t.Errorf("type of transport: %s, want: %s", reflect.TypeOf(transport), test.expectedType)
 			}

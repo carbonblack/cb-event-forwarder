@@ -46,31 +46,25 @@ type MockAMQPChannel struct {
 }
 
 func (mock *MockAMQPChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
-	//log.Infof("MOCK AMQP Publish - %s %s", exchange, key)
 
 	for _, queue := range mock.Queues {
 		if _, ok := queue.BoundExchanges[exchange]; ok {
-			//log.Infof("amqp.Publishing types: %s ", msg.ContentType)
+			log.Infof("amqp.Publishing types: %s ", msg.ContentType)
 			queue.Deliveries <- amqp.Delivery{Exchange: exchange, RoutingKey: key, Body: msg.Body, ContentType: msg.ContentType}
-		} /* else {
+		} else {
 			log.Debugf("Not bound to %s", exchange)
-		} */
+		}
 	}
 	return nil
 }
 
 func (mock *MockAMQPChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
 	mock.Queues = append(mock.Queues, MockAMQPQueue{Deliveries: make(chan amqp.Delivery), Name: name, BoundExchanges: make(map[string][]string, 0)})
-	/*log.Infof("Created a mock queue")
-	for _, q := range mock.Queues {
-		log.Infof("Mock.queue has %s", q.String())
-	}*/
 	return amqp.Queue{Name: name, Messages: 0, Consumers: 0}, nil
 }
 
 func (mock *MockAMQPChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
 
-	//log.Infof("Trying to bind mock queue - %s %s %s", name, key, exchange)
 	for i, queue := range mock.Queues {
 		if queue.Name == name {
 			existingKeys, ok := queue.BoundExchanges[exchange]
@@ -89,14 +83,11 @@ func (mock MockAMQPChannel) Cancel(consumer string, noWait bool) error {
 }
 
 func (mock MockAMQPChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
-	//log.Infof("Looking for %s", queue)
 	for _, q := range mock.Queues {
 		if q.Name == queue {
-			//log.Infof("FOUND - Looking for %s , on queue %s", q.Name, queue)
 			return q.Deliveries, nil
 		}
 	}
-	//log.Infof("Did not find queue by name, %s", queue)
 	return nil, errors.New("Couldn't find queue by name")
 }
 
