@@ -13,7 +13,7 @@ val createContainer = tasks.register<DockerCreateContainer>("createContainer") {
     group = ""
 
     imageId.set(System.getenv()["BASE_IMAGE"])
-    cmd.set(listOf("${projectDir}/cmd.sh", File("${rootProject.buildDir}/rpm").absolutePath))
+    cmd.set(listOf("${projectDir}/cmd.sh", File("${rootProject.buildDir}/rpm").absolutePath, "${rootProject.projectDir.absolutePath}/smoketest/cb-event-forwarder.docker.ini", "${rootProject.projectDir.absolutePath}/test/stress_rabbit/zipbundles/bundleone"))
     hostConfig.binds.set(mapOf((project.rootDir.absolutePath) to project.rootDir.absolutePath))
 }
 
@@ -74,4 +74,8 @@ val smoketest = tasks.register<Task>("runSmokeTest") {
     dependsOn(checkStatusCode)
     group = "Verification"
     description = "Executes the smoke test suite."
+}
+
+tasks.named("build") {
+   this.finalizedBy(smoketest)
 }

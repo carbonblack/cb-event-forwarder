@@ -11,12 +11,16 @@ import (
 	"github.com/streadway/amqp"
 )
 
+var DEFAULT_CANNED_INPUT_LOCATION = "test/stress_rabbit/zipbundles/bundleone"
+
 type MockAMQPConnection struct {
 	AMQPURL  string
 	AMQPCHAN *MockAMQPChannel
+	closed bool
 }
 
 func (mock MockAMQPConnection) Close() error {
+	mock.closed = true
 	return nil
 }
 
@@ -104,23 +108,32 @@ func (mdial MockAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnectio
 }
 
 func NewMockAMQPDialer() MockAMQPDialer {
-	return MockAMQPDialer{Connection: MockAMQPConnection{AMQPURL: "amqp://cb:lol@localhost:5672"}}
+	return MockAMQPDialer{Connection: MockAMQPConnection{closed: false, AMQPURL: "amqp://cb:lol@localhost:5672", AMQPCHAN: &MockAMQPChannel{}}}
 }
 
-func RunCannedData(mockChan AMQPChannel) {
+func RunCannedData(mockCon MockAMQPConnection, cannedInputLocation * string) {
+	mockChan := mockCon.AMQPCHAN
 
-	filename := "test/stress_rabbit/zipbundles/bundleone"
+	if cannedInputLocation == nil {
+		cannedInputLocation = &DEFAULT_CANNED_INPUT_LOCATION
+	}
 
-	fp, err := os.Open(filename)
+	log.Info("Opening canned data...")
+
+	fp, err := os.Open(*cannedInputLocation)
+
+	if err != nil {
+		log.Fatalf("Could not open canned data file %s", *cannedInputLocation)
+	}
 
 	b, err := ioutil.ReadAll(fp)
 	if err != nil {
-		log.Fatalf("Could not read %s", filename)
+		log.Fatalf("Could not read %s", *cannedInputLocation)
 	}
 
 	fp.Close()
 
-	for {
+	for ! mockCon.closed {
 
 		exchange := "api.rawsensordata"
 		contentType := "application/protobuf"
@@ -141,6 +154,7 @@ func RunCannedData(mockChan AMQPChannel) {
 		); err != nil {
 			log.Errorf("Failed to publish %s %s: %s", exchange, "", err)
 		}
+		log.Info("PUBLISHED MOCK DATA")
 
 	}
 }
