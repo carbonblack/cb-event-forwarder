@@ -345,8 +345,7 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 	if config.CannedInput {
 		md := NewMockAMQPDialer()
-		mockChan, _ := md.Connection.Channel()
-		go RunCannedData(mockChan)
+		go RunCannedData(md.Connection, config.CannedInputLocation)
 		dialer = md
 	} else {
 		dialer = StreadwayAMQPDialer{}

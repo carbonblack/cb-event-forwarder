@@ -15,9 +15,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Showmax/go-fqdn"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
+	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -63,6 +63,7 @@ type Configuration struct {
 	DryRun bool
 	// CannedInput bool CONTROLS REAL INPUT - WHEN CANNEDINPUT IS TRUE, bundles from stress_rabbit will be used instead
 	CannedInput bool
+	CannedInputLocation *string
 	// RunConsumer bool
 	// Controls whether or not a rabbitmq consumer is bound
 	RunConsumer bool
@@ -438,7 +439,8 @@ func ParseConfig(fn string) (Configuration, error) {
 	cannedInputEnvVar := os.Getenv("EF_CANNED_INPUT")
 
 	if cannedInputEnvVar != "" {
-		config.CannedInput, _ = strconv.ParseBool(cannedInputEnvVar)
+		config.CannedInput = true
+		config.CannedInputLocation = &cannedInputEnvVar
 	} else if input.Section("bridge").HasKey("canned_input") {
 		key := input.Section("bridge").Key("canned_input")
 		boolval, err := key.Bool()
