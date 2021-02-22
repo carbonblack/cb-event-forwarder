@@ -92,12 +92,13 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 `/etc/cb/cb.conf`:
 
 * If you are capturing raw sensor events then you also need to edit the `DatastoreBroadcastEventTypes` option in 
-`/etc/cb/cb.conf` to enable broadcast of the raw sensor events you wish to export.
+`/etc/cb/cb.conf` to enable broadcast of the raw sensor events you wish to export. In addition, you must set the `EnableRawSensorDataBroadcast` option to `True`.
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
+* If you would like feed hit events to include report titles, you must set the `FeedHitLoadReportTitles` option to `True`.
 
 EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
-`service cb-enterprise restart`.
+`/usr/share/cb/cbservice cb-enterprise restart`.
 
 If you are configuring the cb-event-forwarder on a EDR cluster, the `DatastoreBroadcastEventTypes` and/or
 `EnableSolrBinaryInfoNotifications` settings
@@ -110,7 +111,7 @@ the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 * To start the service: `service cb-event-forwarder start`
 * To stop the service: `service cb-event-forwarder stop`
 
-#### CentOS 7.x
+#### CentOS 7.x/8.x
 * To start the service: `systemctl start cb-event-forwarder`
 * To stop the service: `systemctl stop cb-event-forwarder`
 
@@ -119,10 +120,10 @@ Once you install the service, it is configured to start automatically on system 
 ## Splunk
 
 The EDR Event Forwarder can be used to export EDR events in a way easily configured for Splunk. You'll
-need to install and configure the Splunk TA to consume the EDR event data. We recommend that the event
-bridge use a file-based output with the Splunk universal forwarder configured to monitor the file. 
+need to install and configure the Splunk TA to consume the EDR event data. We recommend using SPLUNK HEC, and configuring the event-forwarder to publish events as json to the Splunk HEC route (typically `/services/collector`). If the HEC input is configured to use dedicated channels, you must include a channel identifer as a URL-parameter in this route like `/services/collector?channel=FE0ECFAD-13D5-401B-847D-77733BD77137`
 
 More information about configuring the Splunk TA can be found [here](http://docs.splunk.com/Documentation/AddOns/latest/Bit9CarbonBlack/About)
+More information about configuring the Splunk HEC input can be found [here](https://https://docs.splunk.com/Documentation/Splunk/8.1.2/Data/AboutHECIDXAck)
 
 ## QRadar
 
@@ -237,12 +238,11 @@ Set up your GOPATH, GOBIN, PATH environmental variables and make sure you have c
 
 Set `GO111MODULE=on` to activate optional module support. The project can be built using the provided makefile. 
 
-The project requires librdkafka.so to be available and on the PKG_CONFIG_PATH for your build-system. Follow the guide in [go-confluent-kafka](https://github.com/confluentinc/confluent-kafka-go) to make sure librdkafka is installed correctly, either from source or one of the confluent provided repositories.
 ```
 make build 
 ```
 
-To build an RPM package, use `make rpm`. By default, the result will be located at `~/rpmbuild/RPMS/x86_64`.
+To build an RPM package, use `make rpm`. Make sure to set the `RPM_OUTPUT_DIR` environment variable to the location of your desired RPMBUILD directory; For instance if you set `RPM_OUTPUT_DIR=/home/user` the result will be located at `/home/user/rpmbuild/RPMS/x86_64`.
 
 ## Changelog
 
