@@ -24,6 +24,7 @@ val osVersionClassifier: String
 
 buildDir = file("build/$osVersionClassifier")
 val goPath = "$buildDir/gopath"
+val goProxy = System.getenv()["GOPROXY"]
 
 val depTask = tasks.register<Exec>("getDeps") {
     val gomodPath = "$goPath/pkg/mod"
@@ -32,6 +33,9 @@ val depTask = tasks.register<Exec>("getDeps") {
     inputs.files("go.mod", "go.sum")
     outputs.dir(gomodPath)
 
+    if (goProxy != null) {
+        environment("GOPROXY", goProxy)
+    }
     environment("GOPATH", goPath)
     executable("make")
     args("getdeps")
@@ -42,7 +46,6 @@ val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
 
     inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
     outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
-
     environment("GOPATH", goPath)
     executable("make")
     args("compile-protobufs")

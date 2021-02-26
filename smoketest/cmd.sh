@@ -20,7 +20,7 @@ useradd --shell /sbin/nologin --gid cb --comment "Service account for VMware Car
 
 echo Running smoke test on file: "$RPM_FILE"
 
-yum install -y "$RPM_FILE"
+rpm -ivh "$RPM_FILE"
 
 mkdir -p /etc/sudoers.d
 touch /etc/sudoers.d/cb-ef
