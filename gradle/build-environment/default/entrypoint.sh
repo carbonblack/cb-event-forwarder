@@ -33,5 +33,8 @@ if [[ ${USER_DOESNT_EXIST} ]]; then
     gosu ${DOCKERIZED_USER_NAME} cp -r /etc/skel/. ${DOCKERIZED_USER_HOME_DIR}
 fi
 
+export PATH
+export GOBIN
+
 # Run the command
 exec gosu ${DOCKERIZED_USER_NAME} "$@"
