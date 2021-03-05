@@ -267,7 +267,7 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, signa
 					o.uploadErrors++
 					o.lastUploadError = fileResult.result.Error()
 					o.lastUploadErrorTime = time.Now()
-					//Handle 400s - lets stop processing the file and move it to debug zone
+					// Handle 400s - lets stop processing the file and move it to debug zone
 					if fileResult.status != 400 {
 						// our default behavior is to try and upload the file next time around...
 						o.filesToUpload = append(o.filesToUpload, fileResult.fileName)

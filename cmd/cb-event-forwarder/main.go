@@ -71,10 +71,6 @@ var (
 	outputSignals chan os.Signal
 )
 
-func init() {
-	flag.Parse()
-}
-
 func setupMetrics() {
 	status.InputEventCount = metrics.NewRegisteredMeter("core.input.events", metrics.DefaultRegistry)
 	status.InputByteCount = metrics.NewRegisteredMeter("core.input.data", metrics.DefaultRegistry)
@@ -192,20 +188,19 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 	//
 	// Process message based on ContentType
 	//
-	//log.Errorf("PROCESS MESSAGE CALLED ROUTINGKEY = %s contentType = %s exchange = %s ",routingKey, contentType, exchangeName)
-	if contentType == "application/zip" {
+	switch contentType {
+	case "application/zip":
 		msgs, err = ProcessRawZipBundle(routingKey, body, headers)
 		if err != nil {
 			reportBundleDetails(routingKey, body, headers)
 			reportError(routingKey, "Could not process raw zip bundle", err)
 			return
 		}
-	} else if contentType == "application/protobuf" {
+	case "application/protobuf":
 		// if we receive a protobuf through the raw sensor exchange, it's actually a protobuf "bundle" and not a
 		// single protobuf
 		if exchangeName == "api.rawsensordata" {
 			msgs, err = ProcessProtobufBundle(routingKey, body, headers)
-			//log.Infof("Process Protobuf bundle returned %d messages and error = %v",len(msgs),err)
 		} else {
 			msg, err := ProcessProtobufMessage(routingKey, body, headers)
 			if err != nil {
@@ -217,7 +212,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 				msgs = append(msgs, msg)
 			}
 		}
-	} else if contentType == "application/json" {
+	case "application/json":
 		// Note for simplicity in implementation we are assuming the JSON output by the Cb server
 		// is an object (that is, the top level JSON object is a dictionary and not an array or scalar value)
 		var msg map[string]interface{}
@@ -232,7 +227,7 @@ func processMessage(body []byte, routingKey, contentType string, headers amqp.Ta
 		}
 
 		msgs, err = ProcessJSONMessage(msg, routingKey)
-	} else {
+	default:
 		reportError(string(body), "Unknown content-type", errors.New(contentType))
 		return
 	}
@@ -350,14 +345,13 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 
 	if config.CannedInput {
 		md := NewMockAMQPDialer()
-		mockChan, _ := md.Connection.Channel()
-		go RunCannedData(mockChan)
+		go RunCannedData(md.Connection, config.CannedInputLocation)
 		dialer = md
 	} else {
 		dialer = StreadwayAMQPDialer{}
 	}
 
-	var c *Consumer = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
+	var c = NewConsumer(uri, queueName, consumerTag, config.UseRawSensorExchange, config.EventTypes, dialer)
 
 	messages := make(chan amqp.Delivery, inputChannelSize)
 
@@ -485,6 +479,7 @@ func startOutputs() error {
 }
 
 func main() {
+	flag.Parse()
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal(err)
@@ -525,7 +520,7 @@ func main() {
 	pidfile.SetPidfilePath(*pidFileLocation)
 	err = pidfile.Write()
 	if err != nil {
-		log.Warn("Could not write PID file: %s\n", err)
+		log.Warnf("Could not write PID file: %v\n", err)
 	}
 
 	addrs, err := net.InterfaceAddrs()
@@ -644,9 +639,7 @@ func main() {
 		log.Info("Not starting file processing loop")
 	}
 
-	//Try to send to metrics to carbon if configured to do so
 	if config.CarbonMetricsEndpoint != nil && config.RunMetrics {
-		//log.Infof("Trying to resolve TCP ADDR for %s\n", *config.CarbonMetricsEndpoint)
 		addr, err := net.ResolveTCPAddr("tcp4", *config.CarbonMetricsEndpoint)
 		if err != nil {
 			log.Panicf("Failing resolving carbon endpoint %v", err)

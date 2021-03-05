@@ -60,7 +60,7 @@ type KafkaStatistics struct {
 	EventSentCount    int64 `json:"event_sent_count"`
 }
 
-func (o *KafkaOutput) Initialize(unused string) error {
+func (o *KafkaOutput) Initialize(unused string) (err error) {
 	o.Lock()
 	defer o.Unlock()
 
@@ -81,7 +81,8 @@ func (o *KafkaOutput) Initialize(unused string) error {
 		kafkaConfig.Net.TLS.Enable = true
 		var tlsConfig, err = NewTLSConfig(*config.KafkaSSLCertificateLocation, *config.KafkaSSLKeyLocation, *config.KafkaSSLCALocation)
 		if err != nil {
-			log.Fatalf("Error setting up tls for kafka %v", err)
+			err = fmt.Errorf("Error setting up tls for kafka %v", err)
+			return err
 		}
 		kafkaConfig.Net.TLS.Config = tlsConfig
 	}
@@ -114,13 +115,9 @@ func (o *KafkaOutput) Initialize(unused string) error {
 
 	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)
 
-	if err != nil {
-		panic(err)
-	}
-
 	o.producer = producer
 
-	return nil
+	return err
 }
 
 func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, signals chan<- os.Signal) error {
@@ -153,7 +150,7 @@ func (o *KafkaOutput) Go(messages <-chan string, errorChan chan<- error, signals
 					json.Unmarshal([]byte(message), &parsedMsg)
 					topic := parsedMsg["type"]
 					if topicString, ok := topic.(string); ok {
-						topicString = strings.Replace(topicString, "ingress.event.", "", -1)
+						topicString = strings.ReplaceAll(topicString, "ingress.event.", "")
 						topicString += o.topicSuffix
 
 						o.output(topicString, message)

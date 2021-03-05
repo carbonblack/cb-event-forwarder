@@ -53,7 +53,7 @@ func (this *HTTPBehavior) Initialize(dest string) error {
 	}
 
 	this.client = &http.Client{
-		Transport: createTransport(config),
+		Transport: createTransport(&config),
 		Timeout:   120 * time.Second, // default timeout is 2 minutes for the entire exchange
 	}
 
@@ -61,7 +61,7 @@ func (this *HTTPBehavior) Initialize(dest string) error {
 }
 
 // createTransport returns Transport which will be used in http.Client.
-func createTransport(config Configuration) http.RoundTripper {
+func createTransport(config *Configuration) http.RoundTripper {
 	baseTransport := &http.Transport{
 		TLSClientConfig:     config.TLSConfig,
 		Dial:                (&net.Dialer{Timeout: 5 * time.Second}).Dial,

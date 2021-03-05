@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
-	"regexp"
 
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
@@ -59,12 +59,13 @@ type Configuration struct {
 	CbServerURL          string
 	UseRawSensorExchange bool
 
-	//DRY RUN CONTROLS REAL OUTPUT - WHEN DRYRUN IS TRUE, REAL OUTPUT WILL NOT OCCUR
+	// DRY RUN CONTROLS REAL OUTPUT - WHEN DRYRUN IS TRUE, REAL OUTPUT WILL NOT OCCUR
 	DryRun bool
-	//CannedInput bool CONTROLS REAL INPUT - WHEN CANNEDINPUT IS TRUE, bundles from stress_rabbit will be used instead
+	// CannedInput bool CONTROLS REAL INPUT - WHEN CANNEDINPUT IS TRUE, bundles from stress_rabbit will be used instead
 	CannedInput bool
-	//RunConsumer bool
-	//Controls whether or not a rabbitmq consumer is bound
+	CannedInputLocation *string
+	// RunConsumer bool
+	// Controls whether or not a rabbitmq consumer is bound
 	RunConsumer bool
 
 	// this is a hack for S3 specific configuration
@@ -124,7 +125,7 @@ type Configuration struct {
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
 
-	//Splunkd
+	// Splunkd
 	SplunkToken *string
 
 	RemoveFromOutput []string
@@ -133,7 +134,7 @@ type Configuration struct {
 
 	UseTimeFloat bool
 
-	//graphite/carbon
+	// graphite/carbon
 	RunMetrics            bool
 	CarbonMetricsEndpoint *string
 	MetricTag             string
@@ -232,13 +233,13 @@ func (c *Configuration) parseEventTypes(input *ini.File) {
 			key := input.Section("bridge").Key(eventType.configKey)
 			val := key.Value()
 			val = strings.ToLower(val)
-			if val == "all" {
+			switch val {
+			case "all":
 				for _, routingKey := range eventType.eventList {
 					c.EventTypes = append(c.EventTypes, routingKey)
 				}
-			} else if val == "0" {
-				// nothing
-			} else {
+			case "0":
+			default:
 				for _, routingKey := range strings.Split(val, ",") {
 					c.EventTypes = append(c.EventTypes, routingKey)
 				}
@@ -285,7 +286,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	shouldSetServerNameToFqdn := false
 
 	if !input.Section("bridge").HasKey("server_name") {
-		config.ServerName = "CB" 
+		config.ServerName = "CB"
 		shouldSetServerNameToFqdn = true
 	} else {
 		key := input.Section("bridge").Key("server_name")
@@ -441,16 +442,15 @@ func ParseConfig(fn string) (Configuration, error) {
 	cannedInputEnvVar := os.Getenv("EF_CANNED_INPUT")
 
 	if cannedInputEnvVar != "" {
-		config.CannedInput, _ = strconv.ParseBool(cannedInputEnvVar)
-	} else {
-		if input.Section("bridge").HasKey("canned_input") {
-			key := input.Section("bridge").Key("canned_input")
-			boolval, err := key.Bool()
-			if err == nil {
-				config.CannedInput = boolval
-			} else {
-				errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
-			}
+		config.CannedInput = true
+		config.CannedInputLocation = &cannedInputEnvVar
+	} else if input.Section("bridge").HasKey("canned_input") {
+		key := input.Section("bridge").Key("canned_input")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.CannedInput = boolval
+		} else {
+			errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
 
@@ -460,15 +460,13 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	if runConsumerEnvVar != "" {
 		config.RunConsumer, _ = strconv.ParseBool(runConsumerEnvVar)
-	} else {
-		if input.Section("bridge").HasKey("run_consumer") {
-			key := input.Section("bridge").Key("run_consumer")
-			boolval, err := key.Bool()
-			if err == nil {
-				config.RunConsumer = boolval
-			} else {
-				errs.addErrorString("Unknown value for 'run_consumer': valid values are true, false, 1, 0. Default is 'false'")
-			}
+	} else if input.Section("bridge").HasKey("run_consumer") {
+		key := input.Section("bridge").Key("run_consumer")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.RunConsumer = boolval
+		} else {
+			errs.addErrorString("Unknown value for 'run_consumer': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
 
@@ -481,7 +479,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		key := input.Section("bridge").Key("cb_server_url")
 		val := key.Value()
 		if !strings.HasSuffix(val, "/") {
-			val = val + "/"
+			val += "/"
 		}
 		config.CbServerURL = val
 	} else {
@@ -584,7 +582,7 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.S3ObjectPrefix = &objectPrefix
 		}
 
-		//Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
+		// Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
 		if input.Section("s3").HasKey("s3_endpoint") {
 			key = input.Section("s3").Key("s3_endpoint")
 			s3Endpoint := key.Value()
@@ -699,7 +697,7 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
 			}
 		} else {
-			config.KafkaMaxRequestSize = 1000000 //sane default from issue 959 on sarama github
+			config.KafkaMaxRequestSize = 1000000 // sane default from issue 959 on sarama github
 		}
 
 		if input.Section("kafka").HasKey("compression_type") {
@@ -843,7 +841,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.TLSCName = &serverCName
 	}
 
-	config.TLSConfig = configureTLS(config)
+	config.TLSConfig = configureTLS(&config)
 
 	// Bundle configuration
 
@@ -950,7 +948,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 }
 
-func configureTLS(config Configuration) *tls.Config {
+func configureTLS(config *Configuration) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if config.TLSVerify == false {
@@ -996,15 +994,17 @@ func configureTLS(config Configuration) *tls.Config {
 	return tlsConfig
 }
 
-func (c * Configuration) validateOutputParameters() error {
+func (c *Configuration) validateOutputParameters() error {
 	outputParameter := c.OutputParameters
-	switch (c.OutputType) {
-		case HTTPOutputType:
-			matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
-			if !matched {
-				return fmt.Errorf("httpout destination must be set to a valid http(s):// prefixed url")
-			}
-
+	switch c.OutputType {
+	case HTTPOutputType:
+		matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
+		if !matched {
+			return fmt.Errorf("httpout destination must be set to a valid http(s):// prefixed url")
+		}
+	default:
+		log.Debugf("No ouptut parameters to validate")
+		return nil
 	}
 	return nil
 }
@@ -1034,7 +1034,7 @@ func parseOAuthConfiguration(input *ini.File, config *Configuration, errs *Confi
 			// Replace the escaped version of a line break character with the non-escaped version.
 			// The OAuth library which reads private key expects non-escaped version of line break
 			// character.
-			oAuthJwtPrivateKey = strings.Replace(oAuthJwtPrivateKey, "\\n", "\n", -1)
+			oAuthJwtPrivateKey = strings.ReplaceAll(oAuthJwtPrivateKey, "\\n", "\n")
 			config.OAuthJwtPrivateKey = []byte(oAuthJwtPrivateKey)
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_private_key")

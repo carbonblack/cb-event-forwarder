@@ -11,12 +11,16 @@ import (
 	"github.com/streadway/amqp"
 )
 
+var DEFAULT_CANNED_INPUT_LOCATION = "test/stress_rabbit/zipbundles/bundleone"
+
 type MockAMQPConnection struct {
 	AMQPURL  string
 	AMQPCHAN *MockAMQPChannel
+	closed bool
 }
 
 func (mock MockAMQPConnection) Close() error {
+	mock.closed = true
 	return nil
 }
 
@@ -46,31 +50,25 @@ type MockAMQPChannel struct {
 }
 
 func (mock *MockAMQPChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
-	//log.Infof("MOCK AMQP Publish - %s %s", exchange, key)
 
 	for _, queue := range mock.Queues {
 		if _, ok := queue.BoundExchanges[exchange]; ok {
-			//log.Infof("amqp.Publishing types: %s ", msg.ContentType)
+			log.Infof("amqp.Publishing types: %s ", msg.ContentType)
 			queue.Deliveries <- amqp.Delivery{Exchange: exchange, RoutingKey: key, Body: msg.Body, ContentType: msg.ContentType}
-		} /* else {
+		} else {
 			log.Debugf("Not bound to %s", exchange)
-		} */
+		}
 	}
 	return nil
 }
 
 func (mock *MockAMQPChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
 	mock.Queues = append(mock.Queues, MockAMQPQueue{Deliveries: make(chan amqp.Delivery), Name: name, BoundExchanges: make(map[string][]string, 0)})
-	/*log.Infof("Created a mock queue")
-	for _, q := range mock.Queues {
-		log.Infof("Mock.queue has %s", q.String())
-	}*/
 	return amqp.Queue{Name: name, Messages: 0, Consumers: 0}, nil
 }
 
 func (mock *MockAMQPChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
 
-	//log.Infof("Trying to bind mock queue - %s %s %s", name, key, exchange)
 	for i, queue := range mock.Queues {
 		if queue.Name == name {
 			existingKeys, ok := queue.BoundExchanges[exchange]
@@ -89,14 +87,11 @@ func (mock MockAMQPChannel) Cancel(consumer string, noWait bool) error {
 }
 
 func (mock MockAMQPChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
-	//log.Infof("Looking for %s", queue)
 	for _, q := range mock.Queues {
 		if q.Name == queue {
-			//log.Infof("FOUND - Looking for %s , on queue %s", q.Name, queue)
 			return q.Deliveries, nil
 		}
 	}
-	//log.Infof("Did not find queue by name, %s", queue)
 	return nil, errors.New("Couldn't find queue by name")
 }
 
@@ -113,23 +108,32 @@ func (mdial MockAMQPDialer) DialTLS(s string, tlscfg *tls.Config) (AMQPConnectio
 }
 
 func NewMockAMQPDialer() MockAMQPDialer {
-	return MockAMQPDialer{Connection: MockAMQPConnection{AMQPURL: "amqp://cb:lol@localhost:5672"}}
+	return MockAMQPDialer{Connection: MockAMQPConnection{closed: false, AMQPURL: "amqp://cb:lol@localhost:5672", AMQPCHAN: &MockAMQPChannel{}}}
 }
 
-func RunCannedData(mockChan AMQPChannel) {
+func RunCannedData(mockCon MockAMQPConnection, cannedInputLocation * string) {
+	mockChan := mockCon.AMQPCHAN
 
-	filename := "test/stress_rabbit/zipbundles/bundleone"
+	if cannedInputLocation == nil {
+		cannedInputLocation = &DEFAULT_CANNED_INPUT_LOCATION
+	}
 
-	fp, err := os.Open(filename)
+	log.Info("Opening canned data...")
+
+	fp, err := os.Open(*cannedInputLocation)
+
+	if err != nil {
+		log.Fatalf("Could not open canned data file %s", *cannedInputLocation)
+	}
 
 	b, err := ioutil.ReadAll(fp)
 	if err != nil {
-		log.Fatalf("Could not read %s", filename)
+		log.Fatalf("Could not read %s", *cannedInputLocation)
 	}
 
 	fp.Close()
 
-	for {
+	for ! mockCon.closed {
 
 		exchange := "api.rawsensordata"
 		contentType := "application/protobuf"
@@ -150,6 +154,7 @@ func RunCannedData(mockChan AMQPChannel) {
 		); err != nil {
 			log.Errorf("Failed to publish %s %s: %s", exchange, "", err)
 		}
+		log.Info("PUBLISHED MOCK DATA")
 
 	}
 }
