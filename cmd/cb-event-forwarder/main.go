@@ -385,8 +385,11 @@ func messageProcessingLoop(uri, queueName, consumerTag string) error {
 			log.Debugf("ERROR during output: %s", outputError.Error())
 		case signal := <-outputSignals:
 			log.Errorf("%s- exiting immediately.", signal)
-			c.Shutdown()
-			wg.Wait()
+			closeConsumer := func () {
+				log.Debugf("AMQP Consumer shutdown %v", c.Shutdown())
+			}
+			withTimeout(closeConsumer, 5*time.Second)
+			withTimeout(wg.Wait, config.ExitTimeoutSeconds)
 			os.Exit(1)
 
 		case closeError := <-c.connectionErrors:
@@ -656,4 +659,20 @@ func main() {
 	}
 
 	log.Info("cb-event-forwarder exiting")
+}
+
+func withTimeout(callback func(), timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		callback()
+	}()
+	select {
+	case <-c:
+		log.Debug("WaitTimeout callback completed successfully")
+		return false
+	case <-time.After(timeout):
+		log.Debug("WaitTimeout hit")
+		return true
+	}
 }
