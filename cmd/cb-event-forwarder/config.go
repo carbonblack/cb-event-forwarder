@@ -36,6 +36,8 @@ const (
 	JSONOutputFormat
 )
 
+const DEFAULTEXITTIMEOUT = 15
+
 type Configuration struct {
 	ServerName           string
 	AMQPHostname         string
@@ -133,6 +135,7 @@ type Configuration struct {
 	NumProcessors    int
 
 	UseTimeFloat bool
+	ExitTimeoutSeconds time.Duration
 
 	// graphite/carbon
 	RunMetrics            bool
@@ -354,6 +357,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.HTTPServerPort = port
 		}
+	}
+
+	config.ExitTimeoutSeconds = DEFAULTEXITTIMEOUT
+
+	if input.Section("bridge").HasKey("exit_timeout") {
+		key := input.Section("bridge").Key("exit_timeout")
+		durationSeconds, err := key.Int64()
+		if err != nil {
+			log.Fatalf("Error parsing exit timeout seconds...%v",err)
+		}
+		config.ExitTimeoutSeconds = time.Duration(durationSeconds) * time.Second
 	}
 
 	if input.Section("bridge").HasKey("rabbit_mq_username") {

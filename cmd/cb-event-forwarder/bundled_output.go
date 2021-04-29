@@ -296,7 +296,6 @@ func (o *BundledOutput) Go(messages <-chan string, errorChan chan<- error, signa
 			case sigterm := <-term:
 				// handle exit gracefully
 				errorChan <- errors.New("SIGTERM received")
-				refreshTicker.Stop()
 				log.Info("Received SIGTERM. Exiting")
 				signals <- sigterm
 				return
