@@ -1,27 +1,28 @@
-#GIT_VERSION := $(shell git describe --tags)
-#VERSION := $(shell cat VERSION)
-
 GIT_VERSION := 3.7.4
 VERSION := 3.7.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
-export GO111MODULE=on
+export GO111MODULE=auto
 
 .PHONY: clean test rpmbuild rpminstall build rpm
 
 cb-event-forwarder: build
 
-getdeps: 
+getdeps:
 	go mod download -x
-	go mod verify
+
+easyjson:
+	go get github.com/mailru/easyjson/...
+
+generateeasyjsonmodels: easyjson
+	cd pkg/protobufmessageprocessor ; easyjson -all protobuf_json_structs.go
 
 protocgengo: 
-	go get -u github.com/gogo/protobuf/protoc-gen-gogofast
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
 
-compile-protobufs: protocgengo 
-	protoc --gogofast_out=.  ./cmd/cb-event-forwarder/sensor_events.proto
-	sed -i 's/package sensor_events/package main/g' ./cmd/cb-event-forwarder/sensor_events.pb.go
+compile-protobufs: protocgengo
+	protoc --go_out=.  pkg/sensorevents/sensor_events.proto
 
 format:
 	go fmt cmd/cb-event-forwarder/*.go
@@ -81,7 +82,7 @@ bench:
 sdist: 
 	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/VERSION
-	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
+	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service pkg Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	cp -rp MANIFEST${EL_VERSION} ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/MANIFEST
 	cd ${RPM_OUTPUT_DIR}/SOURCES ; tar -cz -f cb-event-forwarder-${GIT_VERSION}.tar.gz cb-event-forwarder-${GIT_VERSION} ; cd ..
 

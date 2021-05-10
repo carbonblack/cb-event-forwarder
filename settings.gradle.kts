@@ -9,3 +9,4 @@ pluginManagement {
 rootProject.name = "event-forwarder"
 
 include(":smoketest")
+include(":perftest")
