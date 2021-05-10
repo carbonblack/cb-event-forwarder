@@ -30,6 +30,7 @@ val depTask = tasks.register<Exec>("getDeps") {
     val gomodPath = "$goPath/pkg/mod"
 
     inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("pkg")
     inputs.files("go.mod", "go.sum")
     outputs.dir(gomodPath)
 
@@ -44,11 +45,26 @@ val depTask = tasks.register<Exec>("getDeps") {
 val protoGenerationTask = tasks.register<Exec>("compileProtobufs") {
     dependsOn(depTask)
 
-    inputs.files("cmd/cb-event-forwarder/sensor_events.proto")
-    outputs.files("cmd/cb-event-forwarder/sensor_events.pb.go")
+    inputs.files("pkg/sensorevents/sensor_events.proto")
+    outputs.files("pkg/sensorevents/sensor_events.pb.go")
     environment("GOPATH", goPath)
     executable("make")
     args("compile-protobufs")
+}
+
+
+val inputJsonModels = "protobuf_json_structs.go"
+val outputJsonModels = "protobuf_json_structs_easyjson.go"
+val modelPackage = "pkg/protobufmessageprocessor/"
+val jsonModelGenerationTask = tasks.register<Exec>("runEasyJson") {
+    dependsOn(protoGenerationTask)
+
+
+    inputs.files("$modelPackage/$inputJsonModels")
+    outputs.files("$modelPackage/$outputJsonModels")
+    environment("GOPATH", goPath)
+    executable("make")
+    args("generateeasyjsonmodels")
 }
 
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
@@ -57,13 +73,14 @@ val unitTestTask = tasks.register<Exec>("runUnitTests") {
 
     val unitTestResultsFile = File("$buildDir/unittest.out")
 
-    inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("tests")
+    inputs.dir("pkg")
     inputs.dir("test/raw_data")
     outputs.files(unitTestResultsFile)
 
     environment("GOPATH", goPath)
     executable("go")
-    args("test", "./cmd/cb-event-forwarder")
+    args("test", "./tests")
     isIgnoreExitValue = true
 
     ByteArrayOutputStream().use { os ->
@@ -90,11 +107,13 @@ val criticTask = tasks.register<Exec>("criticizeCode") {
 val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
     dependsOn(depTask)
     dependsOn(protoGenerationTask)
+    dependsOn(jsonModelGenerationTask)
     dependsOn(unitTestTask)
 
     val outputDir = File("${project.buildDir}/rpm")
 
     inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("pkg")
     inputs.dir("scripts/")
     inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
     outputs.dir(outputDir)
