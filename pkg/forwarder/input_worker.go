@@ -67,13 +67,17 @@ func (inputWorker InputWorker) processMessage(body []byte, routingKey, contentTy
 		}
 
 		jsonMsgs, err := inputWorker.ProcessJSONMessage(msg, routingKey)
-		if err == nil {
-			for jsonMsg := range jsonMsgs {
-				jsonBytes, err := json.Marshal(jsonMsg)
-				if err == nil {
-					msgs = append(msgs, jsonBytes)
-				}
+		if err != nil {
+			inputWorker.reportError(string(body), "Unable to process JSON message", err)
+			return
+		}
+		for idx, jsonMsg := range jsonMsgs {
+			jsonBytes, err := json.Marshal(jsonMsg)
+			if err != nil {
+				inputWorker.reportError(string(body), fmt.Sprintf("Error encoding message at position %d", idx), err)
+				continue
 			}
+			msgs = append(msgs, jsonBytes)
 		}
 
 	default:
