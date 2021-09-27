@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
+	"syscall"
 	"time"
 )
 
@@ -25,24 +26,26 @@ func (lh *LogFileHandler) InitializeLogging() {
 	lh.setUpLogger()
 }
 
-func getTimestampedLogFileName() string {
-	return fmt.Sprintf("%s-%s.log", "cb-event-forwarder", time.Now().UTC().Format(time.RFC3339))
+func getTimestampedLogFileName(logTime time.Time) string {
+	return fmt.Sprintf("%s-%s.log", "cb-event-forwarder", logTime.UTC().Format(time.RFC3339))
 }
 
-func (lh *LogFileHandler) getRolledLogFileNameWithPath() string {
-	return path.Join(lh.location, getTimestampedLogFileName())
+func (lh *LogFileHandler) getRolledLogFileNameWithPath(logTime time.Time) string {
+	return path.Join(lh.location, getTimestampedLogFileName(logTime))
 }
 
-func (lh *LogFileHandler) rollOverLogFile() {
-	err := os.Rename(lh.fileNameWithPath, lh.getRolledLogFileNameWithPath())
+func (lh *LogFileHandler) rollOverLogFile(timeStamp time.Time) {
+	err := os.Rename(lh.fileNameWithPath, lh.getRolledLogFileNameWithPath(timeStamp))
 	if err != nil {
 		log.Panicf("Couldn't roll log file: %v", err)
 	}
 }
 
 func (lh *LogFileHandler) rollOldLogFileIfExists() {
-	if _, err := os.Stat(lh.fileNameWithPath); err == nil {
-		lh.rollOverLogFile()
+	if fileInfo, err := os.Stat(lh.fileNameWithPath); err == nil {
+		stat := fileInfo.Sys().(*syscall.Stat_t)
+		createTime := time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec)
+		lh.rollOverLogFile(createTime)
 	}
 }
 
@@ -56,7 +59,6 @@ func (lh *LogFileHandler) setUpLogger() {
 	if err != nil {
 		log.Panicf("Unable to initialize logger %e", err)
 	}
-	log.Infof("Setting output to %s at %s level", lh.fileNameWithPath, lh.level.String())
 	log.SetOutput(outputFile)
 	log.SetLevel(lh.level)
 }
