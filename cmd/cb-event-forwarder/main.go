@@ -8,6 +8,7 @@ import (
 	graphite "github.com/cyberdelia/go-metrics-graphite"
 	"github.com/facebookgo/pidfile"
 	"github.com/rcrowley/go-metrics/exp"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
@@ -17,8 +18,8 @@ import (
 
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/forwarder"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/logging"
 	"github.com/rcrowley/go-metrics"
-	log "github.com/sirupsen/logrus"
 	_ "net/http/pprof"
 )
 
@@ -62,7 +63,7 @@ func handleStartup(hostname string, forwarder *EventForwarder) {
 
 	showNetworkInterfaces()
 
-	handleDebugLoggingAndMetrics(hostname)
+	handleDebugLoggingAndMetrics(hostname, forwarder)
 
 	showNetworkInterfaces()
 
@@ -135,7 +136,7 @@ func startDebugServer(forwarder *EventForwarder) {
 
 }
 
-func handleDebugLoggingAndMetrics(hostname string) {
+func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) {
 	exportedVersion := &expvar.String{}
 	metrics.Register("version", exportedVersion)
 	if *debug {
@@ -150,6 +151,13 @@ func handleDebugLoggingAndMetrics(hostname string) {
 
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
+	SetUpLogger(forwarder.LogLevel, forwarder.LogDir)
+
+}
+
+func SetUpLogger(level log.Level, dir string) {
+	lh := NewLogFileHandler(dir, level)
+	lh.InitializeLogging()
 }
 
 func handleConfigurationLoading() Configuration {

@@ -39,6 +39,7 @@ const (
 )
 
 const DEFAULTEXITTIMEOUT = 15
+const DEFAULTLOGLOCATION = "/var/log/cb/integrations/cb-event-forwarder"
 
 type Configuration struct {
 	ServerName           string
@@ -138,13 +139,17 @@ type Configuration struct {
 	AuditLog         bool
 	NumProcessors    int
 
-	UseTimeFloat bool
+	UseTimeFloat       bool
 	ExitTimeoutSeconds time.Duration
 
 	// graphite/carbon
 	RunMetrics            bool
 	CarbonMetricsEndpoint *string
 	MetricTag             string
+
+	//Logging
+	LogLevel log.Level
+	LogDir   string
 }
 
 type ConfigurationError struct {
@@ -152,14 +157,14 @@ type ConfigurationError struct {
 	Empty  bool
 }
 
-func (cfg *Configuration) AMQPURL() string {
+func (config *Configuration) AMQPURL() string {
 	scheme := "amqp"
 
-	if cfg.AMQPTLSEnabled {
+	if config.AMQPTLSEnabled {
 		scheme = "amqps"
 	}
 
-	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, cfg.AMQPUsername, cfg.AMQPPassword, cfg.AMQPHostname, cfg.AMQPPort)
+	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, config.AMQPUsername, config.AMQPPassword, config.AMQPHostname, config.AMQPPort)
 }
 
 func (e ConfigurationError) Error() string {
@@ -190,7 +195,7 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	return username, password, nil
 }
 
-func (cfg *Configuration) parseEventTypes(input *ini.File) {
+func (config *Configuration) parseEventTypes(input *ini.File) {
 	eventTypes := [...]struct {
 		configKey string
 		eventList []string
@@ -243,24 +248,24 @@ func (cfg *Configuration) parseEventTypes(input *ini.File) {
 			switch val {
 			case "all":
 				for _, routingKey := range eventType.eventList {
-					cfg.EventTypes = append(cfg.EventTypes, routingKey)
+					config.EventTypes = append(config.EventTypes, routingKey)
 				}
 			case "0":
 			default:
 				for _, routingKey := range strings.Split(val, ",") {
-					cfg.EventTypes = append(cfg.EventTypes, routingKey)
+					config.EventTypes = append(config.EventTypes, routingKey)
 				}
 			}
 		}
 	}
 
-	cfg.EventMap = make(map[string]bool)
+	config.EventMap = make(map[string]bool)
 
 	log.Info("Raw Event Filtering Configuration:")
-	for _, eventName := range cfg.EventTypes {
-		cfg.EventMap[eventName] = true
+	for _, eventName := range config.EventTypes {
+		config.EventMap[eventName] = true
 		if strings.HasPrefix(eventName, "ingress.event.") {
-			log.Infof("%s: %t", eventName, cfg.EventMap[eventName])
+			log.Infof("%s: %t", eventName, config.EventMap[eventName])
 		}
 	}
 }
@@ -369,7 +374,7 @@ func ParseConfig(fn string) (Configuration, error) {
 		key := input.Section("bridge").Key("exit_timeout")
 		durationSeconds, err := key.Int64()
 		if err != nil {
-			log.Fatalf("Error parsing exit timeout seconds...%v",err)
+			log.Fatalf("Error parsing exit timeout seconds...%v", err)
 		}
 		config.ExitTimeoutSeconds = time.Duration(durationSeconds) * time.Second
 	}
@@ -982,6 +987,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.UseTimeFloat = false
 	}
 
+	config.configLogging(input)
+
 	config.parseEventTypes(input)
 
 	outputParameterError := config.validateOutputParameters()
@@ -994,6 +1001,35 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 	return config, nil
 
+}
+
+func (config *Configuration) configLogging(input *ini.File) {
+	config.configLoggingLevel(input)
+	config.configLoggingDir(input)
+}
+
+func (config *Configuration) configLoggingLevel(input *ini.File) {
+	logLevel := log.InfoLevel
+	if input.Section("bridge").HasKey("log_level") {
+		logLevelKey := input.Section("bridge").Key("log_level")
+		logLevelString := logLevelKey.String()
+		logLevelParsed, err := log.ParseLevel(logLevelString)
+		if err == nil {
+			logLevel = logLevelParsed
+		} else {
+			log.Warn("Log level didn't parse correctly will default to INFO...")
+		}
+	}
+	config.LogLevel = logLevel
+}
+
+func (config *Configuration) configLoggingDir(input *ini.File) {
+	logDir := DEFAULTLOGLOCATION
+	if input.Section("bridge").HasKey("log_dir") {
+		logDirKey := input.Section("bridge").Key("log_dir")
+		logDir = logDirKey.String()
+	}
+	config.LogDir = logDir
 }
 
 func configureTLS(config *Configuration) *tls.Config {
@@ -1042,9 +1078,9 @@ func configureTLS(config *Configuration) *tls.Config {
 	return tlsConfig
 }
 
-func (cfg *Configuration) validateOutputParameters() error {
-	outputParameter := cfg.OutputParameters
-	switch cfg.OutputType {
+func (config *Configuration) validateOutputParameters() error {
+	outputParameter := config.OutputParameters
+	switch config.OutputType {
 	case HTTPOutputType:
 		matched, _ := regexp.Match("(http(s)?:\\/\\/)([^:].+)(:\\d+)?", []byte(outputParameter))
 		if !matched {
@@ -1059,7 +1095,7 @@ func (cfg *Configuration) validateOutputParameters() error {
 
 // parseOAuthConfiguration parses OAuth related configuration from input and populates config with
 // relevant fields.
-func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *ConfigurationError) {
+func (config *Configuration) ParseOAuthConfiguration(input *ini.File, errs *ConfigurationError) {
 	// oAuthFieldsConfigured is used to track OAuth fields that have been configured.
 	oAuthFieldsConfigured := make(map[string]bool)
 
@@ -1068,7 +1104,7 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 		oAuthJwtClientEmail := key.Value()
 		if len(oAuthJwtClientEmail) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_client_email"] = true
-			cfg.OAuthJwtClientEmail = oAuthJwtClientEmail
+			config.OAuthJwtClientEmail = oAuthJwtClientEmail
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_client_email")
 		}
@@ -1083,7 +1119,7 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 			// The OAuth library which reads private key expects non-escaped version of line break
 			// character.
 			oAuthJwtPrivateKey = strings.ReplaceAll(oAuthJwtPrivateKey, "\\n", "\n")
-			cfg.OAuthJwtPrivateKey = []byte(oAuthJwtPrivateKey)
+			config.OAuthJwtPrivateKey = []byte(oAuthJwtPrivateKey)
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_private_key")
 		}
@@ -1094,7 +1130,7 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 		oAuthJwtPrivateKeyId := key.Value()
 		if len(oAuthJwtPrivateKeyId) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_private_key_id"] = true
-			cfg.OAuthJwtPrivateKeyId = oAuthJwtPrivateKeyId
+			config.OAuthJwtPrivateKeyId = oAuthJwtPrivateKeyId
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_private_key_id")
 		}
@@ -1115,7 +1151,7 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 					errs.addErrorString("Empty scope found")
 				}
 			}
-			cfg.OAuthJwtScopes = oAuthJwtScopes
+			config.OAuthJwtScopes = oAuthJwtScopes
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_scopes")
 		}
@@ -1127,7 +1163,7 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 		oAuthJwtTokenUrl := key.Value()
 		if len(oAuthJwtTokenUrl) > 0 {
 			oAuthFieldsConfigured["oauth_jwt_token_url"] = true
-			cfg.OAuthJwtTokenUrl = oAuthJwtTokenUrl
+			config.OAuthJwtTokenUrl = oAuthJwtTokenUrl
 		} else {
 			errs.addErrorString("Empty value is specified for oauth_jwt_token_url")
 		}
@@ -1151,10 +1187,10 @@ func (cfg *Configuration) ParseOAuthConfiguration(input *ini.File, errs *Configu
 	}
 }
 
-func (cfg *Configuration) MoveFileToDebug(name string) {
-	if cfg.DebugFlag {
+func (config *Configuration) MoveFileToDebug(name string) {
+	if config.DebugFlag {
 		baseName := filepath.Base(name)
-		dest := filepath.Join(cfg.DebugStore, baseName)
+		dest := filepath.Join(config.DebugStore, baseName)
 		log.Debugf("MoveFileToDebug mv %s %s", name, dest)
 		err := os.Rename(name, dest)
 		if err != nil {
@@ -1163,13 +1199,13 @@ func (cfg *Configuration) MoveFileToDebug(name string) {
 	}
 }
 
-func (cfg *Configuration) GetAMQPTLSConfigFromConf() *tls.Config {
-	if cfg.AMQPTLSEnabled == true {
+func (config *Configuration) GetAMQPTLSConfigFromConf() *tls.Config {
+	if config.AMQPTLSEnabled == true {
 		log.Info("Connecting to message bus via TLS...")
 
 		tlscfg := new(tls.Config)
 
-		caCert, err := ioutil.ReadFile(cfg.AMQPTLSCACert)
+		caCert, err := ioutil.ReadFile(config.AMQPTLSCACert)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -1177,7 +1213,7 @@ func (cfg *Configuration) GetAMQPTLSConfigFromConf() *tls.Config {
 		caCertPool.AppendCertsFromPEM(caCert)
 		tlscfg.RootCAs = caCertPool
 
-		cert, err := tls.LoadX509KeyPair(cfg.AMQPTLSClientCert, cfg.AMQPTLSClientKey)
+		cert, err := tls.LoadX509KeyPair(config.AMQPTLSClientCert, config.AMQPTLSClientKey)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -30,7 +30,7 @@ export EF_CANNED_INPUT=$3
 echo Starting service...
 service cb-event-forwarder start
 
-sleep 5
+sleep 99999
 tail -n 1 /tmp/event_bridge_output.json
 filepath="/tmp/event_bridge_output.json"
 if [ -n "$(find "$filepath" -prune -size +1000000c)" ]; then
