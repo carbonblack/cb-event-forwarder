@@ -858,6 +858,8 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey str
 	}
 
 	message, err := pbm.fromProtobufMessage(&cbMessage, routingKey)
+	log.Info("Input message was %+v", message)
+	log.Info("Output message is %s", message)
 	if err == nil {
 		return message.getAsJson()
 	} else {
