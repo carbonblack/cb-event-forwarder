@@ -172,7 +172,7 @@ func (forwarder *EventForwarder) startInputWorkers(deliveries <-chan amqp.Delive
 
 	log.Infof("Starting %d message processors\n", numProcessors)
 
-	inputWorker := NewInputWorker(forwarder.outputChan, forwarder.Configuration, forwarder.Status)
+	inputWorker := NewInputWorker(forwarder.OutputFormat, forwarder.outputChan, forwarder.Configuration, forwarder.Status)
 
 	for i := 0; i < numProcessors; i++ {
 		inputWorker.consume(forwarder.workerWaitGroup, deliveries)
