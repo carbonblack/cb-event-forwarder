@@ -64,13 +64,10 @@ func (inputWorker InputWorker) processJsonMessage(body []byte, routingKey string
 		return
 	}
 
-	jsonMsgs, err := inputWorker.ProcessJSONMessage(msg, routingKey)
+	jsonMsgs, err := inputWorker.ProcessJSONMessageWithFormat(msg, routingKey)
 	if err == nil {
-		for jsonMsg := range jsonMsgs {
-			jsonBytes, err := json.Marshal(jsonMsg)
-			if err == nil {
-				outputMessage(jsonBytes, inputWorker.outputs, inputWorker.Status)
-			}
+		for _, jsonMsg := range jsonMsgs {
+			outputMessage(jsonMsg, inputWorker.outputs, inputWorker.Status)
 		}
 	}
 }

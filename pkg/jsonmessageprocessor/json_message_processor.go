@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/carbonblack/cb-event-forwarder/pkg/leefencoder"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -233,6 +234,32 @@ func PrettyPrintMap(msg map[string]interface{}) {
 		fmt.Println("error:", err)
 	}
 	fmt.Print(string(b))
+}
+
+func (jsmp JsonMessageProcessor) jsonToBytesWithFormat(msg map[string] interface{}) ([] byte, error) {
+	if jsmp.Config.OutputFormat == JSONOutputFormat {
+		byteString, err := json.Marshal(msg)
+		return byteString, err
+	} else {
+		msg, err := leefencoder.Encode(msg)
+		return []byte(msg), err
+	}
+}
+
+func (jsmp JsonMessageProcessor) ProcessJSONMessageWithFormat(msg map[string] interface{}, routingKey string) ([][]byte, error) {
+	output := make([][]byte, 0 , 1)
+	jsonMaps, err := jsmp.ProcessJSONMessage(msg, routingKey)
+	if err != nil {
+		return output, err
+	} else {
+		for _, jsonMap := range jsonMaps {
+			jsonBytes, err := jsmp.jsonToBytesWithFormat(jsonMap)
+			if err == nil {
+				output = append(output, jsonBytes)
+			}
+		}
+	}
+	return output, err
 }
 
 func (jsmp JsonMessageProcessor) ProcessJSONMessage(msg map[string]interface{}, routingKey string) ([]map[string]interface{}, error) {
