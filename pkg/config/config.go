@@ -38,8 +38,27 @@ const (
 	JSONOutputFormat
 )
 
-const DEFAULTEXITTIMEOUT = 15
+const DEFAULTEXITTIMEOUT = 7
 const DEFAULTLOGLOCATION = "/var/log/cb/integrations/cb-event-forwarder"
+const DEFAULTLOGSIZE = 50
+const MAXLOGSIZE = 500
+const DEFAULTLOGRETAINDAYS = 21
+const MAXLOGBACKUPS = 30
+const DEFAULTLOGBACKUPS = 7
+
+func Max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 type Configuration struct {
 	ServerName           string
@@ -148,8 +167,11 @@ type Configuration struct {
 	MetricTag             string
 
 	//Logging
-	LogLevel log.Level
-	LogDir   string
+	LogLevel   log.Level
+	LogDir     string
+	LogSizeMB  int
+	LogBackups int
+	LogMaxAge  int
 }
 
 type ConfigurationError struct {
@@ -1006,6 +1028,9 @@ func ParseConfig(fn string) (Configuration, error) {
 func (config *Configuration) configLogging(input *ini.File) {
 	config.configLoggingLevel(input)
 	config.configLoggingDir(input)
+	config.configLoggingBackups(input)
+	config.configLoggingMaxDays(input)
+	config.configLoggingMaxSizeMB(input)
 }
 
 func (config *Configuration) configLoggingLevel(input *ini.File) {
@@ -1030,6 +1055,43 @@ func (config *Configuration) configLoggingDir(input *ini.File) {
 		logDir = logDirKey.String()
 	}
 	config.LogDir = logDir
+}
+
+func (config *Configuration) configLoggingMaxSizeMB(input *ini.File) {
+	logSizeMB := DEFAULTLOGSIZE
+	if input.Section("bridge").HasKey("log_size_mb") {
+		logSizeMBKey := input.Section("bridge").Key("log_size_mb")
+		logSizeMBParsed, err  := logSizeMBKey.Int()
+		if err == nil {
+			logSizeMB = logSizeMBParsed
+		}
+	}
+	config.LogSizeMB = Min(Max(logSizeMB, 1), MAXLOGSIZE)
+}
+
+func (config *Configuration) configLoggingMaxDays(input *ini.File) {
+	logDays := DEFAULTLOGRETAINDAYS
+	if input.Section("bridge").HasKey("log_age") {
+		logDaysKey := input.Section("bridge").Key("log_age")
+		logDaysParsed, err := logDaysKey.Int()
+		if err == nil {
+			logDays = logDaysParsed
+		}
+
+	}
+	config.LogMaxAge = Min(Max(logDays, 1), 365)
+}
+
+func (config *Configuration) configLoggingBackups(input *ini.File) {
+	logBackups := DEFAULTLOGBACKUPS
+	if input.Section("bridge").HasKey("log_backups") {
+		logBackupsKey := input.Section("bridge").Key("log_backups")
+		logBackupsParsed, err := logBackupsKey.Int()
+		if err == nil {
+			logBackups = logBackupsParsed
+		}
+	}
+	config.LogBackups = Min(Max(logBackups, 1), MAXLOGBACKUPS)
 }
 
 func configureTLS(config *Configuration) *tls.Config {

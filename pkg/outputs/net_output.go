@@ -156,7 +156,7 @@ func (o *NetOutput) Go(messages <-chan string, signals <-chan os.Signal, exitCon
 
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
-		defer exitCond.Signal()
+		defer SignalExitCond(exitCond)
 		defer refreshTicker.Stop()
 
 		for {

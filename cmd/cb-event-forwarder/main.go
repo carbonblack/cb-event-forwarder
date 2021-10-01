@@ -50,20 +50,20 @@ func main() {
 		checkConfig(&forwarder)
 	}
 
-	handleStartup(hostname, &forwarder)
+	lh := handleStartup(hostname, &forwarder)
 
-	handleExit(&forwarder)
+	handleExit(&forwarder, lh)
 
 }
 
-func handleStartup(hostname string, forwarder *EventForwarder) {
+func handleStartup(hostname string, forwarder *EventForwarder) * LogFileHandler {
 	log.Infof("cb-event-forwarder version %s starting", version)
 
 	handlePidFile()
 
 	showNetworkInterfaces()
 
-	handleDebugLoggingAndMetrics(hostname, forwarder)
+	logHandler := handleDebugLoggingAndMetrics(hostname, forwarder)
 
 	showNetworkInterfaces()
 
@@ -72,6 +72,8 @@ func handleStartup(hostname string, forwarder *EventForwarder) {
 	startDebugServer(forwarder)
 
 	handleMetricsToGraphite()
+
+	return logHandler
 }
 
 func checkConfig(forwarder *EventForwarder) {
@@ -136,7 +138,7 @@ func startDebugServer(forwarder *EventForwarder) {
 
 }
 
-func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) {
+func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) * LogFileHandler {
 	exportedVersion := &expvar.String{}
 	metrics.Register("version", exportedVersion)
 	if *debug {
@@ -151,13 +153,14 @@ func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) {
 
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
-	SetUpLogger(forwarder.LogLevel, forwarder.LogDir)
+	return SetUpLogger(forwarder.Configuration)
 
 }
 
-func SetUpLogger(level log.Level, dir string) {
-	lh := NewLogFileHandler(dir, level)
+func SetUpLogger(config * Configuration) * LogFileHandler{
+	lh := NewLogFileHandler(config.LogDir, config.LogLevel, config.LogSizeMB, config.LogMaxAge, config.LogBackups)
 	lh.InitializeLogging()
+	return &lh
 }
 
 func handleConfigurationLoading() Configuration {
@@ -188,9 +191,10 @@ func handleStart(forwarder *EventForwarder, hostname string) {
 	}
 }
 
-func handleExit(forwarder *EventForwarder) {
-	defer log.Info("cb-event-forwarder exiting")
+func handleExit(forwarder *EventForwarder, logHandler * LogFileHandler) {
 	hookSignals()
+	defer log.Infof("EF Shutdown complete...")
+	defer logHandler.Rotate()
 	defer signal.Stop(signals)
 	forwarder.RunUntilExit()
 }

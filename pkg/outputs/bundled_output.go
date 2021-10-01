@@ -229,7 +229,7 @@ func (o *BundledOutput) Go(messages <-chan string, signals <-chan os.Signal, exi
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
-		defer exitCond.Signal()
+		defer SignalExitCond(exitCond)
 		defer refreshTicker.Stop()
 		defer o.tempFileOutput.closeFile()
 		defer o.tempFileOutput.flushOutput(true)
@@ -290,7 +290,6 @@ func (o *BundledOutput) Go(messages <-chan string, signals <-chan os.Signal, exi
 					}
 				case syscall.SIGTERM, syscall.SIGINT:
 					// handle exit gracefully
-					log.Info("Received SIGTERM. Exiting")
 					return
 				}
 			}
