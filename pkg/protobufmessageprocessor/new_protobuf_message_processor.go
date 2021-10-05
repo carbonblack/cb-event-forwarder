@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
+	"github.com/carbonblack/cb-event-forwarder/pkg/leefencoder"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/sensorevents"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
 	"github.com/mailru/easyjson"
@@ -98,8 +100,17 @@ func (pbm *ProtobufMessageProcessor) NewEventMessageWithHashes(msg *CbEventMsg) 
 	return &EventMessageWithHashes{EventMessage: eventMsg, HeaderHashes: &headerHashes}
 }
 
-func (m *ModloadMessage) getAsJson() ([]byte, error) {
-	return easyjson.Marshal(m)
+func (ml *ModloadMessage) getAsJson() ([]byte, error) {
+	return easyjson.Marshal(ml)
+}
+
+func (ml *ModloadMessage) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := ml.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm *ProtobufMessageProcessor) NewBaseMessage(msg *CbEventMsg, routingKey, eventType string) *BaseEvent {
@@ -123,6 +134,15 @@ func (pbm ProtobufMessageProcessor) NewModLoadMessage(msg *CbEventMsg, routingKe
 
 func (m *ProcessEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(m)
+}
+
+func (m *ProcessEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := m.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm *ProtobufMessageProcessor) NewProcessEvent(msg *CbEventMsg, routingKey string) *ProcessEvent {
@@ -204,6 +224,15 @@ func (f *FilemodEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(f)
 }
 
+func (f *FilemodEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := f.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewFilemodEvent(msg *CbEventMsg, routingKey string) *FilemodEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "filemod")
 	base.Type = "ingress.event.filemod"
@@ -233,6 +262,15 @@ func (pbm *ProtobufMessageProcessor) NewFilemodEvent(msg *CbEventMsg, routingKey
 
 func (n *NetworkV2Event) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(n)
+}
+
+func (n *NetworkV2Event) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := n.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm *ProtobufMessageProcessor) NewNetworkV2Event(msg *CbEventMsg, routingKey string) *NetworkV2Event {
@@ -282,6 +320,15 @@ func (n *NetconEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(n)
 }
 
+func (n *NetconEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := n.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewNetconEvent(msg *CbEventMsg, routingKey string) *NetconEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "netconn")
 	base.Type = "ingress.event.netconn"
@@ -316,6 +363,15 @@ func (r *RegmodEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(r)
 }
 
+func (r *RegmodEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := r.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewRegmodEvent(msg *CbEventMsg, routingKey string) *RegmodEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "regmod")
 	base.Type = "ingress.event.regmod"
@@ -332,6 +388,15 @@ func (pbm *ProtobufMessageProcessor) NewRegmodEvent(msg *CbEventMsg, routingKey 
 
 func (c *ChildprocEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(c)
+}
+
+func (c *ChildprocEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := c.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm *ProtobufMessageProcessor) NewChildprocEvent(msg *CbEventMsg, routingKey string) *ChildprocEvent {
@@ -401,6 +466,15 @@ func (c *CrossprocEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(c)
 }
 
+func (c *CrossprocEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := c.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewCrossprocEvent(msg *CbEventMsg, routingKey string) *CrossprocEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "cross_process")
 	base.Type = "ingress.event.crossproc"
@@ -452,6 +526,15 @@ func (e *EmetEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(e)
 }
 
+func (e *EmetEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := e.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewEmetMessage(msg *CbEventMsg, routingKey string) *EmetEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "emet_mitigation")
 	base.Type = "ingress.event.emetmitigation"
@@ -468,6 +551,15 @@ func (s *ScriptExEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(s)
 }
 
+func (s *ScriptExEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := s.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
+}
+
 func (pbm *ProtobufMessageProcessor) NewScriptExEvent(msg *CbEventMsg, routingKey string) *ScriptExEvent {
 	base := pbm.NewBaseMessage(msg, routingKey, "filelessscriptload")
 	base.Type = "ingress.event.filelessscriptload"
@@ -479,6 +571,15 @@ func (pbm *ProtobufMessageProcessor) NewScriptExEvent(msg *CbEventMsg, routingKe
 
 func (t *TamperAlert) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(t)
+}
+
+func (t *TamperAlert) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := t.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm *ProtobufMessageProcessor) NewTamperAlert(msg *CbEventMsg, routingKey string) *TamperAlert {
@@ -499,6 +600,15 @@ func getStringByGUID(msg *CbEventMsg, guid int64) (string, error) {
 
 func (b *BlockedEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(b)
+}
+
+func (b *BlockedEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := b.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm ProtobufMessageProcessor) NewBlockedEvent(msg *CbEventMsg, routingKey string) *BlockedEvent {
@@ -550,6 +660,15 @@ func (pbm ProtobufMessageProcessor) NewBlockedEvent(msg *CbEventMsg, routingKey 
 
 func (m *ModInfoEvent) getAsJson() ([]byte, error) {
 	return easyjson.Marshal(m)
+}
+
+func (m *ModInfoEvent) getAsMap() (output map[string]interface{}, err error) {
+	msgJson, err := m.getAsJson()
+	if err != nil {
+		return output, err
+	}
+	err = json.Unmarshal(msgJson, &output)
+	return output, err
 }
 
 func (pbm ProtobufMessageProcessor) NewModinfoEvent(msg *CbEventMsg, routingKey string) *ModInfoEvent {
@@ -842,6 +961,20 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessage(routingKey string, bo
 	return pbm.ProcessProtobufMessageWithEnv(routingKey, body, headers, env)
 }
 
+func (pbm ProtobufMessageProcessor) getMessageInOutputFormat(message Event) ([]byte, error) {
+	if pbm.Config.OutputFormat == JSONOutputFormat {
+		byteString, err := message.getAsJson()
+		return byteString, err
+	} else {
+		msgMap, err := message.getAsMap()
+		if err != nil {
+			return nil, err
+		}
+		msg, err := leefencoder.Encode(msgMap)
+		return []byte(msg), err
+	}
+}
+
 func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey string, body []byte, headers amqp.Table, env *CbEnvironmentMsg) ([]byte, error) {
 	cbMessage := CbEventMsg{}
 	err := proto.Unmarshal(body, &cbMessage)
@@ -858,8 +991,10 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey str
 	}
 
 	message, err := pbm.fromProtobufMessage(&cbMessage, routingKey)
+	log.Info("Input message was %+v", message)
+	log.Info("Output message is %s", message)
 	if err == nil {
-		return message.getAsJson()
+		return pbm.getMessageInOutputFormat(message)
 	} else {
 		return nil, err
 	}

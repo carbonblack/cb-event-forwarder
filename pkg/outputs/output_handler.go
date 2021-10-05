@@ -39,6 +39,16 @@ type BaseOutput struct {
 	OutputHandler
 }
 
+func SignalExitCond(outputDone * sync.Cond) {
+	outputDone.L.Lock()
+	outputDone.Broadcast()
+	outputDone.L.Unlock()
+}
+
+func (baseOutputHandler * BaseOutput) signalOutputDone(outputDone * sync.Cond) {
+	SignalExitCond(outputDone)
+}
+
 func (baseOutputHandler *BaseOutput) Go(messages <-chan string, signalChan <-chan os.Signal, exitCond *sync.Cond) error {
 	err := baseOutputHandler.Start()
 	if err != nil {
@@ -47,7 +57,7 @@ func (baseOutputHandler *BaseOutput) Go(messages <-chan string, signalChan <-cha
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
-		defer exitCond.Signal()
+		defer baseOutputHandler.signalOutputDone(exitCond)
 		defer baseOutputHandler.ExitCleanup()
 		defer refreshTicker.Stop()
 

@@ -8,6 +8,7 @@ import (
 	graphite "github.com/cyberdelia/go-metrics-graphite"
 	"github.com/facebookgo/pidfile"
 	"github.com/rcrowley/go-metrics/exp"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
@@ -17,8 +18,8 @@ import (
 
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/forwarder"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/logging"
 	"github.com/rcrowley/go-metrics"
-	log "github.com/sirupsen/logrus"
 	_ "net/http/pprof"
 )
 
@@ -49,20 +50,20 @@ func main() {
 		checkConfig(&forwarder)
 	}
 
-	handleStartup(hostname, &forwarder)
+	lh := handleStartup(hostname, &forwarder)
 
-	handleExit(&forwarder)
+	handleExit(&forwarder, lh)
 
 }
 
-func handleStartup(hostname string, forwarder *EventForwarder) {
+func handleStartup(hostname string, forwarder *EventForwarder) * LogFileHandler {
 	log.Infof("cb-event-forwarder version %s starting", version)
 
 	handlePidFile()
 
 	showNetworkInterfaces()
 
-	handleDebugLoggingAndMetrics(hostname)
+	logHandler := handleDebugLoggingAndMetrics(hostname, forwarder)
 
 	showNetworkInterfaces()
 
@@ -71,6 +72,8 @@ func handleStartup(hostname string, forwarder *EventForwarder) {
 	startDebugServer(forwarder)
 
 	handleMetricsToGraphite()
+
+	return logHandler
 }
 
 func checkConfig(forwarder *EventForwarder) {
@@ -135,7 +138,7 @@ func startDebugServer(forwarder *EventForwarder) {
 
 }
 
-func handleDebugLoggingAndMetrics(hostname string) {
+func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) * LogFileHandler {
 	exportedVersion := &expvar.String{}
 	metrics.Register("version", exportedVersion)
 	if *debug {
@@ -150,6 +153,14 @@ func handleDebugLoggingAndMetrics(hostname string) {
 
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
+	return SetUpLogger(forwarder.Configuration)
+
+}
+
+func SetUpLogger(config * Configuration) * LogFileHandler{
+	lh := NewLogFileHandler(config.LogDir, config.LogLevel, config.LogSizeMB, config.LogMaxAge, config.LogBackups)
+	lh.InitializeLogging()
+	return &lh
 }
 
 func handleConfigurationLoading() Configuration {
@@ -180,9 +191,10 @@ func handleStart(forwarder *EventForwarder, hostname string) {
 	}
 }
 
-func handleExit(forwarder *EventForwarder) {
-	defer log.Info("cb-event-forwarder exiting")
+func handleExit(forwarder *EventForwarder, logHandler * LogFileHandler) {
 	hookSignals()
+	defer log.Infof("EF Shutdown complete...")
+	defer logHandler.Rotate()
 	defer signal.Stop(signals)
 	forwarder.RunUntilExit()
 }

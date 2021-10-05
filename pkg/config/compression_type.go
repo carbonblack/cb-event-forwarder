@@ -29,14 +29,14 @@ func CompressionTypeFromString(typeString string) (CompressionType, error) {
 	}
 }
 
-func (cfg Configuration) FileExtensionForCompressionType() string {
-	switch cfg.CompressionType {
+func (config Configuration) FileExtensionForCompressionType() string {
+	switch config.CompressionType {
 	case LZ4COMPRESSION:
 		return ".lz4"
 	case GZIPCOMPRESSION:
 		return ".gz"
 	default:
-		switch cfg.OutputFormat {
+		switch config.OutputFormat {
 		case LEEFOutputFormat:
 			return ".leef"
 		case JSONOutputFormat:
@@ -47,12 +47,12 @@ func (cfg Configuration) FileExtensionForCompressionType() string {
 	}
 }
 
-func (cfg Configuration) WrapWriterWithCompressionSettings(writer io.WriteCloser) (FlushableWriteCloser, error) {
-	switch cfg.CompressionType {
+func (config Configuration) WrapWriterWithCompressionSettings(writer io.WriteCloser) (FlushableWriteCloser, error) {
+	switch config.CompressionType {
 	case LZ4COMPRESSION:
 		return lz4.NewWriter(writer), nil
 	case GZIPCOMPRESSION:
-		return gzip.NewWriterLevel(writer, cfg.CompressionLevel)
+		return gzip.NewWriterLevel(writer, config.CompressionLevel)
 	default:
 		return NOPFlushWrappedWriter{WriteCloser: writer}, nil
 	}
