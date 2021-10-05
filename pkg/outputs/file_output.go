@@ -105,7 +105,7 @@ func (o *FileOutput) Go(messages <-chan string, signalChan <-chan os.Signal, exi
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
 
-		defer exitCond.Signal()
+		defer SignalExitCond(exitCond)
 		defer o.closeFile()
 		defer o.flushOutput(true)
 		defer refreshTicker.Stop()
@@ -140,7 +140,6 @@ func (o *FileOutput) Go(messages <-chan string, signalChan <-chan os.Signal, exi
 
 				case syscall.SIGTERM, syscall.SIGINT:
 					// handle exit gracefully
-					log.Info("Received SIGTERM. Exiting")
 					return
 				}
 			}

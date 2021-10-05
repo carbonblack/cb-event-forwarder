@@ -10,6 +10,7 @@ type ParentCreateTime struct {
 
 type Event interface {
 	getAsJson() ([]byte, error)
+	getAsMap() (map[string]interface{}, error)
 }
 
 type BaseEvent struct {
@@ -48,6 +49,7 @@ type ModloadMessage struct {
 	Sha256      string `json:"sha256"`
 	CommandLine string `json:"command_line"`
 }
+
 
 type ProcessEvent struct {
 	*BaseEvent

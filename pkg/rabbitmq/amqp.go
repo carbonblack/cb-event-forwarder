@@ -154,7 +154,6 @@ func (c *Consumer) Connect() (deliveries <-chan amqp.Delivery, err error) {
 }
 
 func (c *Consumer) Shutdown() error {
-	defer close(c.ConnectionErrors)
 	if err := c.channel.Cancel(c.tag, true); err != nil {
 		return fmt.Errorf("Consumer cancel failed: %s", err)
 	}

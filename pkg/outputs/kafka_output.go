@@ -128,7 +128,7 @@ func (o *KafkaOutput) Initialize(unused string) (err error) {
 func (o *KafkaOutput) Go(messages <-chan string, signals <-chan os.Signal, exitCond *sync.Cond) error {
 	go func() {
 		refreshTicker := time.NewTicker(1 * time.Second)
-		defer exitCond.Signal()
+		defer SignalExitCond(exitCond)
 
 		defer refreshTicker.Stop()
 

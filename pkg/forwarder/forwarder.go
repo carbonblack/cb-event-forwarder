@@ -172,7 +172,7 @@ func (forwarder *EventForwarder) startInputWorkers(deliveries <-chan amqp.Delive
 
 	log.Infof("Starting %d message processors\n", numProcessors)
 
-	inputWorker := NewInputWorker(forwarder.outputChan, forwarder.Configuration, forwarder.Status)
+	inputWorker := NewInputWorker(forwarder.OutputFormat, forwarder.outputChan, forwarder.Configuration, forwarder.Status)
 
 	for i := 0; i < numProcessors; i++ {
 		inputWorker.consume(forwarder.workerWaitGroup, deliveries)
@@ -180,8 +180,6 @@ func (forwarder *EventForwarder) startInputWorkers(deliveries <-chan amqp.Delive
 }
 
 func (forwarder *EventForwarder) RunUntilExit() {
-
-	defer log.Info("Event forwarder exited OK")
 
 	handleExit := func(signal os.Signal) {
 		log.Errorf("%s- exiting immediately.", signal)
@@ -200,6 +198,7 @@ func (forwarder *EventForwarder) RunUntilExit() {
 				case syscall.SIGTERM, syscall.SIGINT:
 					handleExit(signal)
 					forwarder.outputSignals <- signal
+					forwarder.awaitOutputDone()
 					return
 				default:
 					forwarder.outputSignals <- signal
@@ -208,6 +207,10 @@ func (forwarder *EventForwarder) RunUntilExit() {
 		}
 	}()
 
+	forwarder.awaitOutputDone()
+}
+
+func (forwarder * EventForwarder) awaitOutputDone() {
 	forwarder.outputHasStopped.L.Lock()
 	forwarder.outputHasStopped.Wait()
 	forwarder.outputHasStopped.L.Unlock()
