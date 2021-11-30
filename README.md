@@ -91,8 +91,9 @@ for more information).
 If you want to capture raw sensor events or the `binaryinfo.*` notifications, you have to enable those features in 
 `/etc/cb/cb.conf`:
 
-* If you are capturing raw sensor events then you also need to edit the `DatastoreBroadcastEventTypes` option in 
-`/etc/cb/cb.conf` to enable broadcast of the raw sensor events you wish to export. In addition, you must set the `EnableRawSensorDataBroadcast` option to `True`.
+* If you are capturing raw sensor events then you also need to add the `EnableRawSensorDataBroadcast=True` option in 
+`/etc/cb/cb.conf` along with editing /etc/cb/integrations/event-forwarder/cb-event-forwader.conf to set 
+"use_raw_sensor_exchange=true" and enabling the raw sensor events you wish to export (events_raw_sensors=ALL).
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 * If you would like feed hit events to include report titles, you must set the `FeedHitLoadReportTitles` option to `True`.
@@ -100,7 +101,7 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
 `/usr/share/cb/cbservice cb-enterprise restart`.
 
-If you are configuring the cb-event-forwarder on a EDR cluster, the `DatastoreBroadcastEventTypes` and/or
+If you are configuring the cb-event-forwarder on a EDR cluster, the `EnableRawSensorDataBroadcast=True` and/or
 `EnableSolrBinaryInfoNotifications` settings
 must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster stopped and started using
 the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
