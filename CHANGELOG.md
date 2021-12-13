@@ -1,5 +1,11 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.5
+
+#### Bug Fixes / Changes
+
+ * Fixed a bug causing NetconnBlocked messages to be written out
+
 ## v3.7.4
 
 #### Bug Fixes / Changes
