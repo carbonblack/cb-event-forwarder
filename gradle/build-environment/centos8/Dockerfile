@@ -1,6 +1,6 @@
 # This dockerfile creates the cb enterprise build environment
 ARG ARTIFACTORY_SERVER=artifactory-pub.bit9.local
-ARG BASE_IMAGE=${ARTIFACTORY_SERVER}:5000/cb/connector_env_base:centos8-1.1.0
+ARG BASE_IMAGE=${ARTIFACTORY_SERVER}:5000/cb/connector_env_base:centos8-1.3.0
 
 FROM ${BASE_IMAGE}
 
