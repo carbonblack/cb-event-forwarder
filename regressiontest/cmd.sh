@@ -66,6 +66,7 @@ touch /tmp/tcpoutput
 python3.8 $2/test_server.py 127.0.0.1 31337 /tmp/tcpoutput tcp &
 sleep 5
 service cb-event-forwarder start
+service cb-event-forwarder restart
 sleep 5
 service cb-event-forwarder stop
 filepath="/tmp/tcpoutput"
@@ -115,5 +116,43 @@ fi
 systemctl stop cb-event-forwarder
 kill -9 `jobs -p`
 sleep 5
+
+systemctl stop cb-event-forwarder
+echo "KAFKA OUTPUT TEST"
+sed -i 's/output_type=splunk/output_type=kafka/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+/tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties >/dev/null &
+sleep 5
+/tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties >/dev/null &
+sleep 15
+service cb-event-forwarder start
+echo 'forwarder started'
+sleep 3
+service cb-event-forwarder stop
+echo 'created kafka topics'
+/tmp/kafka/bin/kafka-topics.sh --bootstrap-server=localhost:9092 --list
+echo '-------'
+/tmp/kafka/bin/kafka-console-consumer.sh --bootstrap-server=localhost:9092 --topic procstart-regression-test --max-messages 50 --from-beginning > /tmp/kafkaoutput
+filepath="/tmp/kafkaoutput"
+if [ -n "$(find "$filepath" -prune -size +1000c)" ]; then
+    echo "event forwarder kafka output working ok!"
+else
+    echo "Event Forwarder kafka output not working correctly - exiting"
+    exit 1
+fi
+kill -9 `jobs -p`
+sleep 5
+
+echo "S3 OUTPUT TEST"
+sed -i 's/output_type=kafka/output_type=s3/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+./minio server /data 2>/dev/null &
+export AWS_ACCESS_KEY_ID=minioadmin
+export AWS_SECRET_ACCESS_KEY=minioadmin
+export AWS_DEFAULT_REGION=us-east-1
+service cb-event-forwarder start
+sleep 3
+service cb-event-forwarder stop
+kill -9 `jobs -p`
+sleep 5
+
 
 yum -y remove cb-event-forwarder

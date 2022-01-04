@@ -24,6 +24,8 @@ val createDockerFile = tasks.register<Dockerfile>("createRegressionTestDockerfil
     from(System.getenv()["BASE_IMAGE"])
     runCommand("curl -O https://dlcdn.apache.org/kafka/3.0.0/kafka_2.13-3.0.0.tgz")
     runCommand("mkdir kafka && tar xf kafka_2.13-3.0.0.tgz -C kafka --strip-components 1")
+    runCommand("wget https://dl.min.io/server/minio/release/linux-amd64/minio")
+    runCommand("chmod +x minio")
 }
 
 val createRegressionTestImage = tasks.register<DockerBuildImage>("createRegressionTestImage") {
