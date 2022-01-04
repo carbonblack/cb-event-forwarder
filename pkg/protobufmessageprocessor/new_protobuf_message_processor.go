@@ -6,10 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	"github.com/carbonblack/cb-event-forwarder/pkg/leefencoder"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/sensorevents"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
 	"github.com/mailru/easyjson"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -19,6 +16,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/sensorevents"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 )
 
 func UnixTimestampFromWindowsTime(time int64, useTimeFloat bool) (unixTime UnixTimeStamp) {
@@ -991,8 +991,6 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey str
 	}
 
 	message, err := pbm.fromProtobufMessage(&cbMessage, routingKey)
-	log.Info("Input message was %+v", message)
-	log.Info("Output message is %s", message)
 	if err == nil {
 		return pbm.getMessageInOutputFormat(message)
 	} else {

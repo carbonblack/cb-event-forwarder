@@ -8,5 +8,6 @@ pluginManagement {
 
 rootProject.name = "event-forwarder"
 
+include(":regressiontest")
 include(":smoketest")
 include(":perftest")

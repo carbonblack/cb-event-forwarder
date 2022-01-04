@@ -1,9 +1,0 @@
-input {
-  http {
-  }
-}
-output {
-    file {
-        path => "./httpoutput"
-    }
-}
