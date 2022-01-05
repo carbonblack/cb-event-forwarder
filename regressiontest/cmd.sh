@@ -121,9 +121,9 @@ systemctl stop cb-event-forwarder
 echo "KAFKA OUTPUT TEST"
 sed -i 's/output_type=splunk/output_type=kafka/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties >/dev/null &
-sleep 5
+sleep 10
 /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties >/dev/null &
-sleep 15
+sleep 30
 service cb-event-forwarder start
 echo 'forwarder started'
 sleep 3
@@ -144,13 +144,18 @@ sleep 5
 
 echo "S3 OUTPUT TEST"
 sed -i 's/output_type=kafka/output_type=s3/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
-./minio server /data 2>/dev/null &
-export AWS_ACCESS_KEY_ID=minioadmin
-export AWS_SECRET_ACCESS_KEY=minioadmin
-export AWS_DEFAULT_REGION=us-east-1
+mkdir -p /tmp/s3data/s3bucket
+mkdir -p ~/.aws
+touch ~/.aws/credentials
+./minio server /tmp/s3data >/dev/null &
+echo "[default]" >> ~/.aws/credentials
+echo "aws_access_key_id=minioadmin" >> ~/.aws/credentials
+echo "aws_secret_access_key=minioadmin" >> ~/.aws/credentials
+sleep 30
 service cb-event-forwarder start
-sleep 3
+sleep 10
 service cb-event-forwarder stop
+file /tmp/s3data/s3bucket/*.json
 kill -9 `jobs -p`
 sleep 5
 
