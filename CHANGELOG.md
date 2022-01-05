@@ -1,15 +1,5 @@
 # CB EDR Event Forwarder Changelog
 
-## v3.8.0
-
-#### Bug Fixes / Changes
-
-* Improved Protobuf Processor
-* Fixed various startup & shutdown bugs
-* Code refactor and restructuring
-* Support for LZ4 compression
-* Log rotation 
-
 ## v3.7.4
 
 #### Bug Fixes / Changes
