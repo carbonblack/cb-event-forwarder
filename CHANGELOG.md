@@ -1,5 +1,20 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.8.0
+
+#### Features
+
+ * The new EDR event `task.error.logged` is now supported. This event is enabled using `task_errors=ALL` in the EF configuration file. It is also supported in the EDR console configuration page for EF, starting with EDR v7.5.0.
+ * `compression_type=lz4` A new compression type, `lz4` is now available. The `gzip` type is still the default. LZ4 is a lossless data compression algorithm that is focused on compression and decompression speed.
+* `log_level=DEBUG` can be used to control logging level
+
+#### Bug Fixes / Changes
+
+ * Log files are now retained and rolled over after restarts.
+ * Under some circumstances the EF process would not terminate when shut down. This is no longer the case.
+ * S3 output has been improved.
+ * Protobuf processing performance improvements
+
 ## v3.7.4
 
 #### Bug Fixes / Changes
