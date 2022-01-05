@@ -8,6 +8,7 @@
 * Fixed various startup & shutdown bugs
 * Code refactor and restructuring
 * Support for LZ4 compression
+* Log rotation 
 
 ## v3.7.4
 
