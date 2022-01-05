@@ -28,6 +28,8 @@ touch /etc/sudoers.d/cb-ef
 cp $2/cb-event-forwarder.all.ini /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 export EF_CANNED_INPUT=$3
 echo Starting service...
+
+echo 'FILE OUTPUT TEST'
 service cb-event-forwarder start
 
 sleep 5
@@ -40,6 +42,41 @@ else
     exit 1
 fi
 systemctl stop cb-event-forwarder
+
+echo 'FILE OUTPUT TEST - GZIP'
+sed -i 's/compress_data=false/compress_data=true/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+sed -i 's/outfile=\/tmp\/event_bridge_output.json/outfile=\/tmp\/event_bridge_output.gz/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+service cb-event-forwarder start
+sleep 5
+tail -n 1 /tmp/event_bridge_output.gz
+file /tmp/event_bridge_output.gz
+filepath="/tmp/event_bridge_output.gz"
+if [ -n "$(find "$filepath" -prune -size +10000c)" ]; then
+    echo "event forwarder working ok!"
+else
+    echo "Event Forwarder not working correctly - exiting"
+    exit 1
+fi
+systemctl stop cb-event-forwarder
+
+echo 'FILE OUTPUT TEST - LZ4'
+sed -i 's/compress_data=false/compress_data=true/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+sed -i 's/outfile=\/tmp\/event_bridge_output.gz/outfile=\/tmp\/event_bridge_output.lz4/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+sed -i 's/compression_type=gzip/compression_type=lz4/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
+service cb-event-forwarder start
+sleep 5
+tail -n 1 /tmp/event_bridge_output.lz4
+file /tmp/event_bridge_output.lz4
+filepath="/tmp/event_bridge_output.lz4"
+if [ -n "$(find "$filepath" -prune -size +10000c)" ]; then
+    echo "event forwarder working ok!"
+else
+    echo "Event Forwarder not working correctly - exiting"
+    exit 1
+fi
+systemctl stop cb-event-forwarder
+
+sed -i 's/compress_data=true/compress_data=false/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 
 echo "HTTP OUTPUT TEST"
 sed -i 's/output_type=file/output_type=http/g' /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
