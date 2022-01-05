@@ -66,7 +66,6 @@ touch /tmp/tcpoutput
 python3.8 $2/test_server.py 127.0.0.1 31337 /tmp/tcpoutput tcp &
 sleep 5
 service cb-event-forwarder start
-service cb-event-forwarder restart
 sleep 5
 service cb-event-forwarder stop
 filepath="/tmp/tcpoutput"
