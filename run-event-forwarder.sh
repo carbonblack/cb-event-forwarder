@@ -1,9 +1,11 @@
 #!/bin/bash
 LABEL=edreventforwarder
 IMAGE=eventforwarder/centos7:latest
+CONFIG_DIR_EXTERNAL=/etc/cb/integrations/event-forwarder
 CONFIG_DIR=/etc/cb/integrations/event-forwarder
+LOG_DIR_EXTERNAL=/var/log/cb/integrations/cb-event-connector
 LOG_DIR=/var/log/cb/integrations/cb-event-connector
-MOUNT_POINTS="--mount type=bind,source=$CONFIG_DIR,target=$CONFIG_DIR --mount type=bind,source=$LOG_DIR,target=$LOG_DIR"
+MOUNT_POINTS="--mount type=bind,source=$CONFIG_DIR_EXTERNAL,target=$CONFIG_DIR --mount type=bind,source=$LOG_DIR_EXTERNAL,target=$LOG_DIR"
 SERVICE_START='systemctl start cb-event-connector'
 CONTAINER_RUNNING=$(docker inspect --format="{{.State.Running}}" $LABEL 2> /dev/null)
 if [ "$CONTAINER_RUNNING" == "true" ]; then
