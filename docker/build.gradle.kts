@@ -43,17 +43,17 @@ val createProdDockerFile = tasks.register<Dockerfile>("createProdDockerfile") {
     runCommand("yum -y install /tmp/${rpmFile.name}")
 }
 
-val createProdTestImage = tasks.register<DockerBuildImage>("createProdTestImage") {
+val createProdImage = tasks.register<DockerBuildImage>("createProdImage") {
     dependsOn(createProdDockerFile)
-    images.add("eventforwarderprodtest/${osVersionClassifier}:latest")
+    images.add("eventforwarder/${osVersionClassifier}:latest")
 }
 
 val createProdTestContainer = tasks.register<DockerCreateContainer>("createProdTestContainer") {
-    dependsOn(createProdTestImage)
+    dependsOn(createProdImage)
     finalizedBy(":docker:removeProdTestContainer")
     group = ""
 
-    imageId.set(createProdTestImage.get().imageId)
+    imageId.set(createProdImage.get().imageId)
     cmd.set(listOf("${projectDir}/cmd.sh", File("${rootProject.buildDir}/rpm").absolutePath, "${rootProject.projectDir.absolutePath}/smoketest/cb-event-forwarder.docker.ini", "${rootProject.projectDir.absolutePath}/test/stress_rabbit/zipbundles/bundleone"))
     hostConfig.binds.set(mapOf((project.rootDir.absolutePath) to project.rootDir.absolutePath))
 
