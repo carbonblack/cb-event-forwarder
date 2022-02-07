@@ -6,11 +6,11 @@ CONFIG_DIR=/etc/cb/integrations/event-forwarder
 LOG_DIR_EXTERNAL=/var/log/cb/integrations/cb-event-forwarder
 LOG_DIR=/var/log/cb/integrations/cb-event-forwarder
 MOUNT_POINTS="--mount type=bind,source=$CONFIG_DIR_EXTERNAL,target=$CONFIG_DIR --mount type=bind,source=$LOG_DIR_EXTERNAL,target=$LOG_DIR"
-SERVICE_START='systemctl start cb-event-forwarder'
+SERVICE_START='/usr/share/cb/integrations/event-forwarder/cb-event-forwarder /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf'
 CONTAINER_RUNNING=$(docker inspect --format="{{.State.Running}}" $LABEL 2> /dev/null)
 if [ "$CONTAINER_RUNNING" == "true" ]; then
   STARTUP_COMMAND="echo EDR Event Forwarder container already running"
-  STATUS_COMMAND="docker exec $LABEL systemctl status cb-event-forwarder"
+  STATUS_COMMAND="echo EDR Event Forwader is running"
 else
   STARTUP_COMMAND="docker run -d --rm $MOUNT_POINTS --name $LABEL $IMAGE $SERVICE_START"
   STATUS_COMMAND="echo EDR Event Forwarder container is stopped"
