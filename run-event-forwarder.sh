@@ -28,7 +28,11 @@ get_container_status () {
 
 STATUS_COMMAND=get_container_status
 
-SHUTDOWN_COMMAND="docker stop $LABEL"
+SHUTDOWN_COMMAND=stop_and_remove_container
+stop_and_remove_container() {
+    docker stop $LABEL > /dev/null
+    docker rm $LABEL > /dev/null
+}
 
 STARTUP_COMMAND="docker run -d --rm $MOUNT_POINTS --name $LABEL $IMAGE $SERVICE_START"
 
