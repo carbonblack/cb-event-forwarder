@@ -34,7 +34,7 @@ stop_and_remove_container() {
     docker rm $LABEL > /dev/null
 }
 
-STARTUP_COMMAND="docker run -d --rm $MOUNT_POINTS --name $LABEL $IMAGE $SERVICE_START"
+STARTUP_COMMAND="docker run -d --restart unless-stopped $MOUNT_POINTS --name $LABEL $IMAGE $SERVICE_START"
 
 print_help() {
   echo "Usage: edr-eventforwarder-run COMMAND [options]"
