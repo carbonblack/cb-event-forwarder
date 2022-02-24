@@ -16,9 +16,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Showmax/go-fqdn"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
+	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -520,17 +520,25 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.AMQPHostname = key.Value()
 	}
 
+	foundCbServerUrl := false
 	if input.Section("bridge").HasKey("cb_server_url") {
 		key := input.Section("bridge").Key("cb_server_url")
 		val := key.Value()
-		if !strings.HasSuffix(val, "/") {
-			val += "/"
+		if len(val) > 0 {
+			if !strings.HasSuffix(val, "/") {
+				val += "/"
+			}
+			config.CbServerURL = val
+			foundCbServerUrl = true
 		}
-		config.CbServerURL = val
-	} else {
+	}
+	if !foundCbServerUrl	{
 		fqdn, err := fqdn.FqdnHostname()
-		if err != nil {
+		if err != nil || fqdn == "localhost" {
 			log.Errorf("Error getting fqdn for host: %s", err)
+			log.Errorf("Please set cb_server_url explicitly to generate valid links.")
+			errs.addErrorString("Please set cb_server_url explicitly.")
+			return config, errs
 		} else {
 			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
 			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
