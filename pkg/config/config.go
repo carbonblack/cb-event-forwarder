@@ -322,7 +322,7 @@ func (config * Configuration) parseCbServerURL(input * ini.File) error {
 	foundCbServerUrl := false
 	if input.Section("bridge").HasKey("cb_server_url") {
 		key := input.Section("bridge").Key("cb_server_url")
-		val := key.Value()
+		val := strings.TrimSpace(key.Value())
 		if len(val) > 0 {
 			if !strings.HasSuffix(val, "/") {
 				val += "/"
