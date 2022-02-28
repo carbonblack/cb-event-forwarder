@@ -16,9 +16,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Showmax/go-fqdn"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
-	"github.com/Showmax/go-fqdn"
 )
 
 const (
@@ -292,7 +292,7 @@ func (config *Configuration) parseEventTypes(input *ini.File) {
 	}
 }
 
-func (config * Configuration) parseServerName(input * ini.File) error {
+func (config *Configuration) parseServerName(input *ini.File) error {
 	shouldSetServerNameToFqdn := false
 
 	if !input.Section("bridge").HasKey("server_name") {
@@ -318,7 +318,7 @@ func (config * Configuration) parseServerName(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseCbServerURL(input * ini.File) error {
+func (config *Configuration) parseCbServerURL(input *ini.File) error {
 	foundCbServerUrl := false
 	if input.Section("bridge").HasKey("cb_server_url") {
 		key := input.Section("bridge").Key("cb_server_url")
@@ -331,13 +331,16 @@ func (config * Configuration) parseCbServerURL(input * ini.File) error {
 			foundCbServerUrl = true
 		}
 	}
-	if !foundCbServerUrl	{
+	if !foundCbServerUrl {
 		fqdn, err := fqdn.FqdnHostname()
 		if err != nil || fqdn == "localhost" {
-			log.Errorf("Error getting fqdn for host: %s", err)
-			log.Errorf("Please set cb_server_url explicitly to generate valid links.")
-			return fmt.Errorf("Please set cb_server_url explicitly")
+			if err != nil {
+				log.Errorf("Error getting detecting hostname %s", err)
+			}
+			hostnameError := fmt.Errorf("hostname detection failed - set the system hostname or cb_server_url in the event-forwarder configuration file")
+			return hostnameError
 		} else {
+			log.Infof("Detected system hostname: %s", fqdn)
 			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
 			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
 		}
@@ -345,7 +348,7 @@ func (config * Configuration) parseCbServerURL(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseDebugSettings(input * ini.File) error {
+func (config *Configuration) parseDebugSettings(input *ini.File) error {
 	if input.Section("bridge").HasKey("debug") {
 		key := input.Section("bridge").Key("debug")
 		val := key.Value()
@@ -364,7 +367,7 @@ func (config * Configuration) parseDebugSettings(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseRemoveFromOutput(input * ini.File) error {
+func (config *Configuration) parseRemoveFromOutput(input *ini.File) error {
 	if input.Section("bridge").HasKey("remove_from_output") {
 		key := input.Section("bridge").Key("remove_from_output")
 		thingsToRemove := strings.Split(key.Value(), ",")
@@ -384,7 +387,7 @@ func (config * Configuration) parseRemoveFromOutput(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseDebugStore(input * ini.File) error {
+func (config *Configuration) parseDebugStore(input *ini.File) error {
 	if input.Section("bridge").HasKey("debug_store") {
 		key := input.Section("bridge").Key("debug_store")
 		config.DebugStore = key.Value()
@@ -396,7 +399,7 @@ func (config * Configuration) parseDebugStore(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseHttpServerPort(input * ini.File) error {
+func (config *Configuration) parseHttpServerPort(input *ini.File) error {
 	if input.Section("bridge").HasKey("http_server_port") {
 		key := input.Section("bridge").Key("http_server_port")
 		port, err := strconv.Atoi(key.Value())
@@ -407,7 +410,7 @@ func (config * Configuration) parseHttpServerPort(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseExitTimeout(input * ini.File) error {
+func (config *Configuration) parseExitTimeout(input *ini.File) error {
 	config.ExitTimeoutSeconds = DEFAULTEXITTIMEOUT
 
 	if input.Section("bridge").HasKey("exit_timeout") {
@@ -421,7 +424,7 @@ func (config * Configuration) parseExitTimeout(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseRabbitmqSettings(input * ini.File)  error {
+func (config *Configuration) parseRabbitmqSettings(input *ini.File) error {
 	if input.Section("bridge").HasKey("rabbit_mq_username") {
 		key := input.Section("bridge").Key("rabbit_mq_username")
 		config.AMQPUsername = key.Value()
@@ -495,7 +498,7 @@ func (config * Configuration) parseRabbitmqSettings(input * ini.File)  error {
 	return nil
 }
 
-func (config * Configuration) parseCannedInput(input * ini.File) error {
+func (config *Configuration) parseCannedInput(input *ini.File) error {
 
 	config.CannedInput = false
 
@@ -516,7 +519,7 @@ func (config * Configuration) parseCannedInput(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseDryRun(input * ini.File) error {
+func (config *Configuration) parseDryRun(input *ini.File) error {
 	config.DryRun = false
 
 	if input.Section("bridge").HasKey("dry_run") {
@@ -531,7 +534,7 @@ func (config * Configuration) parseDryRun(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseRunConsumer(input * ini.File) error {
+func (config *Configuration) parseRunConsumer(input *ini.File) error {
 	config.RunConsumer = true
 
 	runConsumerEnvVar := os.Getenv("EF_RUN_CONSUMER")
@@ -550,14 +553,14 @@ func (config * Configuration) parseRunConsumer(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseCbServerHostname(input * ini.File) {
+func (config *Configuration) parseCbServerHostname(input *ini.File) {
 	if input.Section("bridge").HasKey("cb_server_hostname") {
 		key := input.Section("bridge").Key("cb_server_hostname")
 		config.AMQPHostname = key.Value()
 	}
 }
 
-func (config * Configuration) parseOutputFormat(input * ini.File) {
+func (config *Configuration) parseOutputFormat(input *ini.File) {
 	if input.Section("bridge").HasKey("output_format") {
 		key := input.Section("bridge").Key("output_format")
 		val := key.Value()
@@ -569,7 +572,7 @@ func (config * Configuration) parseOutputFormat(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseCompression(input * ini.File) error {
+func (config *Configuration) parseCompression(input *ini.File) error {
 	config.FileHandlerCompressData = false
 
 	if input.Section("bridge").HasKey("compress_data") {
@@ -612,7 +615,7 @@ func (config * Configuration) parseCompression(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseAuditLog(input * ini.File) {
+func (config *Configuration) parseAuditLog(input *ini.File) {
 	config.AuditLog = false
 
 	if input.Section("bridge").HasKey("audit_log") {
@@ -624,61 +627,61 @@ func (config * Configuration) parseAuditLog(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseS3Settings(input * ini.File) error {
-		if input.Section("s3").HasKey("credential_profile") {
-			key := input.Section("s3").Key("credential_profile")
-			profileName := key.Value()
-			config.S3CredentialProfileName = &profileName
-		}
+func (config *Configuration) parseS3Settings(input *ini.File) error {
+	if input.Section("s3").HasKey("credential_profile") {
+		key := input.Section("s3").Key("credential_profile")
+		profileName := key.Value()
+		config.S3CredentialProfileName = &profileName
+	}
 
-		config.S3Concurrency = 2
+	config.S3Concurrency = 2
 
-		if input.Section("s3").HasKey("concurrency") {
-			key := input.Section("s3").Key("concurrency")
-			concurrency, err := key.Int()
-			if err == nil && concurrency > 0 && concurrency < 100 {
-				config.S3Concurrency = concurrency
-			} else {
-				return fmt.Errorf("Invalid setting for s3 concurrency -- should be an integer number")
-			}
+	if input.Section("s3").HasKey("concurrency") {
+		key := input.Section("s3").Key("concurrency")
+		concurrency, err := key.Int()
+		if err == nil && concurrency > 0 && concurrency < 100 {
+			config.S3Concurrency = concurrency
+		} else {
+			return fmt.Errorf("Invalid setting for s3 concurrency -- should be an integer number")
 		}
+	}
 
-		if input.Section("s3").HasKey("acl_policy") {
-			key := input.Section("s3").Key("acl_policy")
-			aclPolicy := key.Value()
-			config.S3ACLPolicy = &aclPolicy
-		}
+	if input.Section("s3").HasKey("acl_policy") {
+		key := input.Section("s3").Key("acl_policy")
+		aclPolicy := key.Value()
+		config.S3ACLPolicy = &aclPolicy
+	}
 
-		if input.Section("s3").HasKey("server_side_encryption") {
-			key := input.Section("s3").Key("server_side_encryption")
-			sseType := key.Value()
-			config.S3ServerSideEncryption = &sseType
-		}
+	if input.Section("s3").HasKey("server_side_encryption") {
+		key := input.Section("s3").Key("server_side_encryption")
+		sseType := key.Value()
+		config.S3ServerSideEncryption = &sseType
+	}
 
-		if input.Section("s3").HasKey("object_prefix") {
-			key := input.Section("s3").Key("object_prefix")
-			objectPrefix := key.Value()
-			config.S3ObjectPrefix = &objectPrefix
-		}
+	if input.Section("s3").HasKey("object_prefix") {
+		key := input.Section("s3").Key("object_prefix")
+		objectPrefix := key.Value()
+		config.S3ObjectPrefix = &objectPrefix
+	}
 
-		// Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
-		if input.Section("s3").HasKey("s3_endpoint") {
-			key := input.Section("s3").Key("s3_endpoint")
-			s3Endpoint := key.Value()
-			config.S3Endpoint = &s3Endpoint
-		}
+	// Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
+	if input.Section("s3").HasKey("s3_endpoint") {
+		key := input.Section("s3").Key("s3_endpoint")
+		s3Endpoint := key.Value()
+		config.S3Endpoint = &s3Endpoint
+	}
 
-		if input.Section("s3").HasKey("use_dual_stack") {
-			key := input.Section("s3").Key("use_dual_stack")
-			b, err := key.Bool()
-			if err == nil {
-				config.S3UseDualStack = b
-			}
+	if input.Section("s3").HasKey("use_dual_stack") {
+		key := input.Section("s3").Key("use_dual_stack")
+		b, err := key.Bool()
+		if err == nil {
+			config.S3UseDualStack = b
 		}
-		return nil
+	}
+	return nil
 }
 
-func (config * Configuration) parseHttpSettings(input * ini.File, errs * ConfigurationError) {
+func (config *Configuration) parseHttpSettings(input *ini.File, errs *ConfigurationError) {
 	if input.Section("http").HasKey("authorization_token") {
 		key := input.Section("http").Key("authorization_token")
 		token := key.Value()
@@ -734,7 +737,7 @@ func (config * Configuration) parseHttpSettings(input * ini.File, errs * Configu
 	}
 }
 
-func (config * Configuration) parseKafkaSettings(input * ini.File) {
+func (config *Configuration) parseKafkaSettings(input *ini.File) {
 	if input.Section("kafka").HasKey("brokers") {
 		key := input.Section("kafka").Key("brokers")
 		kafkaBrokers := key.Value()
@@ -799,7 +802,7 @@ func (config * Configuration) parseKafkaSettings(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseSplunkSettings(input * ini.File) {
+func (config *Configuration) parseSplunkSettings(input *ini.File) {
 	if input.Section("splunk").HasKey("hec_token") {
 		key := input.Section("splunk").Key("hec_token")
 		token := key.Value()
@@ -830,7 +833,7 @@ func (config * Configuration) parseSplunkSettings(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseUseRawExchange(input * ini.File) error {
+func (config *Configuration) parseUseRawExchange(input *ini.File) error {
 	if input.Section("bridge").HasKey("use_raw_sensor_exchange") {
 		key := input.Section("bridge").Key("use_raw_sensor_exchange")
 		boolval, err := key.Bool()
@@ -849,7 +852,7 @@ func (config * Configuration) parseUseRawExchange(input * ini.File) error {
 	return nil
 }
 
-func (config * Configuration) parseOutputSettings(input * ini.File, errs * ConfigurationError) {
+func (config *Configuration) parseOutputSettings(input *ini.File, errs *ConfigurationError) {
 	var parameterKey string
 
 	if !input.Section("bridge").HasKey("output_type") {
@@ -860,7 +863,6 @@ func (config * Configuration) parseOutputSettings(input * ini.File, errs * Confi
 	outType := key.Value()
 	outType = strings.TrimSpace(outType)
 	outType = strings.ToLower(outType)
-
 
 	switch outType {
 	case "file":
@@ -913,7 +915,7 @@ func (config * Configuration) parseOutputSettings(input * ini.File, errs * Confi
 	config.parseBundleSettings(outType, input, errs)
 }
 
-func (config * Configuration) parseTLSConfigForOutput(outType string, input * ini.File, errs * ConfigurationError) {
+func (config *Configuration) parseTLSConfigForOutput(outType string, input *ini.File, errs *ConfigurationError) {
 	// TLS configuration
 
 	if input.Section(outType).HasKey("client_key") {
@@ -971,7 +973,7 @@ func (config * Configuration) parseTLSConfigForOutput(outType string, input * in
 	config.TLSConfig = configureTLS(config)
 }
 
-func (config * Configuration) parseBundleSettings(outType string, input * ini.File, errs * ConfigurationError) {
+func (config *Configuration) parseBundleSettings(outType string, input *ini.File, errs *ConfigurationError) {
 	// Bundle configuration
 
 	// default to sending empty files to S3/HTTP POST endpoint
@@ -1022,7 +1024,7 @@ func (config * Configuration) parseBundleSettings(outType string, input * ini.Fi
 	}
 }
 
-func (config * Configuration) parseMetrics(input * ini.File) {
+func (config *Configuration) parseMetrics(input *ini.File) {
 	if input.Section("bridge").HasKey("run_metrics") {
 		key := input.Section("bridge").Key("run_metrics")
 		if runMetrics, err := key.Bool(); err == nil {
@@ -1049,7 +1051,7 @@ func (config * Configuration) parseMetrics(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseMessageProcessorCount(input * ini.File) {
+func (config *Configuration) parseMessageProcessorCount(input *ini.File) {
 	if input.Section("bridge").HasKey("message_processor_count") {
 		key := input.Section("bridge").Key("message_processor_count")
 		if numprocessors, err := key.Int(); err == nil {
@@ -1060,7 +1062,7 @@ func (config * Configuration) parseMessageProcessorCount(input * ini.File) {
 	}
 }
 
-func (config * Configuration) parseTimeSetting(input * ini.File) {
+func (config *Configuration) parseTimeSetting(input *ini.File) {
 	if input.Section("bridge").HasKey("use_time_float") {
 		key := input.Section("bridge").Key("use_time_float")
 		usetimefloat, _ := key.Bool()
@@ -1070,7 +1072,7 @@ func (config * Configuration) parseTimeSetting(input * ini.File) {
 	}
 }
 
-func (config * Configuration) setDefaults() {
+func (config *Configuration) setDefaults() {
 	// defaults
 	config.DebugFlag = false
 	config.OutputFormat = JSONOutputFormat
@@ -1212,7 +1214,7 @@ func (config *Configuration) configLoggingMaxSizeMB(input *ini.File) {
 	logSizeMB := DEFAULTLOGSIZE
 	if input.Section("bridge").HasKey("log_size_mb") {
 		logSizeMBKey := input.Section("bridge").Key("log_size_mb")
-		logSizeMBParsed, err  := logSizeMBKey.Int()
+		logSizeMBParsed, err := logSizeMBKey.Int()
 		if err == nil {
 			logSizeMB = logSizeMBParsed
 		}
