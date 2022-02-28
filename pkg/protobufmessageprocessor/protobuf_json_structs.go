@@ -1,11 +1,11 @@
 package protobufmessageprocessor
 
 type UnixTimeStamp struct {
-	Timestamp interface{} `json:"timestamp"`
+	EventTimestamp interface{} `json:"timestamp"`
 }
 
 type ParentCreateTime struct {
-	Timestamp interface{} `json:"parent_create_time"`
+	ParentCreateTimestamp interface{} `json:"parent_create_time"`
 }
 
 type Event interface {
@@ -49,7 +49,6 @@ type ModloadMessage struct {
 	Sha256      string `json:"sha256"`
 	CommandLine string `json:"command_line"`
 }
-
 
 type ProcessEvent struct {
 	*BaseEvent
