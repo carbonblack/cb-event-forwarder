@@ -292,31 +292,7 @@ func (config *Configuration) parseEventTypes(input *ini.File) {
 	}
 }
 
-func ParseConfig(fn string) (Configuration, error) {
-	config := Configuration{}
-	errs := ConfigurationError{Empty: true}
-
-	input, err := ini.Load(fn)
-	if err != nil {
-		return config, err
-	}
-
-	// defaults
-	config.DebugFlag = false
-	config.OutputFormat = JSONOutputFormat
-	config.OutputType = FileOutputType
-	config.AMQPHostname = "localhost"
-	config.AMQPUsername = "cb"
-	config.HTTPServerPort = 33706
-	config.AMQPPort = 5004
-	config.DebugStore = "/tmp"
-
-	config.S3ACLPolicy = nil
-	config.S3ServerSideEncryption = nil
-	config.S3CredentialProfileName = nil
-
-	// required values
-
+func (config *Configuration) parseServerName(input *ini.File) error {
 	shouldSetServerNameToFqdn := false
 
 	if !input.Section("bridge").HasKey("server_name") {
@@ -339,7 +315,40 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.ServerName = fqdn
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseCbServerURL(input *ini.File) error {
+	foundCbServerUrl := false
+	if input.Section("bridge").HasKey("cb_server_url") {
+		key := input.Section("bridge").Key("cb_server_url")
+		val := strings.TrimSpace(key.Value())
+		if len(val) > 0 {
+			if !strings.HasSuffix(val, "/") {
+				val += "/"
+			}
+			config.CbServerURL = val
+			foundCbServerUrl = true
+		}
+	}
+	if !foundCbServerUrl {
+		fqdn, err := fqdn.FqdnHostname()
+		if err != nil || fqdn == "localhost" {
+			if err != nil {
+				log.Errorf("Error getting detecting hostname %s", err)
+			}
+			hostnameError := fmt.Errorf("hostname detection failed - set the system hostname or cb_server_url in the event-forwarder configuration file")
+			return hostnameError
+		} else {
+			log.Infof("Detected system hostname: %s", fqdn)
+			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
+			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
+		}
+	}
+	return nil
+}
+
+func (config *Configuration) parseDebugSettings(input *ini.File) error {
 	if input.Section("bridge").HasKey("debug") {
 		key := input.Section("bridge").Key("debug")
 		val := key.Value()
@@ -355,7 +364,10 @@ func ParseConfig(fn string) (Configuration, error) {
 			log.Debug("Debugging output is set to True")
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseRemoveFromOutput(input *ini.File) error {
 	if input.Section("bridge").HasKey("remove_from_output") {
 		key := input.Section("bridge").Key("remove_from_output")
 		thingsToRemove := strings.Split(key.Value(), ",")
@@ -372,7 +384,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		config.RemoveFromOutput = make([]string, 0)
 	}
+	return nil
+}
 
+func (config *Configuration) parseDebugStore(input *ini.File) error {
 	if input.Section("bridge").HasKey("debug_store") {
 		key := input.Section("bridge").Key("debug_store")
 		config.DebugStore = key.Value()
@@ -381,7 +396,10 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	log.Debugf("Debug Store is %s", config.DebugStore)
+	return nil
+}
 
+func (config *Configuration) parseHttpServerPort(input *ini.File) error {
 	if input.Section("bridge").HasKey("http_server_port") {
 		key := input.Section("bridge").Key("http_server_port")
 		port, err := strconv.Atoi(key.Value())
@@ -389,7 +407,10 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.HTTPServerPort = port
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseExitTimeout(input *ini.File) error {
 	config.ExitTimeoutSeconds = DEFAULTEXITTIMEOUT
 
 	if input.Section("bridge").HasKey("exit_timeout") {
@@ -400,14 +421,17 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 		config.ExitTimeoutSeconds = time.Duration(durationSeconds) * time.Second
 	}
+	return nil
+}
 
+func (config *Configuration) parseRabbitmqSettings(input *ini.File) error {
 	if input.Section("bridge").HasKey("rabbit_mq_username") {
 		key := input.Section("bridge").Key("rabbit_mq_username")
 		config.AMQPUsername = key.Value()
 	}
 
 	if !input.Section("bridge").HasKey("rabbit_mq_password") {
-		errs.addErrorString("Missing required rabbit_mq_password section")
+		return fmt.Errorf("Missing required rabbit_mq_password section")
 	} else {
 		key := input.Section("bridge").Key("rabbit_mq_password")
 		config.AMQPPassword = key.Value()
@@ -422,10 +446,12 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
-		config.AMQPUsername, config.AMQPPassword, err = GetLocalRabbitMQCredentials()
+		AMQPUsername, AMQPPassword, err := GetLocalRabbitMQCredentials()
 		if err != nil {
-			errs.addError(err)
+			return err
 		}
+		config.AMQPUsername = AMQPUsername
+		config.AMQPPassword = AMQPPassword
 	}
 
 	if input.Section("bridge").HasKey("rabbit_mq_use_tls") {
@@ -466,21 +492,13 @@ func ParseConfig(fn string) (Configuration, error) {
 				config.AMQPAutomaticAcking = false
 			}
 		} else {
-			errs.addErrorString("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
+			return fmt.Errorf("Unknown value for 'rabbit_mq_automatic_acking': valid values are true, false, 1, 0. Default is 'true'")
 		}
 	}
+	return nil
+}
 
-	config.DryRun = false
-
-	if input.Section("bridge").HasKey("dry_run") {
-		key := input.Section("bridge").Key("dry_run")
-		boolval, err := key.Bool()
-		if err == nil {
-			config.DryRun = boolval
-		} else {
-			errs.addErrorString("Unknown value for 'dry_run': valid values are true, false, 1, 0. Default is 'false'")
-		}
-	}
+func (config *Configuration) parseCannedInput(input *ini.File) error {
 
 	config.CannedInput = false
 
@@ -495,10 +513,28 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.CannedInput = boolval
 		} else {
-			errs.addErrorString("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
+			return fmt.Errorf("Unknown value for 'canned_input': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseDryRun(input *ini.File) error {
+	config.DryRun = false
+
+	if input.Section("bridge").HasKey("dry_run") {
+		key := input.Section("bridge").Key("dry_run")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.DryRun = boolval
+		} else {
+			return fmt.Errorf("Unknown value for 'dry_run': valid values are true, false, 1, 0. Default is 'false'")
+		}
+	}
+	return nil
+}
+
+func (config *Configuration) parseRunConsumer(input *ini.File) error {
 	config.RunConsumer = true
 
 	runConsumerEnvVar := os.Getenv("EF_RUN_CONSUMER")
@@ -511,32 +547,20 @@ func ParseConfig(fn string) (Configuration, error) {
 		if err == nil {
 			config.RunConsumer = boolval
 		} else {
-			errs.addErrorString("Unknown value for 'run_consumer': valid values are true, false, 1, 0. Default is 'false'")
+			return fmt.Errorf("Unknown value for 'run_consumer': valid values are true, false, 1, 0. Default is 'false'")
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseCbServerHostname(input *ini.File) {
 	if input.Section("bridge").HasKey("cb_server_hostname") {
 		key := input.Section("bridge").Key("cb_server_hostname")
 		config.AMQPHostname = key.Value()
 	}
+}
 
-	if input.Section("bridge").HasKey("cb_server_url") {
-		key := input.Section("bridge").Key("cb_server_url")
-		val := key.Value()
-		if !strings.HasSuffix(val, "/") {
-			val += "/"
-		}
-		config.CbServerURL = val
-	} else {
-		fqdn, err := fqdn.FqdnHostname()
-		if err != nil {
-			log.Errorf("Error getting fqdn for host: %s", err)
-		} else {
-			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
-			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
-		}
-	}
-
+func (config *Configuration) parseOutputFormat(input *ini.File) {
 	if input.Section("bridge").HasKey("output_format") {
 		key := input.Section("bridge").Key("output_format")
 		val := key.Value()
@@ -546,7 +570,9 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.OutputFormat = LEEFOutputFormat
 		}
 	}
+}
 
+func (config *Configuration) parseCompression(input *ini.File) error {
 	config.FileHandlerCompressData = false
 
 	if input.Section("bridge").HasKey("compress_data") {
@@ -554,6 +580,8 @@ func ParseConfig(fn string) (Configuration, error) {
 		b, err := key.Bool()
 		if err == nil {
 			config.FileHandlerCompressData = b
+		} else {
+			return fmt.Errorf("Invalid setting for compress_data")
 		}
 	}
 
@@ -561,7 +589,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		if input.Section("bridge").HasKey("compression_type") {
 			key := input.Section("bridge").Key("compression_type")
 			keyString := key.String()
-			config.CompressionType, err = CompressionTypeFromString(keyString)
+			CompressionType, err := CompressionTypeFromString(keyString)
+			if err != nil {
+				return err
+			}
+			config.CompressionType = CompressionType
 		} else {
 			config.CompressionType = GZIPCOMPRESSION
 		}
@@ -576,9 +608,14 @@ func ParseConfig(fn string) (Configuration, error) {
 		level, err := key.Int()
 		if err == nil {
 			config.CompressionLevel = level
+		} else {
+			return fmt.Errorf("Invalid compression level specified")
 		}
 	}
+	return nil
+}
 
+func (config *Configuration) parseAuditLog(input *ini.File) {
 	config.AuditLog = false
 
 	if input.Section("bridge").HasKey("audit_log") {
@@ -588,71 +625,244 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.AuditLog = b
 		}
 	}
+}
 
+func (config *Configuration) parseS3Settings(input *ini.File) error {
+	if input.Section("s3").HasKey("credential_profile") {
+		key := input.Section("s3").Key("credential_profile")
+		profileName := key.Value()
+		config.S3CredentialProfileName = &profileName
+	}
+
+	config.S3Concurrency = 2
+
+	if input.Section("s3").HasKey("concurrency") {
+		key := input.Section("s3").Key("concurrency")
+		concurrency, err := key.Int()
+		if err == nil && concurrency > 0 && concurrency < 100 {
+			config.S3Concurrency = concurrency
+		} else {
+			return fmt.Errorf("Invalid setting for s3 concurrency -- should be an integer number")
+		}
+	}
+
+	if input.Section("s3").HasKey("acl_policy") {
+		key := input.Section("s3").Key("acl_policy")
+		aclPolicy := key.Value()
+		config.S3ACLPolicy = &aclPolicy
+	}
+
+	if input.Section("s3").HasKey("server_side_encryption") {
+		key := input.Section("s3").Key("server_side_encryption")
+		sseType := key.Value()
+		config.S3ServerSideEncryption = &sseType
+	}
+
+	if input.Section("s3").HasKey("object_prefix") {
+		key := input.Section("s3").Key("object_prefix")
+		objectPrefix := key.Value()
+		config.S3ObjectPrefix = &objectPrefix
+	}
+
+	// Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
+	if input.Section("s3").HasKey("s3_endpoint") {
+		key := input.Section("s3").Key("s3_endpoint")
+		s3Endpoint := key.Value()
+		config.S3Endpoint = &s3Endpoint
+	}
+
+	if input.Section("s3").HasKey("use_dual_stack") {
+		key := input.Section("s3").Key("use_dual_stack")
+		b, err := key.Bool()
+		if err == nil {
+			config.S3UseDualStack = b
+		}
+	}
+	return nil
+}
+
+func (config *Configuration) parseHttpSettings(input *ini.File, errs *ConfigurationError) {
+	if input.Section("http").HasKey("authorization_token") {
+		key := input.Section("http").Key("authorization_token")
+		token := key.Value()
+		config.HTTPAuthorizationToken = &token
+	}
+
+	config.HTTPPostTemplate = template.New("http_post_output")
+	if input.Section("http").HasKey("http_post_template") {
+		key := input.Section("http").Key("http_post_template")
+		postTemplate := key.Value()
+		config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
+	} else {
+		if config.OutputFormat == JSONOutputFormat {
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
+				`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
+		} else {
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+		}
+	}
+
+	if input.Section("http").HasKey("content_type") {
+		key := input.Section("http").Key("content_type")
+		contentType := key.Value()
+		config.HTTPContentType = &contentType
+	} else {
+		jsonString := "application/json"
+		config.HTTPContentType = &jsonString
+	}
+
+	// Parse OAuth related configuration.
+	config.ParseOAuthConfiguration(input, errs)
+
+	if input.Section("http").HasKey("event_text_as_json_byte_array") {
+		key := input.Section("http").Key("event_text_as_json_byte_array")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.EventTextAsJsonByteArray = boolval
+		} else {
+			errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", key.Value()))
+		}
+	}
+
+	config.CompressHTTPPayload = false
+
+	if input.Section("http").HasKey("compress_http_payload") {
+		key := input.Section("http").Key("compress_http_payload")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.CompressHTTPPayload = boolval
+		} else {
+			errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", key.Value()))
+		}
+	}
+}
+
+func (config *Configuration) parseKafkaSettings(input *ini.File) {
+	if input.Section("kafka").HasKey("brokers") {
+		key := input.Section("kafka").Key("brokers")
+		kafkaBrokers := key.Value()
+		config.KafkaBrokers = &kafkaBrokers
+	}
+
+	if input.Section("kafka").HasKey("topic_suffix") {
+		key := input.Section("kafka").Key("topic_suffix")
+		kafkaTopicSuffix := key.Value()
+		config.KafkaTopicSuffix = kafkaTopicSuffix
+	}
+
+	if input.Section("kafka").HasKey("topic") {
+		key := input.Section("kafka").Key("topic")
+		kafkaTopic := key.Value()
+		config.KafkaTopic = kafkaTopic
+	}
+
+	if input.Section("kafka").HasKey("username") {
+		key := input.Section("kafka").Key("username")
+		kafkaUsername := key.Value()
+		config.KafkaUsername = kafkaUsername
+	}
+
+	if input.Section("kafka").HasKey("password") {
+		key := input.Section("kafka").Key("password")
+		kafkaPassword := key.Value()
+		config.KafkaPassword = kafkaPassword
+	}
+
+	if input.Section("kafka").HasKey("max_request_size") {
+		key := input.Section("kafka").Key("max_request_size")
+		if intKafkaMaxRequestSize, err := key.Int(); err == nil {
+			config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
+		}
+	} else {
+		config.KafkaMaxRequestSize = 1000000 // sane default from issue 959 on sarama github
+	}
+
+	if input.Section("kafka").HasKey("compression_type") {
+		key := input.Section("kafka").Key("compression_type")
+		compressionType := key.Value()
+		config.KafkaCompressionType = &compressionType
+	}
+
+	if input.Section("kafka").HasKey("ssl_ca_location") {
+		key := input.Section("kafka").Key("ssl_ca_location")
+		SSLCALocation := key.Value()
+		config.KafkaSSLCALocation = &SSLCALocation
+	}
+
+	if input.Section("kafka").HasKey("ssl_cert_location") {
+		key := input.Section("kafka").Key("ssl_cert_location")
+		SSLCertLocation := key.Value()
+		config.KafkaSSLCertificateLocation = &SSLCertLocation
+	}
+
+	if input.Section("kafka").HasKey("ssl_key_location") {
+		key := input.Section("kafka").Key("ssl_key_location")
+		SSLKeyLocation := key.Value()
+		config.KafkaSSLKeyLocation = &SSLKeyLocation
+	}
+}
+
+func (config *Configuration) parseSplunkSettings(input *ini.File) {
+	if input.Section("splunk").HasKey("hec_token") {
+		key := input.Section("splunk").Key("hec_token")
+		token := key.Value()
+		config.SplunkToken = &token
+	}
+
+	config.HTTPPostTemplate = template.New("http_post_output")
+	if input.Section("splunk").HasKey("http_post_template") {
+		key := input.Section("splunk").Key("http_post_template")
+		postTemplate := key.Value()
+		config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
+	} else {
+		if config.OutputFormat == JSONOutputFormat {
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
+				`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
+		} else {
+			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
+		}
+	}
+
+	if input.Section("splunk").HasKey("content_type") {
+		key := input.Section("splunk").Key("content_type")
+		contentType := key.Value()
+		config.HTTPContentType = &contentType
+	} else {
+		jsonString := "application/json"
+		config.HTTPContentType = &jsonString
+	}
+}
+
+func (config *Configuration) parseUseRawExchange(input *ini.File) error {
+	if input.Section("bridge").HasKey("use_raw_sensor_exchange") {
+		key := input.Section("bridge").Key("use_raw_sensor_exchange")
+		boolval, err := key.Bool()
+		if err == nil {
+			config.UseRawSensorExchange = boolval
+			if boolval {
+				log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
+				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
+				log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
+				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
+			}
+		} else {
+			return fmt.Errorf("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
+		}
+	}
+	return nil
+}
+
+func (config *Configuration) parseOutputSettings(input *ini.File, errs *ConfigurationError) {
 	var parameterKey string
 
 	if !input.Section("bridge").HasKey("output_type") {
 		errs.addErrorString("No output type specified")
-		return config, errs
 	}
 
 	key := input.Section("bridge").Key("output_type")
 	outType := key.Value()
 	outType = strings.TrimSpace(outType)
 	outType = strings.ToLower(outType)
-
-	handleS3 := func() {
-		if input.Section("s3").HasKey("credential_profile") {
-			key := input.Section("s3").Key("credential_profile")
-			profileName := key.Value()
-			config.S3CredentialProfileName = &profileName
-		}
-
-		config.S3Concurrency = 2
-
-		if input.Section("s3").HasKey("concurrency") {
-			key := input.Section("s3").Key("concurrency")
-			concurrency, err := key.Int()
-			if err == nil && concurrency > 0 && concurrency < 100 {
-				config.S3Concurrency = concurrency
-			} else {
-				errs.addErrorString("Invalid setting for s3 concurrency -- should be an integer number")
-			}
-		}
-
-		if input.Section("s3").HasKey("acl_policy") {
-			key := input.Section("s3").Key("acl_policy")
-			aclPolicy := key.Value()
-			config.S3ACLPolicy = &aclPolicy
-		}
-
-		if input.Section("s3").HasKey("server_side_encryption") {
-			key := input.Section("s3").Key("server_side_encryption")
-			sseType := key.Value()
-			config.S3ServerSideEncryption = &sseType
-		}
-
-		if input.Section("s3").HasKey("object_prefix") {
-			key = input.Section("s3").Key("object_prefix")
-			objectPrefix := key.Value()
-			config.S3ObjectPrefix = &objectPrefix
-		}
-
-		// Optional S3 Endpoint configuration for s3 output to s3-compatible storage like Minio
-		if input.Section("s3").HasKey("s3_endpoint") {
-			key = input.Section("s3").Key("s3_endpoint")
-			s3Endpoint := key.Value()
-			config.S3Endpoint = &s3Endpoint
-		}
-
-		if input.Section("s3").HasKey("use_dual_stack") {
-			key := input.Section("s3").Key("use_dual_stack")
-			b, err := key.Bool()
-			if err == nil {
-				config.S3UseDualStack = b
-			}
-		}
-	}
 
 	switch outType {
 	case "file":
@@ -667,170 +877,25 @@ func ParseConfig(fn string) (Configuration, error) {
 	case "olds3":
 		config.OutputType = OLDS3OutputType
 		parameterKey = "s3out"
-		handleS3()
+		config.parseS3Settings(input)
 	case "news3", "s3":
 		parameterKey = "s3out"
 		config.OutputType = S3OutputType
-		handleS3()
+		config.parseS3Settings(input)
 	case "http":
 		parameterKey = "httpout"
 		config.OutputType = HTTPOutputType
-
-		if input.Section("http").HasKey("authorization_token") {
-			key := input.Section("http").Key("authorization_token")
-			token := key.Value()
-			config.HTTPAuthorizationToken = &token
-		}
-
-		config.HTTPPostTemplate = template.New("http_post_output")
-		if input.Section("http").HasKey("http_post_template") {
-			key := input.Section("http").Key("http_post_template")
-			postTemplate := key.Value()
-			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
-		} else {
-			if config.OutputFormat == JSONOutputFormat {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
-					`{"filename": "{{.FileName}}", "service": "carbonblack", "alerts":[{{range .Events}}{{.EventText}}{{end}}]}`))
-			} else {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
-			}
-		}
-
-		if input.Section("http").HasKey("content_type") {
-			key := input.Section("http").Key("content_type")
-			contentType := key.Value()
-			config.HTTPContentType = &contentType
-		} else {
-			jsonString := "application/json"
-			config.HTTPContentType = &jsonString
-		}
-
-		// Parse OAuth related configuration.
-		config.ParseOAuthConfiguration(input, &errs)
-
-		if input.Section("http").HasKey("event_text_as_json_byte_array") {
-			key := input.Section("http").Key("event_text_as_json_byte_array")
-			boolval, err := key.Bool()
-			if err == nil {
-				config.EventTextAsJsonByteArray = boolval
-			} else {
-				errs.addErrorString(fmt.Sprintf("Invalid event_text_as_json_byte_array: %s", key.Value()))
-			}
-		}
-
-		config.CompressHTTPPayload = false
-
-		if input.Section("http").HasKey("compress_http_payload") {
-			key := input.Section("http").Key("compress_http_payload")
-			boolval, err := key.Bool()
-			if err == nil {
-				config.CompressHTTPPayload = boolval
-			} else {
-				errs.addErrorString(fmt.Sprintf("Invalid compress_http_payload: %s", key.Value()))
-			}
-		}
-
+		config.parseHttpSettings(input, errs)
 	case "syslog":
 		parameterKey = "syslogout"
 		config.OutputType = SyslogOutputType
 	case "kafka":
 		config.OutputType = KafkaOutputType
-
-		if input.Section("kafka").HasKey("brokers") {
-			key := input.Section("kafka").Key("brokers")
-			kafkaBrokers := key.Value()
-			config.KafkaBrokers = &kafkaBrokers
-		}
-
-		if input.Section("kafka").HasKey("topic_suffix") {
-			key := input.Section("kafka").Key("topic_suffix")
-			kafkaTopicSuffix := key.Value()
-			config.KafkaTopicSuffix = kafkaTopicSuffix
-		}
-
-		if input.Section("kafka").HasKey("topic") {
-			key := input.Section("kafka").Key("topic")
-			kafkaTopic := key.Value()
-			config.KafkaTopic = kafkaTopic
-		}
-
-		if input.Section("kafka").HasKey("username") {
-			key := input.Section("kafka").Key("username")
-			kafkaUsername := key.Value()
-			config.KafkaUsername = kafkaUsername
-		}
-
-		if input.Section("kafka").HasKey("password") {
-			key := input.Section("kafka").Key("password")
-			kafkaPassword := key.Value()
-			config.KafkaPassword = kafkaPassword
-		}
-
-		if input.Section("kafka").HasKey("max_request_size") {
-			key := input.Section("kafka").Key("max_request_size")
-			if intKafkaMaxRequestSize, err := key.Int(); err == nil {
-				config.KafkaMaxRequestSize = int32(intKafkaMaxRequestSize)
-			}
-		} else {
-			config.KafkaMaxRequestSize = 1000000 // sane default from issue 959 on sarama github
-		}
-
-		if input.Section("kafka").HasKey("compression_type") {
-			key := input.Section("kafka").Key("compression_type")
-			compressionType := key.Value()
-			config.KafkaCompressionType = &compressionType
-		}
-
-		if input.Section("kafka").HasKey("ssl_ca_location") {
-			key := input.Section("kafka").Key("ssl_ca_location")
-			SSLCALocation := key.Value()
-			config.KafkaSSLCALocation = &SSLCALocation
-		}
-
-		if input.Section("kafka").HasKey("ssl_cert_location") {
-			key := input.Section("kafka").Key("ssl_cert_location")
-			SSLCertLocation := key.Value()
-			config.KafkaSSLCertificateLocation = &SSLCertLocation
-		}
-
-		if input.Section("kafka").HasKey("ssl_key_location") {
-			key := input.Section("kafka").Key("ssl_key_location")
-			SSLKeyLocation := key.Value()
-			config.KafkaSSLKeyLocation = &SSLKeyLocation
-		}
-
+		config.parseKafkaSettings(input)
 	case "splunk":
 		parameterKey = "splunkout"
 		config.OutputType = SplunkOutputType
-
-		if input.Section("splunk").HasKey("hec_token") {
-			key := input.Section("splunk").Key("hec_token")
-			token := key.Value()
-			config.SplunkToken = &token
-		}
-
-		config.HTTPPostTemplate = template.New("http_post_output")
-		if input.Section("splunk").HasKey("http_post_template") {
-			key := input.Section("splunk").Key("http_post_template")
-			postTemplate := key.Value()
-			config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(postTemplate))
-		} else {
-			if config.OutputFormat == JSONOutputFormat {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(
-					`{{range .Events}}{"sourcetype":"bit9:carbonblack:json","event":{{.EventText}}}{{end}}`))
-			} else {
-				config.HTTPPostTemplate = template.Must(config.HTTPPostTemplate.Parse(`{{range .Events}}{{.EventText}}{{end}}`))
-			}
-		}
-
-		if input.Section("http").HasKey("content_type") {
-			key := input.Section("http").Key("content_type")
-			contentType := key.Value()
-			config.HTTPContentType = &contentType
-		} else {
-			jsonString := "application/json"
-			config.HTTPContentType = &jsonString
-		}
+		config.parseSplunkSettings(input)
 
 	default:
 		errs.addErrorString(fmt.Sprintf("Unknown output type: %s", outType))
@@ -846,22 +911,11 @@ func ParseConfig(fn string) (Configuration, error) {
 		}
 	}
 
-	if input.Section("bridge").HasKey("use_raw_sensor_exchange") {
-		key := input.Section("bridge").Key("use_raw_sensor_exchange")
-		boolval, err := key.Bool()
-		if err == nil {
-			config.UseRawSensorExchange = boolval
-			if boolval {
-				log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
-				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
-				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
-			}
-		} else {
-			errs.addErrorString("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
-		}
-	}
+	config.parseTLSConfigForOutput(outType, input, errs)
+	config.parseBundleSettings(outType, input, errs)
+}
 
+func (config *Configuration) parseTLSConfigForOutput(outType string, input *ini.File, errs *ConfigurationError) {
 	// TLS configuration
 
 	if input.Section(outType).HasKey("client_key") {
@@ -916,8 +970,10 @@ func ParseConfig(fn string) (Configuration, error) {
 		config.TLSCName = &serverCName
 	}
 
-	config.TLSConfig = configureTLS(&config)
+	config.TLSConfig = configureTLS(config)
+}
 
+func (config *Configuration) parseBundleSettings(outType string, input *ini.File, errs *ConfigurationError) {
 	// Bundle configuration
 
 	// default to sending empty files to S3/HTTP POST endpoint
@@ -966,16 +1022,9 @@ func ParseConfig(fn string) (Configuration, error) {
 			config.BundleSendTimeout = time.Duration(bundleSendTimeout) * time.Second
 		}
 	}
+}
 
-	if input.Section("bridge").HasKey("message_processor_count") {
-		key := input.Section("bridge").Key("message_processor_count")
-		if numprocessors, err := key.Int(); err == nil {
-			config.NumProcessors = int(numprocessors)
-		} else {
-			config.NumProcessors = runtime.NumCPU()
-		}
-	}
-
+func (config *Configuration) parseMetrics(input *ini.File) {
 	if input.Section("bridge").HasKey("run_metrics") {
 		key := input.Section("bridge").Key("run_metrics")
 		if runMetrics, err := key.Bool(); err == nil {
@@ -1000,7 +1049,20 @@ func ParseConfig(fn string) (Configuration, error) {
 	if metricTagEnv != "" {
 		config.MetricTag = metricTagEnv
 	}
+}
 
+func (config *Configuration) parseMessageProcessorCount(input *ini.File) {
+	if input.Section("bridge").HasKey("message_processor_count") {
+		key := input.Section("bridge").Key("message_processor_count")
+		if numprocessors, err := key.Int(); err == nil {
+			config.NumProcessors = int(numprocessors)
+		} else {
+			config.NumProcessors = runtime.NumCPU()
+		}
+	}
+}
+
+func (config *Configuration) parseTimeSetting(input *ini.File) {
 	if input.Section("bridge").HasKey("use_time_float") {
 		key := input.Section("bridge").Key("use_time_float")
 		usetimefloat, _ := key.Bool()
@@ -1008,6 +1070,97 @@ func ParseConfig(fn string) (Configuration, error) {
 	} else {
 		config.UseTimeFloat = false
 	}
+}
+
+func (config *Configuration) setDefaults() {
+	// defaults
+	config.DebugFlag = false
+	config.OutputFormat = JSONOutputFormat
+	config.OutputType = FileOutputType
+	config.AMQPHostname = "localhost"
+	config.AMQPUsername = "cb"
+	config.HTTPServerPort = 33706
+	config.AMQPPort = 5004
+	config.DebugStore = "/tmp"
+
+	config.S3ACLPolicy = nil
+	config.S3ServerSideEncryption = nil
+	config.S3CredentialProfileName = nil
+}
+
+func ParseConfig(fn string) (Configuration, error) {
+	config := Configuration{}
+	errs := ConfigurationError{Empty: true}
+
+	input, err := ini.Load(fn)
+	if err != nil {
+		return config, err
+	}
+
+	config.setDefaults()
+
+	// required values
+
+	config.parseServerName(input)
+
+	config.parseDebugSettings(input)
+
+	config.parseRemoveFromOutput(input)
+
+	config.parseDebugStore(input)
+
+	config.parseHttpServerPort(input)
+
+	config.parseExitTimeout(input)
+
+	err = config.parseRabbitmqSettings(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	err = config.parseDryRun(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	err = config.parseCannedInput(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	err = config.parseRunConsumer(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	config.parseCbServerHostname(input)
+
+	err = config.parseCbServerURL(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	config.parseOutputFormat(input)
+
+	err = config.parseCompression(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	config.parseAuditLog(input)
+
+	config.parseOutputSettings(input, &errs)
+
+	err = config.parseUseRawExchange(input)
+	if err != nil {
+		errs.addError(err)
+	}
+
+	config.parseMessageProcessorCount(input)
+
+	config.parseMetrics(input)
+
+	config.parseTimeSetting(input)
 
 	config.configLogging(input)
 
@@ -1061,7 +1214,7 @@ func (config *Configuration) configLoggingMaxSizeMB(input *ini.File) {
 	logSizeMB := DEFAULTLOGSIZE
 	if input.Section("bridge").HasKey("log_size_mb") {
 		logSizeMBKey := input.Section("bridge").Key("log_size_mb")
-		logSizeMBParsed, err  := logSizeMBKey.Int()
+		logSizeMBParsed, err := logSizeMBKey.Int()
 		if err == nil {
 			logSizeMB = logSizeMBParsed
 		}
