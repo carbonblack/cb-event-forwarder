@@ -206,6 +206,8 @@ func (e *ConfigurationError) addError(err error) {
 func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	input, err := ini.Load("/etc/cb/cb.conf")
 	if err != nil {
+		log.Errorf("There was an error parsing rabbitmq credentials from /etc/cb/cb.conf. Check the file for ini syntax errors.")
+		err = fmt.Errorf("/etc/cb/cb.conf parsing error %v", err)
 		return "error", "error", err
 	}
 	username = input.Section("").Key("RabbitMQUser").Value()
