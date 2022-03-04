@@ -28,6 +28,45 @@ func TestLocalRabbitmqCredentiaslError(t *testing.T) {
 	_, _, err := GetLocalRabbitMQCredentials()
 	if !strings.Contains(fmt.Sprintf("%v", err), "/etc/cb/cb.conf") {
 		t.Fatalf("Local rabbitmq error is not specific as to what file is having a parsing error")
+        }
+}
+
+func TestParseEventsRawEnabled(t *testing.T) {
+	confString := []byte("[bridge]\nevents_raw_sensor=ALL")
+	loaded, err := ini.Load(confString)
+	if err != nil {
+		t.Fatalf("Error loading test conf: %v", err)
+	}
+	conf := Configuration{}
+	conf.ParseEventTypes(loaded)
+	if !conf.UseRawSensorExchange {
+		t.Fatalf("Did not enable raw event exchange")
+	}
+}
+
+func TestParseEventsSomeRawEnabled(t *testing.T) {
+	confString := []byte("[bridge]\nevents_raw_sensor=ingress.event.regmod")
+	loaded, err := ini.Load(confString)
+	if err != nil {
+		t.Fatalf("Error loading test conf: %v", err)
+	}
+	conf := Configuration{}
+	conf.ParseEventTypes(loaded)
+	if !conf.UseRawSensorExchange {
+		t.Fatalf("Did not enable raw event exchange")
+	}
+}
+
+func TestParseEventsNoRaw(t *testing.T) {
+	confString := []byte("[bridge]\nevents_raw_sensor=0")
+	loaded, err := ini.Load(confString)
+	if err != nil {
+		t.Fatalf("Error loading test conf: %v", err)
+	}
+	conf := Configuration{}
+	conf.ParseEventTypes(loaded)
+	if conf.UseRawSensorExchange {
+		t.Fatalf("enabled raw event exchange")
 	}
 }
 

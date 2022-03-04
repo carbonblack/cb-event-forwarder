@@ -37,12 +37,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		}
 		switch key {
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -61,12 +61,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix[1:])
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -128,12 +128,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -182,12 +182,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -268,12 +268,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -367,12 +367,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -459,12 +459,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -573,12 +573,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -657,12 +657,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "uid":
 			out.Uid = string(in.String())
 		case "parent_create_time":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.ParentCreateTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.ParentCreateTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.ParentCreateTimestamp = in.Interface()
 			}
 		case "fork_pid":
 			out.ForkPid = int32(in.Int32())
@@ -686,6 +686,14 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.ComputerName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
+		case "timestamp":
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
+				m.UnmarshalEasyJSON(in)
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
+				_ = m.UnmarshalJSON(in.Raw())
+			} else {
+				out.EventTimestamp = in.Interface()
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -773,12 +781,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"parent_create_time\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.ParentCreateTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.ParentCreateTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.ParentCreateTimestamp))
 		}
 	}
 	if in.ForkPid != 0 {
@@ -836,6 +844,17 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.EventType))
 	}
+	{
+		const prefix string = ",\"timestamp\":"
+		out.RawString(prefix)
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
+			m.MarshalEasyJSON(out)
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
+			out.Raw(m.MarshalJSON())
+		} else {
+			out.Raw(json.Marshal(in.EventTimestamp))
+		}
+	}
 	out.RawByte('}')
 }
 
@@ -882,12 +901,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		}
 		switch key {
 		case "parent_create_time":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.ParentCreateTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.ParentCreateTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.ParentCreateTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -906,12 +925,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"parent_create_time\":"
 		out.RawString(prefix[1:])
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.ParentCreateTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.ParentCreateTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.ParentCreateTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -1014,12 +1033,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -1168,12 +1187,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -1268,12 +1287,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -1418,12 +1437,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -1504,12 +1523,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -1603,12 +1622,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -1728,12 +1747,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -1886,12 +1905,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -2065,12 +2084,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -2199,12 +2218,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -2571,12 +2590,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -2685,12 +2704,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -2895,12 +2914,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -3034,12 +3053,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -3138,12 +3157,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -3293,12 +3312,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -3384,12 +3403,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -3498,12 +3517,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')
@@ -3562,12 +3581,12 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
-			if m, ok := out.Timestamp.(easyjson.Unmarshaler); ok {
+			if m, ok := out.EventTimestamp.(easyjson.Unmarshaler); ok {
 				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Timestamp.(json.Unmarshaler); ok {
+			} else if m, ok := out.EventTimestamp.(json.Unmarshaler); ok {
 				_ = m.UnmarshalJSON(in.Raw())
 			} else {
-				out.Timestamp = in.Interface()
+				out.EventTimestamp = in.Interface()
 			}
 		default:
 			in.SkipRecursive()
@@ -3617,12 +3636,12 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 	{
 		const prefix string = ",\"timestamp\":"
 		out.RawString(prefix)
-		if m, ok := in.Timestamp.(easyjson.Marshaler); ok {
+		if m, ok := in.EventTimestamp.(easyjson.Marshaler); ok {
 			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Timestamp.(json.Marshaler); ok {
+		} else if m, ok := in.EventTimestamp.(json.Marshaler); ok {
 			out.Raw(m.MarshalJSON())
 		} else {
-			out.Raw(json.Marshal(in.Timestamp))
+			out.Raw(json.Marshal(in.EventTimestamp))
 		}
 	}
 	out.RawByte('}')

@@ -6,7 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	"github.com/carbonblack/cb-event-forwarder/pkg/leefencoder"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/sensorevents"
+	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
 	"github.com/mailru/easyjson"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -16,18 +19,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/sensorevents"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/utils"
-	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 )
 
 func UnixTimestampFromWindowsTime(time int64, useTimeFloat bool) (unixTime UnixTimeStamp) {
-	unixTime.Timestamp = convertToUnixTime(time, useTimeFloat)
+	unixTime.EventTimestamp = convertToUnixTime(time, useTimeFloat)
 	return unixTime
 }
 
 func ParentCreateTimestampFromWindowsTime(time int64, useTimeFloat bool) (unixTime ParentCreateTime) {
-	unixTime.Timestamp = convertToUnixTime(time, useTimeFloat)
+	unixTime.ParentCreateTimestamp = convertToUnixTime(time, useTimeFloat)
 	return unixTime
 }
 
@@ -961,7 +961,7 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessage(routingKey string, bo
 	return pbm.ProcessProtobufMessageWithEnv(routingKey, body, headers, env)
 }
 
-func (pbm ProtobufMessageProcessor) getMessageInOutputFormat(message Event) ([]byte, error) {
+func (pbm ProtobufMessageProcessor) GetMessageInOutputFormat(message Event) ([]byte, error) {
 	if pbm.Config.OutputFormat == JSONOutputFormat {
 		byteString, err := message.getAsJson()
 		return byteString, err
@@ -992,7 +992,7 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey str
 
 	message, err := pbm.fromProtobufMessage(&cbMessage, routingKey)
 	if err == nil {
-		return pbm.getMessageInOutputFormat(message)
+		return pbm.GetMessageInOutputFormat(message)
 	} else {
 		return nil, err
 	}

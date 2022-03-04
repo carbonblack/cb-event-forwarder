@@ -219,7 +219,7 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	return username, password, nil
 }
 
-func (config *Configuration) parseEventTypes(input *ini.File) {
+func (config *Configuration) ParseEventTypes(input *ini.File) {
 	eventTypes := [...]struct {
 		configKey string
 		eventList []string
@@ -285,13 +285,21 @@ func (config *Configuration) parseEventTypes(input *ini.File) {
 
 	config.EventMap = make(map[string]bool)
 
+	needsRawExchange := false
+
 	log.Info("Raw Event Filtering Configuration:")
 	for _, eventName := range config.EventTypes {
 		config.EventMap[eventName] = true
+		needsRawExchange = true
 		if strings.HasPrefix(eventName, "ingress.event.") {
 			log.Infof("%s: %t", eventName, config.EventMap[eventName])
 		}
 	}
+	config.UseRawSensorExchange = needsRawExchange
+	if config.UseRawSensorExchange {
+		logRawExchangeUse()
+	}
+
 }
 
 func (config *Configuration) parseServerName(input *ini.File) error {
@@ -835,21 +843,16 @@ func (config *Configuration) parseSplunkSettings(input *ini.File) {
 	}
 }
 
+func logRawExchangeUse() {
+	log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
+	log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
+	log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
+	log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
+}
+
 func (config *Configuration) parseUseRawExchange(input *ini.File) error {
 	if input.Section("bridge").HasKey("use_raw_sensor_exchange") {
-		key := input.Section("bridge").Key("use_raw_sensor_exchange")
-		boolval, err := key.Bool()
-		if err == nil {
-			config.UseRawSensorExchange = boolval
-			if boolval {
-				log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
-				log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
-				log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
-				log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
-			}
-		} else {
-			return fmt.Errorf("Unknown value for 'use_raw_sensor_exchange': valid values are true, false, 1, 0")
-		}
+		log.Warn("use_raw_sensor_exchange is ignored in v3.8.1+, appropriate exchanges will be determined based on event configuration")
 	}
 	return nil
 }
@@ -1166,7 +1169,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.configLogging(input)
 
-	config.parseEventTypes(input)
+	config.ParseEventTypes(input)
 
 	outputParameterError := config.validateOutputParameters()
 	if outputParameterError != nil {
