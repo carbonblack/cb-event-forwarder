@@ -24,9 +24,10 @@ func (inputWorker InputWorker) processZipPB(body []byte, routingKey, contentType
 	if err != nil {
 		inputWorker.reportBundleDetails(routingKey, body, headers)
 		inputWorker.reportError(routingKey, "Could not process raw zip bundle", err)
-		return
 	}
-	inputWorker.OutputMessages(msgs)
+	if len(msgs) > 0 {
+		inputWorker.OutputMessages(msgs)
+	}
 }
 
 func (inputWorker InputWorker) processPB(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
@@ -106,8 +107,8 @@ type InputWorker struct {
 	protobufmessageprocessor.ProtobufMessageProcessor
 	jsonmessageprocessor.JsonMessageProcessor
 	*Status
-	DebugFlag  bool
-	DebugStore string
+	DebugFlag    bool
+	DebugStore   string
 	OutputFormat int
 }
 
@@ -143,26 +144,27 @@ func (inputWorker InputWorker) reportError(d string, errmsg string, err error) {
 }
 
 func (inputWorker InputWorker) reportBundleDetails(routingKey string, body []byte, headers amqp.Table) {
-	log.Errorf("Error while processing message through routing key %s:", routingKey)
+
+	log.Debugf("Error while processing message through routing key %s:", routingKey)
 
 	var env *CbEnvironmentMsg
 	env, err := CreateEnvMessage(headers)
 	if err != nil {
-		log.Errorf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
+		log.Debugf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
 			env.Endpoint.GetSensorHostName())
 	}
 
 	if len(body) < 4 {
-		log.Info("  Message is less than 4 bytes long; malformed")
+		log.Debug("  Message is less than 4 bytes long; malformed")
 	} else {
-		log.Info("  First four bytes of message were:")
-		log.Errorf("  %s", hex.Dump(body[0:4]))
+		log.Debug("  First four bytes of message were:")
+		log.Debugf("  %s", hex.Dump(body[0:4]))
 	}
-
 	/*
 	 * We are going to store this bundle in the DebugStore
 	 */
 	if inputWorker.DebugFlag {
+
 		h := md5.New()
 		h.Write(body)
 		var fullFilePath string
