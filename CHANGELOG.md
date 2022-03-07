@@ -7,6 +7,7 @@
 * Fix a bug where timestamps were missing from process events
 * Fix a bug where messages were silently dropped in certain error cases 
 * Improve hostname detection
+* Better error logging for configuration errors
 
 ## v3.8.0
 
