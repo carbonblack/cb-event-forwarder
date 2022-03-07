@@ -5,6 +5,7 @@ import (
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	"github.com/go-ini/ini"
 	"github.com/google/go-cmp/cmp"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +22,13 @@ func iniFromMap(inputMap map[string]mapString) []byte {
 		outputString += sectionString
 	}
 	return []byte(outputString)
+}
+
+func TestLocalRabbitmqCredentiaslError(t *testing.T) {
+	_, _, err := GetLocalRabbitMQCredentials()
+	if !strings.Contains(fmt.Sprintf("%v", err), "/etc/cb/cb.conf") {
+		t.Fatalf("Local rabbitmq error is not specific as to what file is having a parsing error")
+        }
 }
 
 func TestParseEventsRawEnabled(t *testing.T) {
