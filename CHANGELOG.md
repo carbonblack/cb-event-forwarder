@@ -1,5 +1,14 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.8.1
+
+#### Bug Fixes / Changes
+
+* Fix a bug where timestamps were missing from process events
+* Fix a bug where messages were silently dropped in certain error cases 
+* Improve hostname detection
+* Better error logging for configuration errors
+
 ## v3.8.0
 
 #### Features
