@@ -1,6 +1,6 @@
 [Unit]
 Description=CB EDR Event Forwarder
-After=network.target
+After=network-online.target
 
 [Service]
 Type=simple
