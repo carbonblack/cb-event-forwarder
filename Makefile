@@ -53,6 +53,7 @@ ifeq (${EL_VERSION},6)
 else
 	mkdir -p ${RPM_BUILD_ROOT}/etc/systemd/system
 	cp -p cb-event-forwarder.service ${RPM_BUILD_ROOT}/etc/systemd/system/cb-event-forwarder.service
+	chmod 644 ${RPM_BUILD_ROOT}/etc/systemd/system/cb-event-forwarder.service
 endif
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
 	cp -rp static/* ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/content
