@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/go-ini/ini"
+	"github.com/Showmax/go-fqdn"
 	log "github.com/sirupsen/logrus"
 )
 
