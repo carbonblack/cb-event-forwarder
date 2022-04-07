@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -16,7 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Showmax/go-fqdn"
 	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
@@ -45,6 +45,9 @@ const MAXLOGSIZE = 500
 const DEFAULTLOGRETAINDAYS = 21
 const MAXLOGBACKUPS = 30
 const DEFAULTLOGBACKUPS = 7
+
+// RABBITMQ_SALT IMPORTANT: this MUST be identical to the salt value in the EDR sources (cb.core.notification.utils)
+const RABBITMQ_SALT = "562b9041-e8bc-4314-b4fd-e833069845c5"
 
 func Max(a, b int) int {
 	if a > b {
@@ -203,6 +206,12 @@ func (e *ConfigurationError) addError(err error) {
 	e.Errors = append(e.Errors, err.Error())
 }
 
+func tokenToPassword(rabbitToken string) string {
+	inBytes := []byte(rabbitToken + RABBITMQ_SALT)
+	hash := sha256.Sum256(inBytes)
+	return string(hash[:])
+}
+
 func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	input, err := ini.Load("/etc/cb/cb.conf")
 	if err != nil {
@@ -211,11 +220,12 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 		return "error", "error", err
 	}
 	username = input.Section("").Key("RabbitMQUser").Value()
-	password = input.Section("").Key("RabbitMQPassword").Value()
+	token := input.Section("").Key("RabbitMQPassword").Value()
 
-	if len(username) == 0 || len(password) == 0 {
-		return username, password, errors.New("Could not get RabbitMQ credentials from /etc/cb/cb.conf")
+	if len(username) == 0 || len(token) == 0 {
+		return username, password, errors.New("Could not get RabbitMQ user/token from /etc/cb/cb.conf")
 	}
+	password = tokenToPassword(token)
 	return username, password, nil
 }
 

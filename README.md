@@ -63,13 +63,17 @@ Forwarder, run the following script to set the appropriate permissions needed by
 
 ### Configure the cb-event-forwarder
 
-1. If installing on a machine *other than* the EDR server, copy the RabbitMQ username and password into the 
-`rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` 
+1. If installing on a machine *other than* the EDR server, you should create a new RabbitMQ user by executing the following commands as root on the EDR server: 
+   ```
+   /usr/share/cb/cbrabbitmqctl add_user <username> <password>
+   /usr/share/cb/cbrabbitmqctl set_user_tags <username> administrator
+   /usr/share/cb/cbrabbitmqctl set_permissions -p / <username> ".*" ".*" ".*"``` 
+2. Set the `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to the credentials you used in the preceding step 
 file. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached.
 If the cb-event-forwarder is forwarding events from a EDR cluster, the `cb_server_hostname` should be set
 to the hostname or IP address of the EDR primary node.
    
-2. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
+3. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
