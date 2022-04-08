@@ -208,9 +208,8 @@ func (e *ConfigurationError) addError(err error) {
 }
 
 func tokenToPassword(rabbitToken string) string {
-	inBytes := []byte(rabbitToken + RABBITMQ_SALT)
-	hash := sha256.Sum256(inBytes)
-	return string(hash[:])
+	hash := sha256.Sum256([]byte(rabbitToken + RABBITMQ_SALT))
+	return fmt.Sprintf("%x", hash)
 }
 
 func GetLocalRabbitMQCredentials() (username, password string, err error) {
