@@ -3,11 +3,17 @@ VERSION := 3.8.2
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
+RABBITMQ_SALT_INTERNAL := ${RABBITMQ_SALT}
 export GO111MODULE=auto
 
-.PHONY: clean test rpmbuild rpminstall build rpm
+.PHONY: clean test rpmbuild rpminstall build rpm check-env
 
 cb-event-forwarder: build
+
+check-env:
+ifndef RABBITMQ_SALT
+	$(error RABBITMQ_SALT is not defined)
+endif
 
 getdeps:
 	go mod download -x
@@ -35,8 +41,8 @@ build:
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
-rpmbuild:
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/cb-event-forwarder
+rpmbuild: check-env
+	go build -tags static -ldflags "-X main.version=${VERSION} -X config.RabbitMQSalt=${RABBITMQ_SALT_INTERNAL}" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
 
 rpminstall:

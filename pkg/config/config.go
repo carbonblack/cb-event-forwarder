@@ -47,8 +47,10 @@ const DEFAULTLOGRETAINDAYS = 21
 const MAXLOGBACKUPS = 30
 const DEFAULTLOGBACKUPS = 7
 
-// RABBITMQ_SALT IMPORTANT: this MUST be identical to the salt value in the EDR sources (cb.core.notification.utils)
-const RABBITMQ_SALT = "562b9041-e8bc-4314-b4fd-e833069845c5"
+//// RABBITMQ_SALT IMPORTANT: this MUST be identical to the salt value in the EDR sources (cb.core.notification.utils)
+//const RABBITMQ_SALT = "562b9041-e8bc-4314-b4fd-e833069845c5"
+
+var RabbitMQSalt = ""
 
 func Max(a, b int) int {
 	if a > b {
@@ -208,7 +210,7 @@ func (e *ConfigurationError) addError(err error) {
 }
 
 func tokenToPassword(rabbitToken string) string {
-	hash := sha256.Sum256([]byte(rabbitToken + RABBITMQ_SALT))
+	hash := sha256.Sum256([]byte(rabbitToken + RabbitMQSalt))
 	return fmt.Sprintf("%x", hash)
 }
 
