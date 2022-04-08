@@ -229,6 +229,7 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 		password = tokenToPassword(token)
 	}
 
+
 	if len(username) == 0 || len(password) == 0 {
 		return username, password, errors.New("Could not get RabbitMQ user/token from /etc/cb/cb.conf")
 	}

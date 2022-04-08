@@ -3,7 +3,7 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define bare_version 3.8.1
+%define bare_version 3.8.2
 
 %define release 1
 

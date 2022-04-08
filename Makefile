@@ -1,5 +1,5 @@
-GIT_VERSION := 3.8.1
-VERSION := 3.8.1
+GIT_VERSION := 3.8.2
+VERSION := 3.8.2
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
