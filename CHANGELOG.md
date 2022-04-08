@@ -4,7 +4,7 @@
 
 #### Changes
 
-* Adapt to change in RabbitMQ in EDR v7.7.0, but maintain backwards compatibility. 
+* Adapt to change in RabbitMQ authentication in EDR v7.7.0, but maintain backwards compatibility. 
 
 ## v3.8.1
 
