@@ -47,9 +47,6 @@ const DEFAULTLOGRETAINDAYS = 21
 const MAXLOGBACKUPS = 30
 const DEFAULTLOGBACKUPS = 7
 
-//// RABBITMQ_SALT IMPORTANT: this MUST be identical to the salt value in the EDR sources (cb.core.notification.utils)
-//const RABBITMQ_SALT = "562b9041-e8bc-4314-b4fd-e833069845c5"
-
 var RabbitMQSalt = ""
 
 func Max(a, b int) int {
