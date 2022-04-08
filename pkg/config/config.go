@@ -221,12 +221,17 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 		return "error", "error", err
 	}
 	username = input.Section("").Key("RabbitMQUser").Value()
-	token := input.Section("").Key("RabbitMQPassword").Value()
 
-	if len(username) == 0 || len(token) == 0 {
+	// check for password first. for EDR per-7.7.0
+	password = input.Section("").Key("RabbitMQPassword").Value()
+	if len(password) == 0 {
+		token := input.Section("").Key("RabbitMQToken").Value()
+		password = tokenToPassword(token)
+	}
+
+	if len(username) == 0 || len(password) == 0 {
 		return username, password, errors.New("Could not get RabbitMQ user/token from /etc/cb/cb.conf")
 	}
-	password = tokenToPassword(token)
 	return username, password, nil
 }
 
