@@ -1112,7 +1112,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
 
-	input, err := ini.Load(fn)
+	input, err := ini.LoadSources(ini.LoadOptions{IgnoreInlineComment:true}, fn)
 	if err != nil {
 		return config, err
 	}
