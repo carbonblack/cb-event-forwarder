@@ -6,6 +6,7 @@
 
 option java_package = "com.carbonblack.cbfs";
 option java_outer_classname = "CbEventsV2Protocol";
+option go_package = "cmd/sensorevents";
 
 message CbHeaderMsg {
     required int32 version = 1;

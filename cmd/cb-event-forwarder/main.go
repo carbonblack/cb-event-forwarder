@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 
+	. "github.com/carbonblack/cb-event-forwarder/cmd/sensorevents"
 	_ "net/http/pprof"
 )
 
@@ -35,6 +36,7 @@ var (
 )
 
 var version = "3.7.0"
+var rabbitMQSalt = ""
 
 var inputChannelSize = 100000
 var outputChannelSize = 1000000
@@ -490,7 +492,7 @@ func main() {
 		configLocation = flag.Arg(0)
 	}
 	log.Infof("Using config file %s\n", configLocation)
-	config, err = ParseConfig(configLocation)
+	config, err = ParseConfig(configLocation, rabbitMQSalt)
 	if err != nil {
 		log.Fatal(err)
 	}

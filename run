@@ -4,6 +4,7 @@ print_help() {
   echo
   echo "Options:"
   echo "  -o, --osversion [7|8]  The RHEL version to build against.  Default is 7."
+  echo "  -s, --salt RABBITMQ_SALT  The salt used for RabbitMQ passwords"
   echo "  -h, --help             Print this help message."
   echo
   echo "COMMANDs:"
@@ -15,8 +16,9 @@ print_help() {
 }
 
 OSVERSION=7
+RABBITMQ_SALT=unset
 
-PARSED=$(getopt -n run -o o: --long osversion:,help -- "$@")
+PARSED=$(getopt -n run -o o:s: --long osversion:salt:,help -- "$@")
 
 if [ "${?}" != "0" ]; then
   print_help
@@ -37,6 +39,10 @@ do
         print_help
       fi
       ;;
+    -s | --salt)
+      RABBITMQ_SALT=${2}
+      shift 2
+      ;;
     -h | --help)
       print_help
       ;;
@@ -49,16 +55,26 @@ if [[ "${1}" == "" ]]; then
   echo "COMMAND required"; print_help
 fi
 
+if [[ "${RABBITMQ_SALT}" == "" ]]; then
+  echo "RabbitMQ salt required"; print_help
+fi
+
 OS_ADDON=""
 if [[ "${OSVERSION}" == "8" ]]; then
   OS_ADDON="env DOCKERIZED_BUILD_ENV=centos8 "
+fi
+
+if [[ "${OS_ADDON}" == "" ]]; then
+  OS_ADDON="env RABBITMQ_SALT=${RABBITMQ_SALT} "
+else
+  OS_ADDON+="RABBITMQ_SALT=${RABBITMQ_SALT} "
 fi
 
 if [[ "${1^^}" =~ ^(BUILD|UNITTEST|CODEREPORT|SMOKETEST)$ ]]; then
   echo "run: RHEL${OSVERSION} - running ${1}..."
   case "${1^^}" in
     BUILD) ${OS_ADDON}./gradlew build ;;
-    UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;; 
+    UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;;
     CODEREPORT) ${OS_ADDON}./gradlew criticizeCode ;;
     SMOKETEST) ${OS_ADDON}./gradlew runSmokeTest ;;
   esac
