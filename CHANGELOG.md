@@ -1,5 +1,11 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.7.6
+
+#### Changes
+
+* Adapt to change in RabbitMQ authentication in EDR v7.7.0, but maintain backwards compatibility.
+
 ## v3.7.5
 
 #### Bug Fixes / Changes

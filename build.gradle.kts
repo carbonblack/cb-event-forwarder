@@ -25,6 +25,7 @@ val osVersionClassifier: String
 buildDir = file("build/$osVersionClassifier")
 val goPath = "$buildDir/gopath"
 val goProxy = System.getenv()["GOPROXY"]
+val rabbitMQSalt = System.getenv()["RABBITMQ_SALT"]
 
 val depTask = tasks.register<Exec>("getDeps") {
     val gomodPath = "$goPath/pkg/mod"
@@ -105,6 +106,7 @@ val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
 
     environment("RPM_OUTPUT_DIR", outputDir)
     environment("GOPATH", goPath)
+    environment("RABBITMQ_SALT", rabbitMQSalt)
     commandLine = listOf("make", "rpm")
 }
 

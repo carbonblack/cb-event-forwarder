@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -16,8 +17,8 @@ import (
 	"time"
 
 	"github.com/go-ini/ini"
-	log "github.com/sirupsen/logrus"
 	"github.com/Showmax/go-fqdn"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -169,16 +170,27 @@ func (e *ConfigurationError) addError(err error) {
 	e.Errors = append(e.Errors, err.Error())
 }
 
-func GetLocalRabbitMQCredentials() (username, password string, err error) {
+func tokenToPassword(rabbitToken string, rabbitMQSalt string) string {
+	hash := sha256.Sum256([]byte(rabbitToken + rabbitMQSalt))
+	return fmt.Sprintf("%x", hash)
+}
+
+func GetLocalRabbitMQCredentials(rabbitMQSalt string) (username, password string, err error) {
 	input, err := ini.Load("/etc/cb/cb.conf")
 	if err != nil {
 		return "error", "error", err
 	}
 	username = input.Section("").Key("RabbitMQUser").Value()
+
+	// check for password first. for EDR per-7.7.0
 	password = input.Section("").Key("RabbitMQPassword").Value()
+	if len(password) == 0 {
+		token := input.Section("").Key("RabbitMQToken").Value()
+		password = tokenToPassword(token, rabbitMQSalt)
+	}
 
 	if len(username) == 0 || len(password) == 0 {
-		return username, password, errors.New("Could not get RabbitMQ credentials from /etc/cb/cb.conf")
+		return username, password, errors.New("Could not get RabbitMQ user/token from /etc/cb/cb.conf")
 	}
 	return username, password, nil
 }
@@ -258,7 +270,7 @@ func (c *Configuration) parseEventTypes(input *ini.File) {
 	}
 }
 
-func ParseConfig(fn string) (Configuration, error) {
+func ParseConfig(fn string, rabbitMQSalt string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
 
@@ -377,7 +389,7 @@ func ParseConfig(fn string) (Configuration, error) {
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
-		config.AMQPUsername, config.AMQPPassword, err = GetLocalRabbitMQCredentials()
+		config.AMQPUsername, config.AMQPPassword, err = GetLocalRabbitMQCredentials(rabbitMQSalt)
 		if err != nil {
 			errs.addError(err)
 		}
