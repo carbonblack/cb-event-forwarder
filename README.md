@@ -39,37 +39,59 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server 
 
 ### Installation
 
-To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
-to use the EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
-EDR is installed (in the case of a cluster installer, this means the primary node).
+For customers running Event Forwarder, versions 3.7.5 or older, the following installation instructions will install 
+Event Forwarder 3.7.6.  For those running Event Forwarder versions 3.8.0 or 3.8.1, you will first need to remove that
+version of Event Forwarder.
 
-1. Install the CbOpenSource repository if it isn't already present:
+#### Removal of currently installed event
+
+1. Stop event forwarder service:
+
+    ```
+    sudo service cb-event-forwarder stop
+    ```
+
+2. Remove the current event forwarder package:
+
+    ```
+    sudo yum remove cb-event-forwarder
+    ```
+
+#### Installation
+
+To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. 
+NOTE: if you plan to use the EDR console to configure and control cb-event-forwarder, then you MUST install 
+it on the same system on which EDR is installed (in the case of a cluster installer, this means the primary node).
+
+1.	Install the CbOpenSource repository if it isn't already present:
 
     ```
     cd /etc/yum.repos.d
     curl -O https://opensource.carbonblack.com/release/x86_64/CbOpenSource.repo
     ```
-2. Install the RPM via YUM: 
+2.	Install the RPM via YUM:
 
-   ```
-   yum install cb-event-forwarder
-   ```
-3. If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
-Forwarder, run the following script to set the appropriate permissions needed by EDR:
+    ```
+    yum install cb-event-forwarder-3.7.6
+    ```
 
-   ```
-   /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
-   ```
+3.	If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event Forwarder,
+run the following script to set the appropriate permissions needed by EDR:
+
+    ```
+    /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
+    ```
 
 ### Configure the cb-event-forwarder
 
 1. If installing on a machine *other than* the EDR server:
     1. Create a new RabbitMQ user by executing the following commands as root on the EDR server:
-   ```
-   /usr/share/cb/cbrabbitmqctl add_user <username> <password>
-   /usr/share/cb/cbrabbitmqctl set_user_tags <username> administrator
-   /usr/share/cb/cbrabbitmqctl set_permissions -p / <username> ".*" ".*" ".*"
-   ```
+
+        ```
+        /usr/share/cb/cbrabbitmqctl add_user <username> <password>
+        /usr/share/cb/cbrabbitmqctl set_user_tags <username> administrator
+        /usr/share/cb/cbrabbitmqctl set_permissions -p / <username> ".*" ".*" ".*"
+        ```
     2. Set the `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to the credentials you used in the preceding step
        file. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached.
 2. If the cb-event-forwarder is forwarding events from a EDR cluster, the `cb_server_hostname` should be set
