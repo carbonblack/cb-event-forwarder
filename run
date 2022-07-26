@@ -75,7 +75,7 @@ if [[ "${1^^}" =~ ^(BUILD|UNITTEST|CODEREPORT|SMOKETEST|REGRESSIONTEST)$ ]]; the
   echo "run: RHEL${OSVERSION} - running ${1}..."
   case "${1^^}" in
     BUILD) ${OS_ADDON}./gradlew build ;;
-    UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;; 
+    UNITTEST) ${OS_ADDON}./gradlew runUnitTests ;;
     CODEREPORT) ${OS_ADDON}./gradlew criticizeCode ;;
     SMOKETEST) ${OS_ADDON}./gradlew runSmokeTest ;;
     REGRESSIONTEST) ${OS_ADDON}./gradlew runRegressionTest ;;

@@ -29,7 +29,8 @@ var (
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
-var version = "3.7.5"
+var version = "3.8.2"
+var rabbitMQSalt = ""
 
 var signals = make(chan os.Signal, 2)
 var config Configuration
@@ -56,7 +57,7 @@ func main() {
 
 }
 
-func handleStartup(hostname string, forwarder *EventForwarder) * LogFileHandler {
+func handleStartup(hostname string, forwarder *EventForwarder) *LogFileHandler {
 	log.Infof("cb-event-forwarder version %s starting", version)
 
 	handlePidFile()
@@ -138,7 +139,7 @@ func startDebugServer(forwarder *EventForwarder) {
 
 }
 
-func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) * LogFileHandler {
+func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) *LogFileHandler {
 	exportedVersion := &expvar.String{}
 	metrics.Register("version", exportedVersion)
 	if *debug {
@@ -157,7 +158,7 @@ func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) * 
 
 }
 
-func SetUpLogger(config * Configuration) * LogFileHandler{
+func SetUpLogger(config *Configuration) *LogFileHandler {
 	lh := NewLogFileHandler(config.LogDir, config.LogLevel, config.LogSizeMB, config.LogMaxAge, config.LogBackups)
 	lh.InitializeLogging()
 	return &lh
@@ -169,7 +170,7 @@ func handleConfigurationLoading() Configuration {
 		configLocation = flag.Arg(0)
 	}
 	log.Infof("Using config file %s\n", configLocation)
-	config, err := ParseConfig(configLocation)
+	config, err := ParseConfig(configLocation, rabbitMQSalt)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -191,7 +192,7 @@ func handleStart(forwarder *EventForwarder, hostname string) {
 	}
 }
 
-func handleExit(forwarder *EventForwarder, logHandler * LogFileHandler) {
+func handleExit(forwarder *EventForwarder, logHandler *LogFileHandler) {
 	hookSignals()
 	defer log.Infof("EF Shutdown complete...")
 	defer logHandler.Rotate()

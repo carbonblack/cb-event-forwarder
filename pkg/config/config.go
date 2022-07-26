@@ -17,8 +17,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/go-ini/ini"
 	"github.com/Showmax/go-fqdn"
+	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -46,8 +46,6 @@ const MAXLOGSIZE = 500
 const DEFAULTLOGRETAINDAYS = 21
 const MAXLOGBACKUPS = 30
 const DEFAULTLOGBACKUPS = 7
-
-var RabbitMQSalt = ""
 
 func Max(a, b int) int {
 	if a > b {
@@ -206,12 +204,12 @@ func (e *ConfigurationError) addError(err error) {
 	e.Errors = append(e.Errors, err.Error())
 }
 
-func tokenToPassword(rabbitToken string) string {
-	hash := sha256.Sum256([]byte(rabbitToken + RabbitMQSalt))
+func tokenToPassword(rabbitToken string, rabbitMQSalt string) string {
+	hash := sha256.Sum256([]byte(rabbitToken + rabbitMQSalt))
 	return fmt.Sprintf("%x", hash)
 }
 
-func GetLocalRabbitMQCredentials() (username, password string, err error) {
+func GetLocalRabbitMQCredentials(rabbitMQSalt string) (username, password string, err error) {
 	input, err := ini.Load("/etc/cb/cb.conf")
 	if err != nil {
 		log.Errorf("There was an error parsing rabbitmq credentials from /etc/cb/cb.conf. Check the file for ini syntax errors.")
@@ -224,9 +222,8 @@ func GetLocalRabbitMQCredentials() (username, password string, err error) {
 	password = input.Section("").Key("RabbitMQPassword").Value()
 	if len(password) == 0 {
 		token := input.Section("").Key("RabbitMQToken").Value()
-		password = tokenToPassword(token)
+		password = tokenToPassword(token, rabbitMQSalt)
 	}
-
 
 	if len(username) == 0 || len(password) == 0 {
 		return username, password, errors.New("Could not get RabbitMQ user/token from /etc/cb/cb.conf")
@@ -449,7 +446,7 @@ func (config *Configuration) parseExitTimeout(input *ini.File) error {
 	return nil
 }
 
-func (config *Configuration) parseRabbitmqSettings(input *ini.File) error {
+func (config *Configuration) parseRabbitmqSettings(input *ini.File, rabbitMQSalt string) error {
 	if input.Section("bridge").HasKey("rabbit_mq_username") {
 		key := input.Section("bridge").Key("rabbit_mq_username")
 		config.AMQPUsername = key.Value()
@@ -471,7 +468,7 @@ func (config *Configuration) parseRabbitmqSettings(input *ini.File) error {
 	}
 
 	if len(config.AMQPUsername) == 0 || len(config.AMQPPassword) == 0 {
-		AMQPUsername, AMQPPassword, err := GetLocalRabbitMQCredentials()
+		AMQPUsername, AMQPPassword, err := GetLocalRabbitMQCredentials(rabbitMQSalt)
 		if err != nil {
 			return err
 		}
@@ -1108,11 +1105,11 @@ func (config *Configuration) setDefaults() {
 	config.S3CredentialProfileName = nil
 }
 
-func ParseConfig(fn string) (Configuration, error) {
+func ParseConfig(fn string, rabbitMQSalt string) (Configuration, error) {
 	config := Configuration{}
 	errs := ConfigurationError{Empty: true}
 
-	input, err := ini.LoadSources(ini.LoadOptions{IgnoreInlineComment:true}, fn)
+	input, err := ini.LoadSources(ini.LoadOptions{IgnoreInlineComment: true}, fn)
 	if err != nil {
 		return config, err
 	}
@@ -1133,7 +1130,7 @@ func ParseConfig(fn string) (Configuration, error) {
 
 	config.parseExitTimeout(input)
 
-	err = config.parseRabbitmqSettings(input)
+	err = config.parseRabbitmqSettings(input, rabbitMQSalt)
 	if err != nil {
 		errs.addError(err)
 	}

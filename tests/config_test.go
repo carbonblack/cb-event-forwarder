@@ -25,10 +25,10 @@ func iniFromMap(inputMap map[string]mapString) []byte {
 }
 
 func TestLocalRabbitmqCredentiaslError(t *testing.T) {
-	_, _, err := GetLocalRabbitMQCredentials()
+	_, _, err := GetLocalRabbitMQCredentials("An invalid salt")
 	if !strings.Contains(fmt.Sprintf("%v", err), "/etc/cb/cb.conf") {
-		t.Fatalf("Local rabbitmq error is not specific as to what file is having a parsing error")
-        }
+		t.Fatalf("Local rabbitmq error is not specific as to what file is having a parsing error: %v", err)
+	}
 }
 
 func TestParseEventsRawEnabled(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -141,7 +142,7 @@ func (so *NGS3Output) HandleTerm() {
 type S3ChunkingPublisher struct {
 	config *Configuration
 	S3Publisher
-	chunkers        []S3OutputChunkWorker
+	chunkers        []*S3OutputChunkWorker
 	Input           chan string
 	uploads         chan *S3OutputChunk
 	uploadWaitGroup *sync.WaitGroup
@@ -154,7 +155,7 @@ func NewS3ChunkingPublisher(cfg *Configuration, uploader WrappedUploader, bucket
 	waitGroupUpload := &sync.WaitGroup{}
 	uploads := make(chan *S3OutputChunk)
 	inputs := make(chan string)
-	chunkers := make([]S3OutputChunkWorker, 0)
+	chunkers := make([]*S3OutputChunkWorker, 0)
 	publisher := NewS3Publisher(waitGroupUpload, uploader, uploads)
 	return &S3ChunkingPublisher{config: cfg, chunkers: chunkers, Input: inputs, bucketName: bucketName, inputWaitGroup: waitGroupInput, uploadWaitGroup: waitGroupUpload, uploads: uploads, S3Publisher: publisher}
 }
@@ -184,14 +185,17 @@ func (chunkingPublisher *S3ChunkingPublisher) LaunchInputWorkers(workerNum int) 
 func (chunkingPublisher *S3ChunkingPublisher) RollChunkIf(uploadEmpty bool) (err error) {
 	var rollError error = nil
 	for i, chunker := range chunkingPublisher.chunkers {
+		chunker.Lock()
+		rollError = chunker.RollChunkIf(uploadEmpty)
+		chunker.Unlock()
+
 		if rollError != nil {
 			if err == nil {
-				err = rollError
+				err = fmt.Errorf("[worker-%d]:%v", i, rollError)
 			} else {
 				err = fmt.Errorf("%v\n[worker-%d]:%v", err, i, rollError)
 			}
 		}
-		rollError = chunker.RollChunkIf(uploadEmpty)
 	}
 	return err
 }
@@ -210,14 +214,14 @@ func (chunkingPublisher *S3ChunkingPublisher) Stop() {
 func (chunkingPublisher *S3ChunkingPublisher) RollChunkIfTimeElapsed(uploadEmpty bool, duration time.Duration) (err error) {
 	var rollError error = nil
 	for i, chunker := range chunkingPublisher.chunkers {
+		rollError = chunker.RollChunkIfTimeElapsed(uploadEmpty, duration)
 		if rollError != nil {
 			if err == nil {
-				err = rollError
+				err = fmt.Errorf("[worker-%d]:%v", i, rollError)
 			} else {
 				err = fmt.Errorf("%v\n[worker-%d]:%v", err, i, rollError)
 			}
 		}
-		rollError = chunker.RollChunkIfTimeElapsed(uploadEmpty, duration)
 	}
 	return err
 }
@@ -231,6 +235,7 @@ type S3OutputChunkWorker struct {
 	uploadOutputs chan<- *S3OutputChunk
 	currentChunk  *S3OutputChunk
 	config        *Configuration
+	sync.RWMutex
 }
 
 type S3OutputChunk struct {
@@ -248,7 +253,6 @@ type S3OutputChunk struct {
 	sent             bool
 	createTime       time.Time
 	Closed           bool
-	sync.RWMutex
 }
 
 func NewS3OutputChunk(cfg *Configuration, chunkSize, flushSize int64, fileName, bucketName string) (*S3OutputChunk, error) {
@@ -283,12 +287,13 @@ func (chunk *S3OutputChunk) CloseChunkWriters() error {
 	return nil
 }
 
+// Read is called by the S3 uploader. It is repeatedly called to pull data off the pipe, so it can be written
+// to S3. Once the writer end of the pipe is closed, the current S3 upload will be completed and no more reading
+// will be performed on that pipe.
 func (chunk *S3OutputChunk) Read(buffer []byte) (n int, err error) {
 	n, err = chunk.reader.Read(buffer)
 	if err == nil {
-		chunk.Lock()
-		defer chunk.Unlock()
-		chunk.bytesRead += int64(n)
+		atomic.AddInt64(&chunk.bytesRead, int64(n))
 	}
 	return n, err
 }
@@ -298,9 +303,9 @@ func (chunk *S3OutputChunk) CloseChunkReader() error {
 }
 
 func (chunk *S3OutputChunk) Write(message string) error {
-	writenByteCount, err := chunk.writer.Write([]byte(message))
+	writtenByteCount, err := chunk.writer.Write([]byte(message))
 	if err == nil {
-		chunk.addWrittenBytes(int64(writenByteCount))
+		chunk.addWrittenBytes(int64(writtenByteCount))
 		return chunk.FlushIfNeeded()
 	}
 	return err
@@ -323,10 +328,10 @@ func (chunk *S3OutputChunk) addWrittenBytes(n int64) {
 	chunk.sinceFlush += n
 }
 
-func NewS3ChunkWorker(cfg *Configuration, uploads chan<- *S3OutputChunk, chunkSize, flushSize int64, fileName, bucketName string) (S3OutputChunkWorker, error) {
+func NewS3ChunkWorker(cfg *Configuration, uploads chan<- *S3OutputChunk, chunkSize, flushSize int64, fileName, bucketName string) (*S3OutputChunkWorker, error) {
 	newChunk, err := NewS3OutputChunk(cfg, chunkSize, flushSize, fileName, bucketName)
 	chunkWorker := S3OutputChunkWorker{config: cfg, bucketName: bucketName, uploadOutputs: uploads, currentChunk: newChunk, publishing: false, chunkSize: chunkSize, flushSize: flushSize, baseFileName: fileName}
-	return chunkWorker, err
+	return &chunkWorker, err
 }
 
 func (chunkWorker *S3OutputChunkWorker) CurrentChunkTime() time.Time {
@@ -334,6 +339,9 @@ func (chunkWorker *S3OutputChunkWorker) CurrentChunkTime() time.Time {
 }
 
 func (chunkWorker *S3OutputChunkWorker) CloseCurrentChunk() error {
+	chunkWorker.Lock()
+	defer chunkWorker.Unlock()
+
 	if chunkWorker.currentChunk.Closed {
 		return nil
 	}
@@ -342,24 +350,33 @@ func (chunkWorker *S3OutputChunkWorker) CloseCurrentChunk() error {
 
 func (chunkWorker *S3OutputChunkWorker) RollChunkIf(emptyOk bool) error {
 	if emptyOk || (!emptyOk && chunkWorker.currentChunk.currentByteCount > 0) {
+		log.Debugf("Rolling chunk due to timeout or termination.")
 		return chunkWorker.RollChunkAndSend()
 	}
 	return nil
 }
 
 func (chunkWorker *S3OutputChunkWorker) RollChunkIfTimeElapsed(emptyOk bool, duration time.Duration) error {
-	if time.Now().Sub(chunkWorker.CurrentChunkTime()) >= duration {
+	now := time.Now()
+
+	chunkWorker.Lock()
+	defer chunkWorker.Unlock()
+
+	if now.Sub(chunkWorker.CurrentChunkTime()) >= duration {
 		return chunkWorker.RollChunkIf(emptyOk)
 	}
 	return nil
 }
 
+// RollChunk ends the current chunk and creates another. Ending it is accomplished by closing the pipe writer
+// which results in the read and then the S3 upload completing. The chunk is created before any data is received.
 func (chunkWorker *S3OutputChunkWorker) RollChunk() error {
 	err := chunkWorker.currentChunk.CloseChunkWriters()
 	chunkWorker.currentChunk, err = NewS3OutputChunk(chunkWorker.config, chunkWorker.chunkSize, chunkWorker.flushSize, chunkWorker.baseFileName, chunkWorker.bucketName)
 	return err
 }
 
+// RollChunkAndSend creates a new chunk and sends it to the thead doing the S3 uploading via a channel.
 func (chunkWorker *S3OutputChunkWorker) RollChunkAndSend() error {
 	err := chunkWorker.RollChunk()
 	if err == nil {
@@ -368,7 +385,13 @@ func (chunkWorker *S3OutputChunkWorker) RollChunkAndSend() error {
 	return err
 }
 
+// output writes data (previously received from RabbitMQ) to the pipe. Once the amount of data read from the pipe
+// (yes, read from, not written to) exceeds the configured "chunkSize", the current chunk is completed and a new one
+// is created.
 func (chunkWorker *S3OutputChunkWorker) output(message string) (err error) {
+	chunkWorker.Lock()
+	defer chunkWorker.Unlock()
+
 	err = chunkWorker.currentChunk.Write(message)
 	if chunkWorker.currentChunk.Full() {
 		return chunkWorker.RollChunkAndSend()
@@ -376,6 +399,9 @@ func (chunkWorker *S3OutputChunkWorker) output(message string) (err error) {
 	return err
 }
 
+// SendChunk - sends the details of a chunk (which includes the pipe being used to send data) and is one of the first
+// things that is done. Doing this triggers the creation of a new S3 uploader, which will continuously read from
+// the pipe until it is closed. This does not send RabbitMQ data, but rather a chunk object.
 func (chunkWorker *S3OutputChunkWorker) SendChunk() {
 	if !chunkWorker.currentChunk.sent {
 		chunkWorker.uploadOutputs <- chunkWorker.currentChunk
@@ -388,7 +414,11 @@ func (chunkWorker *S3OutputChunkWorker) Work(workerId int, wg *sync.WaitGroup, i
 	defer chunkWorker.CloseCurrentChunk()
 	defer log.Infof("[%d]Chunk worker exiting...", workerId)
 	defer wg.Done()
+
+	chunkWorker.Lock()
 	chunkWorker.SendChunk()
+	chunkWorker.Unlock()
+
 	for inputData := range input {
 		err := chunkWorker.output(inputData)
 		if err != nil {
@@ -421,9 +451,8 @@ func (chunk *S3OutputChunk) PrepareS3UploadInput(workerId int) *s3manager.Upload
 }
 
 func (chunk *S3OutputChunk) Full() bool {
-	chunk.RLock()
-	defer chunk.RUnlock()
-	return chunk.bytesRead >= chunk.chunkSize
+	bytesRead := atomic.LoadInt64(&chunk.bytesRead)
+	return bytesRead >= chunk.chunkSize
 }
 
 type S3Publisher struct {
@@ -461,6 +490,10 @@ func NewS3PublisherWorker(workerId int, waitGroup *sync.WaitGroup, uploads <-cha
 	return &S3PublisherWorker{waitGroup: waitGroup, uploads: uploads, uploader: publisher, workerId: workerId}
 }
 
+// Work waits for a new chunk on the channel and then uses it to setup a new S3 uploader. That uploader will
+// make calls to the above S3OutputChunk.Read() to pull data off the internal pipe where we are also writing data
+// that is received from RabbitMQ. Once the pipe's writer is closed, the data will be uploaded and this will again
+// wait for the next chunk. Note that chunks are created before any data is received.
 func (worker *S3PublisherWorker) Work() {
 	worker.waitGroup.Add(1)
 	defer log.Debugf("[WORKER%d] S3 uploader-worker exiting", worker.workerId)

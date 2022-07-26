@@ -24,7 +24,7 @@ easyjson:
 generateeasyjsonmodels: easyjson
 	cd pkg/protobufmessageprocessor ; easyjson -all protobuf_json_structs.go
 
-protocgengo: 
+protocgengo:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go
 
 compile-protobufs: protocgengo
@@ -33,17 +33,17 @@ compile-protobufs: protocgengo
 format:
 	go fmt cmd/cb-event-forwarder/*.go
 
-build-no-static: compile-protobufs format 
+build-no-static: compile-protobufs format
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
 
-build: 
+build:
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
 
 rpmbuild: check-env
-	go build -tags static -ldflags "-X main.version=${VERSION} -X config.RabbitMQSalt=${RABBITMQ_SALT_INTERNAL}" ./cmd/cb-event-forwarder
-	go build -tags static -ldflags "-X main.version=${VERSION}" ./cmd/kafka-util
+	go build -tags static -ldflags "-X 'main.version=${VERSION}' -X 'main.rabbitMQSalt=${RABBITMQ_SALT_INTERNAL}'" ./cmd/cb-event-forwarder
+	go build -tags static -ldflags "-X 'main.version=${VERSION}'" ./cmd/kafka-util
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
@@ -85,7 +85,7 @@ clean:
 bench:
 	go test -bench=. ./cmd/cb-event-forwarder/
 
-sdist: 
+sdist:
 	mkdir -p ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
 	echo "${GIT_VERSION}" > ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/VERSION
 	cp -rp cb-edr-fix-permissions.sh cb-event-forwarder.service pkg Makefile go.mod cmd static conf init-scripts ${RPM_OUTPUT_DIR}/SOURCES/cb-event-forwarder-${GIT_VERSION}/src/${GO_PREFIX}
@@ -95,5 +95,5 @@ sdist:
 rpm: sdist
 	rpmbuild --define '_topdir ${RPM_OUTPUT_DIR}'  --define 'version ${GIT_VERSION}' --define 'release 1' -bb cb-event-forwarder.rpm.spec
 
-critic: 
+critic:
 	gocritic check -enableAll -disable='#experimental,#opinionated' ./cmd/cb-event-forwarder/*.go

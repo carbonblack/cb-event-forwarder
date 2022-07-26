@@ -1,12 +1,12 @@
 module github.com/carbonblack/cb-event-forwarder
 
 require (
+	github.com/BurntSushi/toml v1.2.0 // indirect
 	github.com/RackSec/srslog v0.0.0-20180514150917-1f7cff998e92
 	github.com/Shopify/sarama v1.26.4
 	github.com/Showmax/go-fqdn v1.0.0
 	github.com/aws/aws-sdk-go v1.13.49
 	github.com/cyberdelia/go-metrics-graphite v0.0.0-20161219230853-39f87cc3b432
-	github.com/easyCZ/logrotate v0.1.0
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
@@ -19,6 +19,7 @@ require (
 	github.com/klauspost/compress v1.10.4
 	github.com/klauspost/pgzip v1.2.3
 	github.com/mailru/easyjson v0.7.7
+	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pierrec/lz4 v2.4.1+incompatible
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	github.com/sirupsen/logrus v1.3.0
@@ -36,6 +37,7 @@ require (
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/h2non/filetype.v1 v1.0.5
 	gopkg.in/ini.v1 v1.41.0 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
