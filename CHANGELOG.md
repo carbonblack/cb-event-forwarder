@@ -2,9 +2,14 @@
 
 ## v3.8.2
 
-#### Changes
+#### Features
+
+* Support for dockerized EDR added via new event-forwarder docker image. 
+
+#### Bug Fixes / Changes
 
 * Adapt to change in RabbitMQ authentication in EDR v7.7.0, but maintain backwards compatibility. 
+* Fixed issue that could cause event forwarder to lock up if excessive amount of time happened without logging events
 
 ## v3.8.1
 
@@ -29,6 +34,18 @@
  * Under some circumstances the EF process would not terminate when shut down. This is no longer the case.
  * S3 output has been improved.
  * Protobuf processing performance improvements
+
+## v3.7.6
+
+#### Changes
+
+* Adapt to change in RabbitMQ authentication in EDR v7.7.0, but maintain backwards compatibility.
+
+## v3.7.5
+
+#### Bug Fixes / Changes
+
+ * Fixed a bug causing NetconnBlocked messages to be written out
 
 ## v3.7.4
 
