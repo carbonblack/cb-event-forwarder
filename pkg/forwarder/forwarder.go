@@ -115,9 +115,10 @@ func (forwarder *EventForwarder) startAMQPConsumer(hostname string) {
 
 	if forwarder.RunConsumer {
 		go func(consumerNumber int) {
-			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, forwarder.AMQPURL(), queueName)
+			log.Infof("Starting AMQP loop %d to %s on queue %s", consumerNumber, forwarder.AMQPURL(true), queueName)
 			for {
-				err := forwarder.MessageProcessingLoop(forwarder.AMQPURL(), queueName, fmt.Sprintf("go-event-consumer-%d", consumerNumber))
+				err := forwarder.MessageProcessingLoop(forwarder.AMQPURL(false), queueName,
+					fmt.Sprintf("go-event-consumer-%d", consumerNumber))
 				log.Infof("AMQP loop %d exited: %s. Sleeping for 30 seconds then retrying.", consumerNumber, err)
 				time.Sleep(30 * time.Second)
 			}
@@ -210,7 +211,7 @@ func (forwarder *EventForwarder) RunUntilExit() {
 	forwarder.awaitOutputDone()
 }
 
-func (forwarder * EventForwarder) awaitOutputDone() {
+func (forwarder *EventForwarder) awaitOutputDone() {
 	forwarder.outputHasStopped.L.Lock()
 	forwarder.outputHasStopped.Wait()
 	forwarder.outputHasStopped.L.Unlock()
