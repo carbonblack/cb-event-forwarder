@@ -36,19 +36,23 @@ format:
 build-no-static: compile-protobufs format
 	go build ./cmd/cb-event-forwarder
 	go build ./cmd/kafka-util
+	go build ./cmd/go-serviced
 
 build:
 	go build -tags static ./cmd/cb-event-forwarder
 	go build -tags static ./cmd/kafka-util
+	go build -tags static ./cmd/go-serviced
 
 rpmbuild: check-env
 	go build -tags static -ldflags "-X 'main.version=${VERSION}' -X 'main.rabbitMQSalt=${RABBITMQ_SALT_INTERNAL}'" ./cmd/cb-event-forwarder
 	go build -tags static -ldflags "-X 'main.version=${VERSION}'" ./cmd/kafka-util
+	go build -tags static -ldflags "-X 'main.version=${VERSION}'" ./cmd/go-serviced
 
 rpminstall:
 	mkdir -p ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder
 	cp -p cb-event-forwarder ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-event-forwarder
 	cp -p kafka-util ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/kafka-util
+	cp -p go-serviced ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/go-serviced
 	cp -p cb-edr-fix-permissions.sh ${RPM_BUILD_ROOT}/usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
 	mkdir -p ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder
 	cp -p conf/cb-event-forwarder.example.ini ${RPM_BUILD_ROOT}/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf

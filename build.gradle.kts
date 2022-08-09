@@ -1,4 +1,9 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerPushImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
 import java.io.ByteArrayOutputStream
+
+val currentVersion: String by project
+
 
 plugins {
     base
@@ -114,6 +119,7 @@ val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
     val outputDir = File("${project.buildDir}/rpm")
 
     inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("cmd/go-serviced")
     inputs.dir("pkg")
     inputs.dir("scripts/")
     inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
@@ -129,6 +135,40 @@ val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
     commandLine = listOf("make", "rpm")
 }
 
-val buildTask = tasks.named("build").configure {
+val build = tasks.named("build").configure {
     dependsOn(buildEventForwarderTask)
+}
+
+val buildEventForwarderDockerImageTask = tasks.register<Exec>("buildEventForwarderDockerImage") {
+    dependsOn(buildEventForwarderTask)
+    executable("docker")
+    args("build", "./docker/", "--tag", "artifactory-pub.bit9.local:5000/cb/event-forwarder:$currentVersion")
+    doFirst {
+        val rpmName = "cb-event-forwarder-$currentVersion.$osVersionClassifier.x86_64.rpm"
+        File("${project.buildDir}/rpm/RPMS/x86_64/$rpmName").copyTo(File("./docker/$rpmName"), true);
+    }
+}
+
+val dockerLogin = tasks.register<Exec>("dockerLogin") {
+    dependsOn(buildEventForwarderDockerImageTask)
+    val user = System.getenv("ARTIFACTORY_USER")
+    val pw = System.getenv("ARTIFACTORY_API_KEY")
+    executable("docker")
+    args("login", "-u", user, "-p", pw, "artifactory-pub.bit9.local:5000")
+}
+
+val publishEventForwarderDockerImageTask = tasks.register<Exec>("publishEventForwarderDockerImageTask") {
+    dependsOn(dockerLogin)
+    dependsOn(buildEventForwarderDockerImageTask)
+    executable("docker")
+    args("push", "artifactory-pub.bit9.local:5000/cb/event-forwarder:$currentVersion")
+}
+
+tasks.register("buildTeamCity").configure {
+    val buildVersion = System.getenv("DOCKERIZED_BUILD_ENV")
+    if(buildVersion == "centos8") {
+        dependsOn(buildEventForwarderTask)
+    } else {
+        dependsOn(publishEventForwarderDockerImageTask)
+    }
 }

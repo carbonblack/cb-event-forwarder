@@ -180,14 +180,17 @@ type ConfigurationError struct {
 	Empty  bool
 }
 
-func (config *Configuration) AMQPURL() string {
+func (config *Configuration) AMQPURL(censorPassword bool) string {
 	scheme := "amqp"
 
 	if config.AMQPTLSEnabled {
 		scheme = "amqps"
 	}
-
-	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, config.AMQPUsername, config.AMQPPassword, config.AMQPHostname, config.AMQPPort)
+	password := config.AMQPPassword
+	if censorPassword {
+		password = "PASSWORD"
+	}
+	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, config.AMQPUsername, password, config.AMQPHostname, config.AMQPPort)
 }
 
 func (e ConfigurationError) Error() string {
