@@ -39,6 +39,8 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server 
 
 ### Installation
 
+#### Standard RPM-based installation
+
 To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
 to use the EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
 EDR is installed (in the case of a cluster installer, this means the primary node).
@@ -60,6 +62,35 @@ Forwarder, run the following script to set the appropriate permissions needed by
    ```
    /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
    ```
+### Installation for EDR in docker
+
+EDR has been available as a Dockerized install since version 7.7.0. 
+Event Forwarder versions prior to 3.8.2 do not work with Carbon Black EDR containerized servers.
+A new dockerized edition of Event Forwarder is now available as of EF 3.8.2 for use with Dockerized EDR. 
+It can be installed with this procedure:
+
+#### Procedure
+
+1. Retrieve the containerized version of Event Forwarder 3.8.2 with docker using this command:  
+`docker pull projects.registry.vmware.com/carbonblack/event-forwarder:3.8.2`
+2. Retag the downloaded Event Forwarder image using this command:  
+`docker tag projects.registry.vmware.com/carbonblack/event-forwarder:3.8.2 projects.registry.vmware.com/carbonblack/event-forwarder:latest`
+3. From the directory where the edr-docker script is installed, extract the yml file using this command:    
+`docker run --rm --entrypoint=/bin/cat projects.registry.vmware.com/carbonblack/event-forwarder:latest /compose.yml > event-forwarder.yml`
+4. Set up Carbon Black EDR to control Event Forwarder. Edit data/config/cb.conf and add the following values:  
+`EventForwarderEnabled=True`  
+`EventForwarderContainerAddress=carbonblack-event-forwarder`    
+`EventForwarderContainerPort=5744`
+5. Run the Event Forwarder docker container using this command:  
+`docker-compose -f event-forwarder.yml up -d`
+
+#### Results
+
+Configuration is saved in data/integrations/event-forwarder.  
+* The Carbon Black EDR data folder is re-used
+* If you encounter difficulties logging can be found in `data/logs/event-forwarder` directory and additional logging 
+information for Event Forwarder is available by use thing this command: `docker logs -f carbonblackevent-forwarder`
+
 
 ### Configure the cb-event-forwarder
 
