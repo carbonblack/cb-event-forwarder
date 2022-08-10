@@ -62,7 +62,7 @@ Forwarder, run the following script to set the appropriate permissions needed by
    ```
    /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
    ```
-### Installation for EDR in docker
+#### Installation for EDR in docker
 
 EDR has been available as a Dockerized install since version 7.7.0. 
 Event Forwarder versions prior to 3.8.2 do not work with Carbon Black EDR containerized servers.
