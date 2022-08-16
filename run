@@ -19,7 +19,7 @@ print_help() {
 OSVERSION=7
 RABBITMQ_SALT=unset
 
-PARSED=$(getopt -n run -o o:s: --long osversion:salt:,help -- "$@")
+PARSED=$(getopt -n run -o o:s:h --longoptions osversion:,salt:,help -- "$@")
 
 if [ "${?}" != "0" ]; then
   print_help
