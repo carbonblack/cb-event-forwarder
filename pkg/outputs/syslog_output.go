@@ -43,9 +43,11 @@ type SyslogStatistics struct {
 	Connected          bool      `json:"connected"`
 }
 
-// Initialize() expects a connection string in the following format:
-// (protocol):(hostname/IP):(port)
-// for example: tcp+tls:destination.server.example.com:512
+// Initialize expects a connection string in the following format: [protocol]:host[:port]
+// For example: tcp+tls:destination.server.example.com:512
+// - protocol is optional (but the colon before host is not) and should be something like:
+//   - tcp, udp, tcp+tls
+// - port is optional and if not provided will default to 514.
 func (o *SyslogOutput) Initialize(netConn string) error {
 	o.Lock()
 	defer o.Unlock()
@@ -56,9 +58,16 @@ func (o *SyslogOutput) Initialize(netConn string) error {
 	}
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
+	if len(connSpecification) < 2 {
+		return fmt.Errorf("Invalid connection string: '%s'.", netConn)
+	}
 
 	o.protocol = connSpecification[0]
 	o.hostnamePort = connSpecification[1]
+	if !strings.Contains(connSpecification[1], ":") {
+		log.Infof("No port specified; defaulting to '514'")
+		o.hostnamePort += ":514"
+	}
 
 	var err error
 	o.outputSocket, err = syslog.DialWithTLSConfig(o.protocol, o.hostnamePort, syslog.LOG_INFO, o.tag, o.Config.TLSConfig)
