@@ -1,5 +1,12 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.8.3
+
+#### Bug Fixes / Changes
+
+* The service no longer panics and fails to run when a syslog port number is not provided.  The system assumes a default port of 514 and carries on.
+* The service correctly interprets S3 bucket locations stated as <region>:<bucket_name>:<Temp File Location>
+
 ## v3.8.2
 
 #### Features
