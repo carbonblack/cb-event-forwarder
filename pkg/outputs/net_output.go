@@ -44,7 +44,7 @@ type NetStatistics struct {
 	Connected         bool      `json:"connected"`
 }
 
-// Initialize() expects a connection string in the following format:
+// Initialize expects a connection string in the following format:
 // (protocol):(hostname/IP):(port)
 // for example: tcp:destination.server.example.com:512
 func (o *NetOutput) Initialize(netConn string) error {
@@ -58,6 +58,9 @@ func (o *NetOutput) Initialize(netConn string) error {
 	o.netConn = netConn
 
 	connSpecification := strings.SplitN(netConn, ":", 2)
+	if len(connSpecification) < 2 {
+		return fmt.Errorf("Invalid connection string: '%s'.", netConn)
+	}
 
 	o.protocolName = connSpecification[0]
 	o.remoteHostname = connSpecification[1]

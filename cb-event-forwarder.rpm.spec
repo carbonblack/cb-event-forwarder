@@ -3,7 +3,7 @@
 %global debug_package %{nil}
 %global __os_install_post /usr/lib/rpm/brp-compress %{nil}
 
-%define bare_version 3.8.2
+%define bare_version 3.8.3
 
 %define release 1
 
@@ -30,7 +30,7 @@ These events can be consumed by any external system that accepts JSON or LEEF, i
 %setup -n %{name}-%{bare_version}
 
 $build
-cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild 
+cd ./src/github.com/carbonblack/cb-event-forwarder && make rpmbuild
 
 %install
 cd ./src/github.com/carbonblack/cb-event-forwarder && make rpminstall

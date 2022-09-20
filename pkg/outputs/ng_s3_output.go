@@ -44,14 +44,19 @@ func (so *NGS3Output) Key() string {
 }
 
 func (so *NGS3Output) Initialize(connString string) error {
-	parts := strings.SplitN(connString, ":", 2)
+	parts := strings.Split(connString, ":")
 	switch len(parts) {
 	case 1:
 		so.bucketName = connString
 		so.region = "us-east-1"
 	case 2:
-		so.bucketName = parts[1]
 		so.region = parts[0]
+		so.bucketName = parts[1]
+	case 3:
+		tempFileDirectory := parts[0]
+		so.region = parts[1]
+		so.bucketName = parts[2]
+		log.Debugf("Using temp file directory: %s", tempFileDirectory)
 	default:
 		return fmt.Errorf("Invalid connection string: '%s' should look like (temp-file-directory):(region):bucket-name",
 			connString)
