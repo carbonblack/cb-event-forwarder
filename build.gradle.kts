@@ -73,9 +73,38 @@ val jsonModelGenerationTask = tasks.register<Exec>("runEasyJson") {
     args("generateeasyjsonmodels")
 }
 
+val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
+    dependsOn(depTask)
+    dependsOn(protoGenerationTask)
+    dependsOn(jsonModelGenerationTask)
+
+    val outputDir = File("${project.buildDir}/rpm")
+
+    inputs.dir("cmd/cb-event-forwarder")
+    inputs.dir("cmd/go-serviced")
+    inputs.dir("pkg")
+    inputs.dir("scripts/")
+    inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
+    outputs.dir(outputDir)
+
+    doFirst {
+        project.delete(outputDir)
+    }
+
+    environment("RPM_OUTPUT_DIR", outputDir)
+    environment("GOPATH", goPath)
+    environment("RABBITMQ_SALT", rabbitMQSalt)
+    commandLine = listOf("make", "rpm")
+}
+
+val build = tasks.named("build").configure {
+    dependsOn(buildEventForwarderTask)
+}
+
 val unitTestTask = tasks.register<Exec>("runUnitTests") {
     dependsOn(protoGenerationTask)
     dependsOn(depTask)
+    dependsOn(buildEventForwarderTask)
 
     val unitTestResultsFile = File("$buildDir/unittest.out")
 
@@ -108,35 +137,6 @@ val criticTask = tasks.register<Exec>("criticizeCode") {
     environment("GOPATH", goPath)
     executable("make")
     args("critic")
-}
-
-val buildEventForwarderTask = tasks.register<Exec>("buildEventForwarder") {
-    dependsOn(depTask)
-    dependsOn(protoGenerationTask)
-    dependsOn(jsonModelGenerationTask)
-    dependsOn(unitTestTask)
-
-    val outputDir = File("${project.buildDir}/rpm")
-
-    inputs.dir("cmd/cb-event-forwarder")
-    inputs.dir("cmd/go-serviced")
-    inputs.dir("pkg")
-    inputs.dir("scripts/")
-    inputs.files("cb-event-forwarder.rpm.spec", "MANIFEST*", "Makefile")
-    outputs.dir(outputDir)
-
-    doFirst {
-        project.delete(outputDir)
-    }
-
-    environment("RPM_OUTPUT_DIR", outputDir)
-    environment("GOPATH", goPath)
-    environment("RABBITMQ_SALT", rabbitMQSalt)
-    commandLine = listOf("make", "rpm")
-}
-
-val build = tasks.named("build").configure {
-    dependsOn(buildEventForwarderTask)
 }
 
 val buildEventForwarderDockerImageTask = tasks.register<Exec>("buildEventForwarderDockerImage") {

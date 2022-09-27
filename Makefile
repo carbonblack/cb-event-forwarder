@@ -1,5 +1,5 @@
-GIT_VERSION := 3.8.3
-VERSION := 3.8.3
+GIT_VERSION := 3.8.4
+VERSION := 3.8.4
 GO_PREFIX := github.com/carbonblack/cb-event-forwarder
 EL_VERSION := $(shell rpm -E %{rhel})
 TARGET_OS=linux
@@ -71,17 +71,16 @@ unittest: compile-protobufs
 	go test ./cmd/cb-event-forwarder
 
 test: unittest
-	rm -rf test_output/gold_output
-	rm -rf test_output/go_output
-	rm -rf test_output/leef_output
-	mkdir test_output/gold_output
+	rm -rf test_output
+	rm -rf test_output_old
+	mkdir -p test_output/gold_output
 	python test/scripts/process_events_python.py test/raw_data test_output/gold_output
 	PYTHONIOENCODING=utf8 python test/scripts/compare_outputs.py test_output/gold_output test_output/go_output > test_output/output.txt
 
 clean:
 	rm -f cb-event-forwarder
-	rm -rf test_output/gold_output
-	rm -rf test_output/go_output
+	rm -rf test_output
+	rm -rf test_output_old
 	rm -rf dist
 	rm -rf build
 	rm -f VERSION
