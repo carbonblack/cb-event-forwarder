@@ -861,6 +861,8 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufBundle(routingKey string, bod
 		bytesRead += 4
 
 		if messageLength+bytesRead > totalLength {
+			log.Debugf("error in ProcessProtobufBundle for event index %d: Length %d exceeds %d; giving up - host: %s",
+				i, messageLength, totalLength, headers["sensorHostName"])
 			err = fmt.Errorf("error in ProcessProtobufBundle for event index %d: Length %d exceeds %d; giving up",
 				i, messageLength, totalLength)
 			break
