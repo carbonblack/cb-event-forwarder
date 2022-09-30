@@ -20,7 +20,7 @@ import (
 )
 
 func (inputWorker InputWorker) processZipPB(body []byte, routingKey, contentType string, headers amqp.Table, exchangeName string) {
-	msgs, err := inputWorker.ProcessProtobufBundle(routingKey, body, headers)
+	msgs, err := inputWorker.ProcessRawZipBundle(routingKey, body, headers)
 	if err != nil {
 		inputWorker.reportBundleDetails(routingKey, body, headers)
 		inputWorker.reportError(routingKey, "Could not process raw zip bundle", err)

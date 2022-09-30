@@ -29,7 +29,7 @@ var (
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
-var version = "3.8.3"
+var version = "3.8.4"
 var rabbitMQSalt = ""
 
 var signals = make(chan os.Signal, 2)
