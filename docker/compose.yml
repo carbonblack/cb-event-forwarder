@@ -4,9 +4,9 @@ services:
     image: projects.registry.vmware.com/carbonblack/event-forwarder:latest
     volumes:
       - ./data/config/cb.conf:/etc/cb/cb.conf:ro
-      - ./data/integrations:/etc/cb/integrations
+      - ./data/integrations:/etc/cb/integrations:z
       - ./data/config/integrations/event-forwarder:/root/event-forwarder-edr
-      - ./data/logs/event-forwarder:/var/log/cb/integrations/cb-event-forwarder
+      - ./data/logs/event-forwarder:/var/log/cb/integrations/cb-event-forwarder:z
     networks:
       - carbonblack
 networks:
