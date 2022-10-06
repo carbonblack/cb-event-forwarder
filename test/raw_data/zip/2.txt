@@ -1,1 +1,0 @@
-<BasicProperties(['content_type=application/zip', 'delivery_mode=1', "headers={'sensorId': 1L, 'hostId': 0L, 'nodeId': 0, 'sensorHostName': u'HYPERV-WIN7-X86'}", 'priority=0'])>

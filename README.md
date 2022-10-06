@@ -69,10 +69,10 @@ A new dockerized edition of Event Forwarder is now available as of EF 3.8.2 for 
 It can be installed with this procedure:
 
 #### Procedure
-1. Retrieve the containerized version of Event Forwarder 3.8.2 with docker using this command:  
-`docker pull projects.registry.vmware.com/carbonblack/event-forwarder:3.8.2`
+1. Retrieve the containerized version of Event Forwarder 3.8.4 with docker using this command:  
+`docker pull projects.registry.vmware.com/carbonblack/event-forwarder:3.8.4`
 2. Retag the downloaded Event Forwarder image using this command:  
-`docker tag projects.registry.vmware.com/carbonblack/event-forwarder:3.8.2 projects.registry.vmware.com/carbonblack/event-forwarder:latest`
+`docker tag projects.registry.vmware.com/carbonblack/event-forwarder:3.8.4 projects.registry.vmware.com/carbonblack/event-forwarder:latest`
 3. From the directory where the edr-docker script is installed, extract the yml file using this command:    
 `docker run --rm --entrypoint=/bin/cat projects.registry.vmware.com/carbonblack/event-forwarder:latest /compose.yml > event-forwarder.yml`
 4. Set up Carbon Black EDR to control Event Forwarder. Edit data/config/cb.conf and add the following values:  
