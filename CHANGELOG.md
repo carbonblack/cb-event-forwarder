@@ -1,5 +1,13 @@
 # CB EDR Event Forwarder Changelog
 
+## v3.8.4
+
+#### Bug Fixes / Changes
+
+* The service correctly determines routable URLs for Hosted EDR alert emails.
+* The service correctly processes bundled, compressed event data.
+
+
 ## v3.8.3
 
 #### Bug Fixes / Changes
