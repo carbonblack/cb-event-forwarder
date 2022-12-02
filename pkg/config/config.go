@@ -152,6 +152,9 @@ type Configuration struct {
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
 
+    KafkaAlgorithm       string
+    KafkaUseTLSTransport bool
+
 	// Splunkd
 	SplunkToken *string
 
@@ -825,6 +828,18 @@ func (config *Configuration) parseKafkaSettings(input *ini.File) {
 		SSLKeyLocation := key.Value()
 		config.KafkaSSLKeyLocation = &SSLKeyLocation
 	}
+    if input.Section("kafka").HasKey("algorithm") {
+        key := input.Section("kafka").Key("algorithm")
+        kafkaAlgorithm := key.Value()
+        config.KafkaAlgorithm = kafkaAlgorithm
+    }
+    if input.Section("kafka").HasKey("use_tls_transport") {
+        key := input.Section("kafka").Key("use_tls_transport")
+        config.KafkaUseTLSTransport = false
+        if key.Value() == "true" {
+            config.KafkaUseTLSTransport = true
+        }
+    }
 }
 
 func (config *Configuration) parseSplunkSettings(input *ini.File) {

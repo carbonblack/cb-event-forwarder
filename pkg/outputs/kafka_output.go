@@ -1,6 +1,8 @@
 package outputs
 
 import (
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -17,6 +19,7 @@ import (
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	"github.com/rcrowley/go-metrics"
 	log "github.com/sirupsen/logrus"
+	"github.com/xdg-go/scram"
 )
 
 func NewTLSConfig(config *Configuration, clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
@@ -41,6 +44,35 @@ func NewTLSConfig(config *Configuration, clientCertFile, clientKeyFile, caCertFi
 	tlsConfig.BuildNameToCertificate()
 	tlsConfig.InsecureSkipVerify = !config.TLSVerify
 	return &tlsConfig, err
+}
+
+var (
+    SHA256 scram.HashGeneratorFcn = sha256.New
+    SHA512 scram.HashGeneratorFcn = sha512.New
+)
+
+type XDGSCRAMClient struct {
+    *scram.Client
+    *scram.ClientConversation
+    scram.HashGeneratorFcn
+}
+
+func (x *XDGSCRAMClient) Begin(userName, password, authzID string) (err error) {
+    x.Client, err = x.HashGeneratorFcn.NewClient(userName, password, authzID)
+    if err != nil {
+        return err
+    }
+    x.ClientConversation = x.Client.NewConversation()
+    return nil
+}
+
+func (x *XDGSCRAMClient) Step(challenge string) (response string, err error) {
+    response, err = x.ClientConversation.Step(challenge)
+    return
+}
+
+func (x *XDGSCRAMClient) Done() bool {
+    return x.ClientConversation.Done()
 }
 
 type KafkaOutput struct {
@@ -116,7 +148,23 @@ func (o *KafkaOutput) Initialize(unused string) (err error) {
 		kafkaConfig.Net.SASL.User = o.Config.KafkaUsername
 		kafkaConfig.Net.SASL.Password = o.Config.KafkaPassword
 		kafkaConfig.Net.SASL.Enable = true
+        if o.Config.KafkaAlgorithm == "SCRAM-SHA-512" {
+            kafkaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+            kafkaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+        }
+        if o.Config.KafkaAlgorithm == "SCRAM-SHA-256" {
+            kafkaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+            kafkaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
+        }
 	}
+
+    if o.Config.KafkaUseTLSTransport {
+        kafkaConfig.Net.TLS.Enable = true
+        tlsConfig := &tls.Config {
+            ClientAuth: 0,
+        }
+        kafkaConfig.Net.TLS.Config = tlsConfig
+    }
 
 	producer, err := sarama.NewAsyncProducer(o.brokers, kafkaConfig)
 
