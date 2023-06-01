@@ -25,9 +25,9 @@ discuss issues and get answers from other API developers in the VMware Carbon Bl
 ## Raw Sensor Events 
 
 We have seen a performance impact when exporting all raw sensor events onto the enterprise bus by setting
-"DatastoreBroadcastEventTypes=True" in the EDR configuration (more on this below). We do not recommend exporting all
-the events, and recommend that you configure -- at most -- only process and netconn events for broadcasting on the event
-bus. 
+"DatastoreBroadcastEventTypes=True" in the EDR configuration (more on this below). 
+The recommended newer multi-threaded variable is "EnabledRawSensorDataBroadcast=True", replacing the 
+DatastoreBroadcastEventTypes variable.
 
 ## Quickstart Guide
 
