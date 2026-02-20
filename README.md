@@ -1,8 +1,8 @@
-# VMware Carbon Black EDR Event Forwarder
+# Carbon Black EDR Event Forwarder
 
 ## Overview
 
-The VMware Carbon Black EDR Event Forwarder is a standalone service which listens on the EDR enterprise bus and exports
+The Carbon Black EDR Event Forwarder is a standalone service which listens on the EDR enterprise bus and exports
 events (watchlist/feed hits, as well as raw endpoint events, if configured) in a normalized JSON or LEEF format.
 The events can be saved to a file, delivered to a network service or archived automatically to an Amazon AWS S3 bucket.
 These events can be consumed by any external system that accepts JSON or LEEF, including Splunk and IBM QRadar.
@@ -19,7 +19,7 @@ as long as you follow the installation and configuration steps detailed below.
 * View all API and integration offerings on the [Developer Network](https://developer.carbonblack.com/) along with
  reference documentation, video tutorials, and how-to guides.
 * Use the [Developer Community Forum](https://community.carbonblack.com/community/resources/developer-relations) to 
-discuss issues and get answers from other API developers in the VMware Carbon Black Community.
+discuss issues and get answers from other API developers in the Carbon Black Community.
 * Report bugs and change requests to [Carbon Black Support](http://carbonblack.com/resources/support/)
 
 ## Raw Sensor Events 
@@ -39,54 +39,172 @@ Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server 
 
 ### Installation
 
-#### Standard RPM-based installation
-To install and configure the cb-event-forwarder, perform these steps as "root" on your target Linux system. NOTE: if you plan
-to use the EDR console to configure and control cb-event-forwarder, then you MUST install it on the same system on which
-EDR is installed (in the case of a cluster installer, this means the primary node).
+#### Phase 1: Generate an Access Token
 
-1. Install the CbOpenSource repository if it isn't already present:
+Before installing the Carbon Black EDR Event Forwarder (RPM or Docker), you must generate an access token
+from the [Broadcom Support Portal](https://support.broadcom.com). This token is used to authenticate with
+the Broadcom package and container repositories. For detailed screenshots, refer to
+[Broadcom Knowledge Article 421110](https://knowledge.broadcom.com/external/article/421110).
 
-    ```
-    cd /etc/yum.repos.d
-    curl -O https://opensource.carbonblack.com/release/x86_64/CbOpenSource.repo
-    ```
-2. Install the RPM via YUM: 
+> **Note:** Access tokens are scoped to the products purchased by your organization and remain valid for the
+> duration of the associated product contract. A single token can be generated per support Site ID and used
+> to access all entitled products associated with that site.
+
+1. Log in to the [Broadcom Support Portal](https://support.broadcom.com).
+   If you do not have an account, create one at https://profile.broadcom.com/web/registration.
+2. Navigate to **My Dashboard** > **My Downloads**.
+3. Click the **Registry Tokens** button (top right).
+4. Select your **Site ID** from the dropdown and click **Generate Token**.
+5. Enter an optional description (e.g., `Carbon Black EDR Event Forwarder`) and click **Submit**.
+6. Click **Copy Token** to copy the generated token string. Save it securely -- you will need it during installation.
+
+#### Phase 2: Install Carbon Black EDR Event Forwarder (RPM)
+
+To install and configure the cb-event-forwarder, perform these steps as `root` on your target Linux system.
+
+> **NOTE:** If you plan to use the EDR console to configure and control cb-event-forwarder, you **must** install
+> it on the same system where EDR is installed (for a cluster, this means the primary node).
+
+##### Download the Installer
+
+1. Return to **My Downloads** in the Broadcom Support Portal.
+2. Search for **Carbon Black EDR Connectors**.
+3. Select **Carbon Black EDR Event Forwarder**.
+4. Select the desired version and download the `.zip` file (e.g., `Carbon_Black_EDR_Eventforwarder_3_8_4.zip`).
+5. Transfer the downloaded file to your target Linux server.
+
+##### Extract the Installer
+
+6. Navigate to the directory containing the uploaded zip file and extract it:
 
    ```
-   yum install cb-event-forwarder
+   unzip Carbon_Black_EDR_Eventforwarder_3_8_4.zip
+   cd Carbon_Black_EDR_Eventforwarder_3_8_4
    ```
-3. If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
+
+##### Set Up the Package Repository
+
+7. Run the included script to authorize the package repository using the access token generated in Phase 1:
+
+   ```
+   chmod +x generate_ef_repo.sh
+   sudo ./generate_ef_repo.sh
+   ```
+
+8. When prompted, enter the following:
+   - **User:** Your Broadcom Support Portal login email
+   - **Access Token:** The access token you generated in Phase 1
+
+   On success, you will see:
+   ```
+   Repository file created successfully at /etc/yum.repos.d/CarbonBlackEF.repo
+   ```
+
+9. Verify the repository file to confirm the GPG key paths are correct:
+
+   ```
+   cat /etc/yum.repos.d/CarbonBlackEF.repo
+   ```
+
+##### Install the RPM
+
+10. Install the Event Forwarder via YUM:
+
+    ```
+    yum install cb-event-forwarder
+    ```
+
+11. If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
 Forwarder, run the following script to set the appropriate permissions needed by EDR:
 
-   ```
-   /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
-   ```
+    ```
+    /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
+    ```
 
-### Installation for EDR in docker
-EDR has been available as a Dockerized install since version 7.7.0. 
+### Installation for EDR in Docker
+
+EDR has been available as a Dockerized install since version 7.7.0.
 Event Forwarder versions prior to 3.8.2 do not work with Carbon Black EDR containerized servers.
-A new dockerized edition of Event Forwarder is now available as of EF 3.8.2 for use with Dockerized EDR. 
-It can be installed with this procedure:
+A new dockerized edition of Event Forwarder is now available as of EF 3.8.2 for use with Dockerized EDR.
+
+> **Prerequisites:** You must have a valid access token from the Broadcom Support Portal. If you have not
+> generated one yet, follow the steps in [Phase 1: Generate an Access Token](#phase-1-generate-an-access-token).
+> For additional details on authenticating to the container repository, see the
+> [Broadcom TechDocs guide](https://techdocs.broadcom.com/us/en/carbon-black/edr/carbon-black-edr/7-8-1/containerized-server-guide/authenticate-to-container-repository.html).
 
 #### Procedure
-1. Retrieve the containerized version of Event Forwarder 3.8.4 with docker using this command:  
-`docker pull projects.registry.vmware.com/carbonblack/event-forwarder:3.8.4`
-2. Retag the downloaded Event Forwarder image using this command:  
-`docker tag projects.registry.vmware.com/carbonblack/event-forwarder:3.8.4 projects.registry.vmware.com/carbonblack/event-forwarder:latest`
-3. From the directory where the edr-docker script is installed, extract the yml file using this command:    
-`docker run --rm --entrypoint=/bin/cat projects.registry.vmware.com/carbonblack/event-forwarder:latest /compose.yml > event-forwarder.yml`
-4. Set up Carbon Black EDR to control Event Forwarder. Edit data/config/cb.conf and add the following values:  
-`EventForwarderEnabled=True`  
-`EventForwarderContainerAddress=carbonblack-event-forwarder`    
-`EventForwarderContainerPort=5744`
-5. Run the Event Forwarder docker container using this command:  
-`docker-compose -f event-forwarder.yml up -d`
+
+##### 1. Log in to the Broadcom Container Registry
+
+Authenticate Docker CLI with the Broadcom Container Repository using your Support Portal email and the
+access token from Phase 1:
+
+```
+docker login -u <your_email> -p <your_access_token> carbonblack.packages.broadcom.com
+```
+
+##### 2. Pull the Event Forwarder Image
+
+```
+docker pull carbonblack.packages.broadcom.com/carbonblack/event-forwarder:3.8.4
+```
+
+##### 3. Tag the Image
+
+```
+docker tag carbonblack.packages.broadcom.com/carbonblack/event-forwarder:3.8.4 carbonblack.packages.broadcom.com/carbonblack/event-forwarder:latest
+```
+
+##### 4. Extract the Compose File
+
+From the directory where the `edr-docker` script is installed, extract the `event-forwarder.yml` file:
+
+```
+docker run --rm --entrypoint=/bin/cat carbonblack.packages.broadcom.com/carbonblack/event-forwarder:latest /compose.yml > event-forwarder.yml
+```
+
+##### 5. Configure EDR to Control Event Forwarder
+
+Edit `data/config/cb.conf` and add the following values:
+
+```
+EventForwarderEnabled=True
+EventForwarderContainerAddress=carbonblack-event-forwarder
+EventForwarderContainerPort=5744
+```
+
+##### 6. Start the Event Forwarder Container
+
+```
+docker compose -f event-forwarder.yml up -d
+```
+
+#### Managing the Dockerized Event Forwarder
+
+To **stop** the Event Forwarder:
+
+```
+docker compose -f event-forwarder.yml down
+```
+
+To **back up** the configuration before making changes:
+
+```
+cp data/integrations/event-forwarder/cb-event-forwarder.conf data/integrations/event-forwarder/cb-event-forwarder.conf.bak
+```
+
+To **restart** the Event Forwarder after configuration changes:
+
+```
+docker compose -f event-forwarder.yml up -d
+```
 
 #### Results
-Configuration is saved in data/integrations/event-forwarder.  
-* The Carbon Black EDR data folder is re-used
-* If you encounter difficulties logging can be found in `data/logs/event-forwarder` directory and additional logging 
-information for Event Forwarder is available by use thing this command: `docker logs -f carbonblackevent-forwarder`
+
+Configuration is saved in `data/integrations/event-forwarder`.
+* The Carbon Black EDR data folder is re-used.
+* If you encounter difficulties, logs can be found in the `data/logs/event-forwarder` directory. Additional
+logging information for Event Forwarder is available with this command: `docker logs -f carbonblack-event-forwarder`
 
 
 ### Configure the cb-event-forwarder
