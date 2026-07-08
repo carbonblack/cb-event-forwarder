@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,8 +30,16 @@ var (
 	debug              = flag.Bool("debug", false, "Enable debugging mode")
 )
 
-var version = "3.8.4"
+var version = "3.8.5"
+// Default from -ldflags at build; overridden at runtime when RABBITMQ_SALT is set in the environment.
 var rabbitMQSalt = ""
+
+func effectiveRabbitMQSalt() string {
+	if s := strings.TrimSpace(os.Getenv("RABBITMQ_SALT")); s != "" {
+		return s
+	}
+	return rabbitMQSalt
+}
 
 var signals = make(chan os.Signal, 2)
 var config Configuration
@@ -135,27 +144,30 @@ func startDebugServer(forwarder *EventForwarder) {
 		}
 	})
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", config.HTTPServerPort), nil)
+	go http.ListenAndServe(fmt.Sprintf("%s:%d", config.HTTPServerBindAddress, config.HTTPServerPort), nil)
 
 }
 
 func handleDebugLoggingAndMetrics(hostname string, forwarder *EventForwarder) *LogFileHandler {
 	exportedVersion := &expvar.String{}
 	metrics.Register("version", exportedVersion)
-	if *debug {
+
+	lh := SetUpLogger(forwarder.Configuration)
+
+	// InitializeLogging sets logrus level from config.LogLevel; re-apply debug for -debug / bridge debug=1.
+	debugOn := *debug || forwarder.Configuration.DebugFlag
+	if debugOn {
 		exportedVersion.Set(version + " (debugging on)")
+		log.SetLevel(log.DebugLevel)
 		log.Debugf("*** Debugging enabled: messages may be sent via http://%s:%d/debug/sendmessage ***",
 			hostname, config.HTTPServerPort)
-		log.SetLevel(log.DebugLevel)
-
 	} else {
 		exportedVersion.Set(version)
 	}
 
 	metrics.Register("debug", expvar.Func(func() interface{} { return *debug }))
 
-	return SetUpLogger(forwarder.Configuration)
-
+	return lh
 }
 
 func SetUpLogger(config *Configuration) *LogFileHandler {
@@ -165,12 +177,15 @@ func SetUpLogger(config *Configuration) *LogFileHandler {
 }
 
 func handleConfigurationLoading() Configuration {
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	configLocation := "/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf"
 	if flag.NArg() > 0 {
 		configLocation = flag.Arg(0)
 	}
 	log.Infof("Using config file %s\n", configLocation)
-	config, err := ParseConfig(configLocation, rabbitMQSalt)
+	config, err := ParseConfig(configLocation, effectiveRabbitMQSalt())
 	if err != nil {
 		log.Fatal(err)
 	}

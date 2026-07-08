@@ -9,14 +9,14 @@ fi
 
 RPM_FILE=$(find "$1" -name "*.rpm" -print -quit)
 
-SYSTEM_CTL_PATCH="https://${ARTIFACTORY_SERVER}/artifactory/cb/gdraheim/docker-systemctl-replacement/1.4.3424/systemctl.py"
+SYSTEM_CTL_PATCH="https://cb-generic-dev-virtual.usw1.packages.broadcom.com/cb-generic-dev-virtual/gdraheim/docker-systemctl-replacement/1.4.3424/systemctl.py"
 if [[ "$(cat /etc/redhat-release)" == *"release 8"* ]]; then
-  SYSTEM_CTL_PATCH="https://${ARTIFACTORY_SERVER}/artifactory/cb/gdraheim/docker-systemctl-replacement/1.4.3424/systemctl3.py"
+  SYSTEM_CTL_PATCH="https://cb-generic-dev-virtual.usw1.packages.broadcom.com/cb-generic-dev-virtual/gdraheim/docker-systemctl-replacement/1.4.3424/systemctl3.py"
 fi
 
 echo Adding cb user
 groupadd cb --gid 8300 && \
-useradd --shell /sbin/nologin --gid cb --comment "Service account for VMware Carbon Black EDR" -M cb
+useradd --shell /sbin/nologin --gid cb --comment "Service account for Carbon Black EDR" -M cb
 
 echo "starting minio s3 compatible storage"
 mkdir /tmp/s3bucket

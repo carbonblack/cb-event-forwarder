@@ -1,7 +1,15 @@
+version: '3.4'
+
 services:
   event-forwarder:
     container_name: carbonblack-event-forwarder
-    image: projects.registry.vmware.com/carbonblack/event-forwarder:latest
+    image: carbonblack.packages.broadcom.com/carbonblack/event-forwarder:latest
+    build:
+      args:
+        DOCKER_IMAGE_TAG: $DOCKER_IMAGE_TAG
+      secrets:
+        - artifactory-username
+        - artifactory-api-key
     volumes:
       - ./data/config/cb.conf:/etc/cb/cb.conf:ro
       - ./data/integrations:/etc/cb/integrations:z
@@ -12,3 +20,9 @@ services:
 networks:
   carbonblack:
     external: true
+
+secrets:
+  artifactory-username:
+    environment: USW1_ACCESS_ID_DEV
+  artifactory-api-key:
+    environment: USW1_ACCESS_TOKEN_DEV

@@ -1,10 +1,12 @@
 package forwarder
 
 import (
+	"encoding/json"
 	"errors"
 	"expvar"
 	"fmt"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
+	"github.com/carbonblack/cb-event-forwarder/pkg/jsonmessageprocessor"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/outputs"
 	"github.com/carbonblack/cb-event-forwarder/pkg/rabbitmq"
 	"github.com/rcrowley/go-metrics"
@@ -336,6 +338,7 @@ func (forwarder *EventForwarder) outputMetrics() {
 func (forwarder *EventForwarder) logFileProcessingLoop() <-chan error {
 
 	errChan := make(chan error)
+	jsmp := jsonmessageprocessor.NewJsonMessageProcessor(forwarder.Configuration)
 
 	spawnTailer := func(fName string, label string) {
 
@@ -351,8 +354,24 @@ func (forwarder *EventForwarder) logFileProcessingLoop() <-chan error {
 			log.Debugf("Trying to deliver log message %s", delivery)
 			trimmedDelivery := strings.TrimSuffix(delivery, "\n")
 			auditLogEvent := NewAuditLogEvent(trimmedDelivery, label, forwarder.ServerName)
-			rawLogEvent, _ := auditLogEvent.asJson()
-			outputMessage(rawLogEvent, forwarder.outputChan, forwarder.Status)
+			rawJSON, err := auditLogEvent.asJson()
+			if err != nil {
+				log.WithError(err).Warn("audit log asJson failed")
+				continue
+			}
+			var msg map[string]interface{}
+			if err := json.Unmarshal(rawJSON, &msg); err != nil {
+				log.WithError(err).Warn("audit log json unmarshal failed")
+				continue
+			}
+			encoded, err := jsmp.ProcessJSONMessageWithFormat(msg, label)
+			if err != nil {
+				log.WithError(err).Warn("audit log ProcessJSONMessageWithFormat failed")
+				continue
+			}
+			for _, out := range encoded {
+				outputMessage(out, forwarder.outputChan, forwarder.Status)
+			}
 		}
 
 	}

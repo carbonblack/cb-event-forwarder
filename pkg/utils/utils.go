@@ -13,6 +13,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 /*
@@ -27,7 +28,7 @@ func GetProcessGUID(m *CbEventMsg) string {
 
 		return MakeGUID(sensorID, pid, createTime)
 	}
-	return fmt.Sprintf("%d", m.Header.GetProcessGuid())
+	return fmt.Sprintf("%d", uint64(m.Header.GetProcessGuid()))
 }
 
 func WindowsTimeToUnixTime(windowsTime int64) uint64 {
@@ -165,7 +166,9 @@ func GetIPAddress(ipAddress *CbIpAddr) string {
 	return GetIPv4Address(ipAddress.GetIpv4Address())
 }
 
-func CreateEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
+// CreateEnvMessage builds endpoint/server env from AMQP headers. When includeSensorHostDns is true,
+// sensorHostDnsName is copied into Endpoint.SensorHostDnsName when non-empty.
+func CreateEnvMessage(headers amqp.Table, includeSensorHostDns bool) (*CbEnvironmentMsg, error) {
 	endpointMsg := &CbEndpointEnvironmentMsg{}
 	if hostID, ok := headers["hostId"]; ok {
 		val, err := ParseIntFromHeader(hostID)
@@ -189,6 +192,11 @@ func CreateEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
 		sensorID := int32(val)
 		endpointMsg.SensorId = &sensorID
 	}
+	if includeSensorHostDns {
+		if dns := SensorHostDnsNameFromHeaders(headers); dns != "" {
+			endpointMsg.SensorHostDnsName = &dns
+		}
+	}
 
 	serverMsg := &CbServerEnvironmentMsg{}
 	if nodeID, ok := headers["nodeId"]; ok {
@@ -204,6 +212,26 @@ func CreateEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
 		Endpoint: endpointMsg,
 		Server:   serverMsg,
 	}, nil
+}
+
+// SensorHostDnsNameFromHeaders returns AMQP header sensorHostDnsName when present and non-empty after trimming.
+// Missing, null, or non-string values yield "".
+func SensorHostDnsNameFromHeaders(headers amqp.Table) string {
+	if headers == nil {
+		return ""
+	}
+	v, ok := headers["sensorHostDnsName"]
+	if !ok || v == nil {
+		return ""
+	}
+	switch s := v.(type) {
+	case string:
+		return strings.TrimSpace(s)
+	case []byte:
+		return strings.TrimSpace(string(s))
+	default:
+		return ""
+	}
 }
 
 func ParseIntFromHeader(src interface{}) (int64, error) {

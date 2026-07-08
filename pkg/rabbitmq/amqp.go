@@ -79,13 +79,13 @@ func NewConsumerWithTlsCfg(amqpURI, queueName, ctag string, bindToRawExchange bo
 func (c *Consumer) DialAMQP() error {
 	var err error = nil
 	if c.tlsCfg != nil {
-		log.Debugf("Connecting to message bus at %s via TLS...", c.amqpURI)
+		log.Debugf("Connecting to message bus via TLS (refer config file for connection details)...")
 		c.conn, err = c.dialer.DialTLS(c.amqpURI, c.tlsCfg)
 		if err != nil {
 			return err
 		}
 	} else {
-		log.Debugf("Connecting to message bus at %s....", c.amqpURI)
+		log.Debugf("Connecting to message bus (refer config file for connection details)...")
 		c.conn, err = c.dialer.Dial(c.amqpURI)
 		if err != nil {
 			return err

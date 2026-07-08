@@ -1,6 +1,6 @@
 # Output Formats Supported by the Event Forwarder
 
-The VMware Carbon Black EDR Event Forwarder provides a way to easily connect arbitrary tools, applications, SIEMs, and analytics
+The Carbon Black EDR Event Forwarder provides a way to easily connect arbitrary tools, applications, SIEMs, and analytics
 to the [EDR message bus](https://developer.carbonblack.com/reference/enterprise-response/message-bus/). 
 The Event Forwarder helps by providing the most critical data points from each event
 in a consistent output format (currently JSON or LEEF) over a standard transport mechanism (currently a flat file,
@@ -41,6 +41,12 @@ on the bus. Here are some highlights:
 * The `type` key contains the internal message type from the bus: for example, `ingress.event.netconn` or 
   `watchlist.hit.process`.
 * The `computer_name` key contains the hostname of the affected endpoint.
+* The `computer_dns_name` key is the endpoint DNS hostname when known, only if `include_sensor_host_dns=true` in the
+  bridge section (default is false). When enabled and the event has no `Env` on the wire (typical raw broadcast), Event
+  Forwarder builds `Env` from AMQP headers and maps `sensorHostDnsName` into `SensorHostDnsName` (aligned with
+  `sensor_registrations.computer_dns_name`). When `Env` is already present (e.g. parsed ingress events), DNS comes from
+  the protobuf. Output reads both like `computer_name`. Older servers or sparse data may omit the header or field; the
+  key is then absent from JSON.
 
 ### EDR Deep Links
 

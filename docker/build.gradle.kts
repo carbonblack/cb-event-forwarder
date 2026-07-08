@@ -10,6 +10,21 @@ plugins {
     id("com.bmuschko.docker-remote-api")
 }
 
+repositories {
+    maven("https://usw1.packages.broadcom.com/artifactory/cb-maven-dev-virtual") {
+        credentials {
+            username = System.getenv("USW1_ACCESS_ID_DEV")
+            password = System.getenv("USW1_ACCESS_TOKEN_DEV")
+        }
+    }
+    maven("https://usw1.packages.broadcom.com/artifactory/cb-gradle-dev-virtual") {
+        credentials {
+            username = System.getenv("USW1_ACCESS_ID_DEV")
+            password = System.getenv("USW1_ACCESS_TOKEN_DEV")
+        }
+    }
+}
+
 val osVersionClassifier: String
     get() {
         return try {

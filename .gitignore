@@ -47,3 +47,7 @@ build/
 *.pb.go
 .DS_Store
 /test_output
+/test_output_old
+
+# Used to initiate local build, contains tokens
+cbent_run.sh
