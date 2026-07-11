@@ -1,0 +1,53 @@
+[artifactory-docker-ce-stable]
+name=Artifactory Docker CE Stable - $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/$basearch/stable
+enabled=1
+gpgcheck=0
+
+[artifactory-docker-ce-stable-debuginfo]
+name=Artifactory Docker CE Stable - Debuginfo $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/debug-$basearch/stable
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-stable-source]
+name=Artifactory Docker CE Stable - Sources
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/source/stable
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-edge]
+name=Artifactory Docker CE Edge - $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/$basearch/edge
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-edge-debuginfo]
+name=Artifactory Docker CE Edge - Debuginfo $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/debug-$basearch/edge
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-edge-source]
+name=Artifactory Docker CE Edge - Sources
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/source/edge
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-test]
+name=Artifactory Docker CE Test - $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/$basearch/test
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-test-debuginfo]
+name=Artifactory Docker CE Test - Debuginfo $basearch
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/debug-$basearch/test
+enabled=0
+gpgcheck=0
+
+[artifactory-docker-ce-test-source]
+name=Artifactory Docker CE Test - Sources
+baseurl=https://{ARTIFACTORY_USERNAME}:{ARTIFACTORY_API_KEY}@{ARTIFACTORY_BASE_URL}/artifactory/gateway-centos-docker-vr/$releasever/source/test
+enabled=0
+gpgcheck=0

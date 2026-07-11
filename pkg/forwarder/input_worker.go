@@ -2,7 +2,7 @@ package forwarder
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -148,7 +148,7 @@ func (inputWorker InputWorker) reportBundleDetails(routingKey string, body []byt
 	log.Debugf("Error while processing message through routing key %s:", routingKey)
 
 	var env *CbEnvironmentMsg
-	env, err := CreateEnvMessage(headers)
+	env, err := CreateEnvMessage(headers, inputWorker.ProtobufMessageProcessor.Config.IncludeSensorHostDns)
 	if err != nil {
 		log.Debugf("  Message was received from sensor %d; hostname %s", env.Endpoint.GetSensorId(),
 			env.Endpoint.GetSensorHostName())
@@ -165,7 +165,7 @@ func (inputWorker InputWorker) reportBundleDetails(routingKey string, body []byt
 	 */
 	if inputWorker.DebugFlag {
 
-		h := md5.New()
+		h := sha256.New()
 		h.Write(body)
 		var fullFilePath string
 		fullFilePath = path.Join(inputWorker.DebugStore, fmt.Sprintf("/event-forwarder-%X", h.Sum(nil)))

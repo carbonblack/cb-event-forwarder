@@ -1,7 +1,7 @@
 //
-// Google Protobuf Definition for VMware Carbon Black EDR sensor events
+// Google Protobuf Definition for Carbon Black EDR sensor events
 //
-// Copyright © 2014-2020 VMware, Inc. All Rights Reserved.
+// Copyright © 2014-2020 Broadcom, Inc. All Rights Reserved.
 //
 
 option java_package = "com.carbonblack.cbfs";
@@ -469,6 +469,8 @@ message CbEndpointEnvironmentMsg {
     optional int32 SensorId = 1;
     optional string SensorHostName = 2;
     optional int64 HostId = 3;
+    // DNS hostname when provided (e.g. api.rawsensordata AMQP header sensorHostDnsName); may be empty.
+    optional string SensorHostDnsName = 4;
 }
 
 //

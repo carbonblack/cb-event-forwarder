@@ -27,7 +27,7 @@ def process_event(event_processor, event):
 
 class CarbonBlackEventForwarder(CbIntegrationDaemon):
     """
-    Integration daemon for VMware Carbon Black EDR Forwarding from the Event bus
+    Integration daemon for Carbon Black EDR Forwarding from the Event bus
     """
 
     def __init__(self, name, configfile):

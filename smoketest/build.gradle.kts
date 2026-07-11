@@ -6,6 +6,15 @@ plugins {
     id("com.bmuschko.docker-remote-api")
 }
 
+repositories {
+    maven(System.getenv("ARTIFACTORY_URL") ?: "") {
+        credentials {
+            username = System.getenv("ACCESS_ID")
+            password = System.getenv("ACCESS_TOKEN")
+        }
+    }
+}
+
 val username: String = System.getProperties()["user.name"].toString()
 
 val createContainer = tasks.register<DockerCreateContainer>("createContainer") {

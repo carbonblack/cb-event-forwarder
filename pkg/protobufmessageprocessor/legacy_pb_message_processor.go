@@ -37,7 +37,7 @@ func getProcessGUID(m *CbEventMsg) string {
 
 		return MakeGUID(sensorID, pid, createTime)
 	}
-	return fmt.Sprintf("%d", m.Header.GetProcessGuid())
+	return fmt.Sprintf("%d", uint64(m.Header.GetProcessGuid()))
 }
 
 type convertedCbMessage struct {
@@ -164,7 +164,7 @@ func (pbmp OldProtobufMessageProcessor) ProcessRawZipBundle(routingKey string, b
 }
 
 // TODO: This is currently called for *every* protobuf message in a bundle. This should be called only once *per bundle*.
-func createEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
+func createEnvMessage(headers amqp.Table, includeSensorHostDns bool) (*CbEnvironmentMsg, error) {
 	endpointMsg := &CbEndpointEnvironmentMsg{}
 	if hostID, ok := headers["hostId"]; ok {
 		val, err := ParseIntFromHeader(hostID)
@@ -187,6 +187,11 @@ func createEnvMessage(headers amqp.Table) (*CbEnvironmentMsg, error) {
 		}
 		sensorID := int32(val)
 		endpointMsg.SensorId = &sensorID
+	}
+	if includeSensorHostDns {
+		if dns := SensorHostDnsNameFromHeaders(headers); dns != "" {
+			endpointMsg.SensorHostDnsName = &dns
+		}
 	}
 
 	serverMsg := &CbServerEnvironmentMsg{}
@@ -215,7 +220,7 @@ func (pbmp OldProtobufMessageProcessor) ProcessProtobufMessage(routingKey string
 	if cbMessage.Env == nil {
 		// if the Env is nil, try to fill it in using the headers from the AMQP message
 		// (the raw sensor exchange does not fill in the SensorEnv or ServerEnv messages)
-		cbMessage.Env, err = createEnvMessage(headers)
+		cbMessage.Env, err = createEnvMessage(headers, pbmp.config.IncludeSensorHostDns)
 		if err != nil {
 			return nil, err
 		}
@@ -234,6 +239,11 @@ func (pbmp OldProtobufMessageProcessor) ProcessProtobufMessage(routingKey string
 	outmsg["type"] = routingKey
 	outmsg["sensor_id"] = cbMessage.Env.Endpoint.GetSensorId()
 	outmsg["computer_name"] = cbMessage.Env.Endpoint.GetSensorHostName()
+	if pbmp.config.IncludeSensorHostDns {
+		if dns := cbMessage.Env.Endpoint.GetSensorHostDnsName(); dns != "" {
+			outmsg["computer_dns_name"] = dns
+		}
+	}
 
 	// is the message from an endpoint event process?
 	eventMsg := true
@@ -417,7 +427,6 @@ func (pbmp OldProtobufMessageProcessor) writeProcessMessage(message *convertedCb
 
 	kv["parent_path"] = om.Process.GetParentPath()
 	kv["parent_pid"] = om.Process.GetParentPid()
-	kv["parent_guid"] = om.Process.GetParentGuid()
 	kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
 	if pbmp.config.UseTimeFloat {
 		kv["parent_create_time"] = WindowsTimeToUnixTimeFloat(om.Process.GetParentCreateTime())
@@ -436,13 +445,16 @@ func (pbmp OldProtobufMessageProcessor) writeProcessMessage(message *convertedCb
 
 	kv["expect_followon_w_md5"] = om.Process.GetExpectFollowonWMd5()
 
+	// Use MakeGUID when component fields are available; cast to uint64 in the
+	// fallback so that GUIDs with the MSB set are never emitted as negative numbers.
 	if om.Env != nil && om.Env.Endpoint != nil && om.Env.Endpoint.SensorId != nil && om.Process.ParentPid != nil &&
 		om.Process.ParentCreateTime != nil {
-		kv["parent_process_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), om.Process.GetParentPid(),
+		kv["parent_guid"] = MakeGUID(om.Env.Endpoint.GetSensorId(), om.Process.GetParentPid(),
 			om.Process.GetParentCreateTime())
 	} else {
-		kv["parent_process_guid"] = fmt.Sprintf("%d", om.Process.GetParentGuid())
+		kv["parent_guid"] = fmt.Sprintf("%d", uint64(om.Process.GetParentGuid()))
 	}
+	kv["parent_process_guid"] = kv["parent_guid"]
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	if pbmp.config.CbServerURL != "" {
@@ -521,7 +533,7 @@ func (pbmp OldProtobufMessageProcessor) writeChildprocMessage(message *converted
 
 		kv["child_process_guid"] = MakeGUID(sensorID, pid32, createTime)
 	} else {
-		kv["child_process_guid"] = om.Childproc.GetChildGuid()
+		kv["child_process_guid"] = fmt.Sprintf("%d", uint64(om.Childproc.GetChildGuid()))
 	}
 
 	kv["child_pid"] = om.Childproc.GetPid()
@@ -534,7 +546,7 @@ func (pbmp OldProtobufMessageProcessor) writeChildprocMessage(message *converted
 		processPid := om.Header.GetProcessPid()
 		kv["parent_guid"] = MakeGUID(sensorID, processPid, processCreateTime)
 	} else {
-		kv["parent_guid"] = om.Childproc.GetParentGuid()
+		kv["parent_guid"] = fmt.Sprintf("%d", uint64(om.Childproc.GetParentGuid()))
 	}
 
 	// add link to process in the Cb UI if the Cb hostname is set

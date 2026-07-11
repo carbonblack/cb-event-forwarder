@@ -14,6 +14,9 @@ binary notifications, and raw sensor events as JSON. You can find the configurat
 Starting with version 7.1.0 of EDR, you can use the EDR web console to configure and control Event Forwarder,
 as long as you follow the installation and configuration steps detailed below.
 
+Carbon Black EDR Event Forwarder 3.8.5+ supports deployments on RHEL 9.x and Rocky Linux 9.x.
+Supported Operating Systems: RHEL 9.6-9.7 (64-bit) and Rocky Linux 9.7+ (64-bit).
+
 ## Support
 
 * View all API and integration offerings on the [Developer Network](https://developer.carbonblack.com/) along with
@@ -22,69 +25,70 @@ as long as you follow the installation and configuration steps detailed below.
 discuss issues and get answers from other API developers in the Carbon Black Community.
 * Report bugs and change requests to [Carbon Black Support](http://carbonblack.com/resources/support/)
 
-## Raw Sensor Events 
+## Raw Sensor Events
 
 We have seen a performance impact when exporting all raw sensor events onto the enterprise bus by setting
-"DatastoreBroadcastEventTypes=True" in the EDR configuration (more on this below). We do not recommend exporting all
-the events, and recommend that you configure -- at most -- only process and netconn events for broadcasting on the event
-bus. 
+"DatastoreBroadcastEventTypes=True" (deprecated now) in the EDR configuration. The recommended newer multi-threaded
+setting is "EnabledRawSensorDataBroadcast=True", replacing the DatastoreBroadcastEventTypes setting. We do not recommend
+exporting all the events, and recommend that you configure — at most — only process and netconn events for broadcasting
+on the event bus.
 
 ## Quickstart Guide
 
-The cb-event-forwarder can be installed on any 64-bit Linux machine running CentOS 6.x. 
+The cb-event-forwarder can be installed on any 64-bit Linux machine.
 It can be installed on the same machine as the EDR server, or another machine. 
 If you are forwarding a large volume of events to QRadar (for example, all file modifications and/or registry 
-modifications), or are forwarding events from a EDR cluster, we recommend installing it on a separate machine. 
+modifications), or are forwarding events from an EDR cluster, we recommend installing it on a separate machine.
 Otherwise, it is acceptable to install the cb-event-forwarder on the EDR server itself.
 
-### Installation
+## Authenticate to Broadcom Packages Repository
 
-#### Phase 1: Generate an Access Token
-
-Before installing the Carbon Black EDR Event Forwarder (RPM or Docker), you must generate an access token
-from the [Broadcom Support Portal](https://support.broadcom.com). This token is used to authenticate with
-the Broadcom package and container repositories. For detailed screenshots, refer to
+Before installing the Carbon Black EDR Event Forwarder, you must generate an access token from the
+[Broadcom Support Portal](https://support.broadcom.com). This token is used to authenticate with
+the Broadcom package repository. For detailed screenshots, refer to
 [Broadcom Knowledge Article 421110](https://knowledge.broadcom.com/external/article/421110).
 
-> **Note:** Access tokens are scoped to the products purchased by your organization and remain valid for the
+> **NOTE:** Access tokens are scoped to the products purchased by your organization and remain valid for the
 > duration of the associated product contract. A single token can be generated per support Site ID and used
 > to access all entitled products associated with that site.
 
+### Generate an Access Token
 1. Log in to the [Broadcom Support Portal](https://support.broadcom.com).
    If you do not have an account, create one at https://profile.broadcom.com/web/registration.
 2. Navigate to **My Dashboard** > **My Downloads**.
 3. Click the **Registry Tokens** button (top right).
 4. Select your **Site ID** from the dropdown and click **Generate Token**.
 5. Enter an optional description (e.g., `Carbon Black EDR Event Forwarder`) and click **Submit**.
-6. Click **Copy Token** to copy the generated token string. Save it securely -- you will need it during installation.
+6. Click **Copy Token** to copy the generated token string. Save it securely — you will need it during installation.
 
-#### Phase 2: Install Carbon Black EDR Event Forwarder (RPM)
+
+### Setup Carbon Black EDR Event Forwarder
 
 To install and configure the cb-event-forwarder, perform these steps as `root` on your target Linux system.
 
-> **NOTE:** If you plan to use the EDR console to configure and control cb-event-forwarder, you **must** install
+> **NOTE:** If you plan to use the EDR UI console to configure and control cb-event-forwarder, you **must** install
 > it on the same system where EDR is installed (for a cluster, this means the primary node).
 
-##### Download the Installer
+#### Download the Installer
 
 1. Return to **My Downloads** in the Broadcom Support Portal.
 2. Search for **Carbon Black EDR Connectors**.
 3. Select **Carbon Black EDR Event Forwarder**.
-4. Select the desired version and download the `.zip` file (e.g., `Carbon_Black_EDR_Eventforwarder_3_8_4.zip`).
+4. Select the desired version and download the `.zip` file (e.g., `Carbon_Black_EDR_Eventforwarder_3_8_5.zip`).
 5. Transfer the downloaded file to your target Linux server.
 
-##### Extract the Installer
+#### Extract the Installer
 
 6. Navigate to the directory containing the uploaded zip file and extract it:
 
    ```
-   unzip Carbon_Black_EDR_Eventforwarder_3_8_4.zip
-   cd Carbon_Black_EDR_Eventforwarder_3_8_4
+   unzip Carbon_Black_EDR_Eventforwarder_3_8_5.zip
+   cd Carbon_Black_EDR_Eventforwarder_3_8_5
    ```
 
-##### Set Up the Package Repository
+#### Set Up the Package Repository
 
-7. Run the included script to authorize the package repository using the access token generated in Phase 1:
+7. Run the included script to authorize the package repository using the access token generated:
 
    ```
    chmod +x generate_ef_repo.sh
@@ -93,7 +97,7 @@ To install and configure the cb-event-forwarder, perform these steps as `root` o
 
 8. When prompted, enter the following:
    - **User:** Your Broadcom Support Portal login email
-   - **Access Token:** The access token you generated in Phase 1
+   - **Access Token:** The access token you generated
 
    On success, you will see:
    ```
@@ -106,137 +110,54 @@ To install and configure the cb-event-forwarder, perform these steps as `root` o
    cat /etc/yum.repos.d/CarbonBlackEF.repo
    ```
 
-##### Install the RPM
+## Installation
 
-10. Install the Event Forwarder via YUM:
+### Install the Event Forwarder via YUM
 
-    ```
-    yum install cb-event-forwarder
-    ```
+   ```
+   yum install cb-event-forwarder
+   ```
 
-11. If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
+### Fix Permissions
+If you are using EDR 7.1.0 or greater and wish to use the EDR UI console to configure and operate the Event
 Forwarder, run the following script to set the appropriate permissions needed by EDR:
 
-    ```
-    /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
-    ```
-
-### Installation for EDR in Docker
-
-EDR has been available as a Dockerized install since version 7.7.0.
-Event Forwarder versions prior to 3.8.2 do not work with Carbon Black EDR containerized servers.
-A new dockerized edition of Event Forwarder is now available as of EF 3.8.2 for use with Dockerized EDR.
-
-> **Prerequisites:** You must have a valid access token from the Broadcom Support Portal. If you have not
-> generated one yet, follow the steps in [Phase 1: Generate an Access Token](#phase-1-generate-an-access-token).
-> For additional details on authenticating to the container repository, see the
-> [Broadcom TechDocs guide](https://techdocs.broadcom.com/us/en/carbon-black/edr/carbon-black-edr/7-8-1/containerized-server-guide/authenticate-to-container-repository.html).
-
-#### Procedure
-
-##### 1. Log in to the Broadcom Container Registry
-
-Authenticate Docker CLI with the Broadcom Container Repository using your Support Portal email and the
-access token from Phase 1:
-
-```
-docker login -u <your_email> -p <your_access_token> carbonblack.packages.broadcom.com
-```
-
-##### 2. Pull the Event Forwarder Image
-
-```
-docker pull carbonblack.packages.broadcom.com/carbonblack/event-forwarder:3.8.4
-```
-
-##### 3. Tag the Image
-
-```
-docker tag carbonblack.packages.broadcom.com/carbonblack/event-forwarder:3.8.4 carbonblack.packages.broadcom.com/carbonblack/event-forwarder:latest
-```
-
-##### 4. Extract the Compose File
-
-From the directory where the `edr-docker` script is installed, extract the `event-forwarder.yml` file:
-
-```
-docker run --rm --entrypoint=/bin/cat carbonblack.packages.broadcom.com/carbonblack/event-forwarder:latest /compose.yml > event-forwarder.yml
-```
-
-##### 5. Configure EDR to Control Event Forwarder
-
-Edit `data/config/cb.conf` and add the following values:
-
-```
-EventForwarderEnabled=True
-EventForwarderContainerAddress=carbonblack-event-forwarder
-EventForwarderContainerPort=5744
-```
-
-##### 6. Start the Event Forwarder Container
-
-```
-docker compose -f event-forwarder.yml up -d
-```
-
-#### Managing the Dockerized Event Forwarder
-
-To **stop** the Event Forwarder:
-
-```
-docker compose -f event-forwarder.yml down
-```
-
-To **back up** the configuration before making changes:
-
-```
-cp data/integrations/event-forwarder/cb-event-forwarder.conf data/integrations/event-forwarder/cb-event-forwarder.conf.bak
-```
-
-To **restart** the Event Forwarder after configuration changes:
-
-```
-docker compose -f event-forwarder.yml up -d
-```
-
-#### Results
-
-Configuration is saved in `data/integrations/event-forwarder`.
-* The Carbon Black EDR data folder is re-used.
-* If you encounter difficulties, logs can be found in the `data/logs/event-forwarder` directory. Additional
-logging information for Event Forwarder is available with this command: `docker logs -f carbonblack-event-forwarder`
+   ```
+   /usr/share/cb/integrations/event-forwarder/cb-edr-fix-permissions.sh
+   ```
 
 
 ### Configure the cb-event-forwarder
 
 1. If installing on a machine *other than* the EDR server:
-   1. Create a new RabbitMQ user by executing the following commands as root on the EDR server: 
+   * Create a new RabbitMQ user by executing the following commands as root on the EDR server:
    ```
    /usr/share/cb/cbrabbitmqctl add_user <username> <password>
    /usr/share/cb/cbrabbitmqctl set_user_tags <username> administrator
    /usr/share/cb/cbrabbitmqctl set_permissions -p / <username> ".*" ".*" ".*"
    ```
-   2. Set the `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to the credentials you used in the preceding step 
-file. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached. 
-2. If the cb-event-forwarder is forwarding events from a EDR cluster, the `cb_server_hostname` should be set
+   * Set the `rabbit_mq_username` and `rabbit_mq_password` variables in `/etc/cb/integrations/event-forwarder/cb-event-forwarder.conf` to the credentials you used in the preceding step. Also fill out the `cb_server_hostname` with the hostname or IP address where the EDR server can be reached.
+2. If the cb-event-forwarder is forwarding events from an EDR cluster, the `cb_server_hostname` should be set
 to the hostname or IP address of the EDR primary node.
    
 3. Ensure that the configuration is valid by running the cb-event-forwarder in Check mode: 
 `/usr/share/cb/integrations/event-forwarder/cb-event-forwarder -check` as root. If everything is OK, you will see a 
 message starting with "Initialized output”. If there are any errors, those errors will be printed to your screen.
 
-### Configure EDR
+## Configure EDR
 
-#### Console Support
+### Console Support
 
-If you are using EDR 7.1.0 or greater and wish to use the EDR console to configure and operate the Event
+If you are using EDR 7.1.0 or greater and wish to use the EDR UI console to configure and operate the Event
 Forwarder, you will need to add the following setting to `/etc/cb/cb.conf` (on the primary node, if this is a cluster):
 
-    EventForwarderEnabled=True
- 
- after which you must restart services (or restart the cluster).
+   ```
+   EventForwarderEnabled=True
+   ```
 
-#### Event Publishing
+   After which you must restart services (or restart the cluster).
+
+### Event Publishing
 
 By default, Cb publishes the `feed.*` and `watchlist.*` events over the bus (see the [Events documentation](EVENTS.md)
 for more information). 
@@ -247,22 +168,44 @@ If you want to capture raw sensor events or the `binaryinfo.*` notifications, yo
 * If you are capturing binary observed events you also need to edit the `EnableSolrBinaryInfoNotifications` option in 
 `/etc/cb/cb.conf` and set it to `True`.
 * If you would like feed hit events to include report titles, you must set the `FeedHitLoadReportTitles` option to `True`.
+Please use this setting with caution. Additional memory will be used, proportional to the number of reports on your server.
 
-EDR needs to be restarted if any you change any variables in `/etc/cb/cb.conf` by executing
+EDR needs to be restarted if you change any settings in `/etc/cb/cb.conf` by executing
 `/usr/share/cb/cbservice cb-enterprise restart`.
 
-If you are configuring the cb-event-forwarder on a EDR cluster, the `EnableRawSensorDataBroadcast` and/or
+If you are configuring the cb-event-forwarder on an EDR cluster, the `EnableRawSensorDataBroadcast` and/or
 `EnableSolrBinaryInfoNotifications` settings
 must be distributed to the `/etc/cb/cb.conf` configuration file on all minion nodes and the cluster stopped and started using
 the `/usr/share/cb/cbcluster stop && /usr/share/cb/cbcluster start` command.
 
-### Starting and Stopping the Service
+## Upgrade
 
-#### CentOS 6.x
-* To start the service: `service cb-event-forwarder start`
-* To stop the service: `service cb-event-forwarder stop`
+Before upgrading, ensure you have completed the prerequisite steps outlined in
+[Authenticate to Broadcom Packages Repository](#authenticate-to-broadcom-packages-repository).
+Your access token and package repository configuration must be in place for the upgrade to succeed.
 
-#### CentOS 7.x/8.x
+### Stop the Event Forwarder service
+
+   ```
+   systemctl stop cb-event-forwarder
+   ```
+
+### Upgrade the Event Forwarder
+
+   ```
+   yum update cb-event-forwarder
+   ```
+
+### Start the Event Forwarder service
+
+   ```
+   systemctl start cb-event-forwarder
+   ```
+
+
+## Starting and Stopping the Service
+
+### CentOS / RHEL / Rocky (7.x, 8.x, 9.x)
 * To start the service: `systemctl start cb-event-forwarder`
 * To stop the service: `systemctl stop cb-event-forwarder`
 
@@ -274,7 +217,7 @@ The EDR Event Forwarder can be used to export EDR events in a way easily configu
 need to install and configure the Splunk TA to consume the EDR event data. We recommend using SPLUNK HEC, and configuring the event-forwarder to publish events as json to the Splunk HEC route (typically `/services/collector`). If the HEC input is configured to use dedicated channels, you must include a channel identifer as a URL-parameter in this route like `/services/collector?channel=FE0ECFAD-13D5-401B-847D-77733BD77137`
 
 More information about configuring the Splunk TA can be found [here](http://docs.splunk.com/Documentation/AddOns/latest/Bit9CarbonBlack/About)
-More information about configuring the Splunk HEC input can be found [here](https://https://docs.splunk.com/Documentation/Splunk/8.1.2/Data/AboutHECIDXAck)
+More information about configuring the Splunk HEC input can be found [here](https://docs.splunk.com/Documentation/Splunk/8.1.2/Data/AboutHECIDXAck)
 
 ## QRadar
 
@@ -383,17 +326,25 @@ output from the JSON status is shown below:
 
 ## Building from source
 
-It is recommended to use the latest golang available on your target system - at the time of writing this is 1.13.x.
+For full build instructions, environment variable setup, and development guidance, see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
-Set up your GOPATH, GOBIN, PATH environmental variables and make sure you have cloned the project into a directory structure in keeping with go's [workspace guide](https://golang.org/doc/code.html#Workspaces).
+Go **1.25.0 or later** is required (as declared in `go.mod`). It is recommended to use the latest stable Go release available from https://go.dev/dl/.
 
-Set `GO111MODULE=on` to activate optional module support. The project can be built using the provided makefile. 
+The project uses Go modules. Two build targets are available:
 
+**Compile the binaries only:**
 ```
-make build 
+make build
 ```
 
-To build an RPM package, use `make rpm`. Make sure to set the `RPM_OUTPUT_DIR` environment variable to the location of your desired RPMBUILD directory; For instance if you set `RPM_OUTPUT_DIR=/home/user` the result will be located at `/home/user/rpmbuild/RPMS/x86_64`.
+**Build the installable RPM package** (Linux only — requires `rpmbuild`):
+```
+make rpm
+```
+
+The RPM is written to `build/<el-version>/rpm/RPMS/x86_64/`. Set `RPM_OUTPUT_DIR` to override the output location.
+
+> `make rpm` requires `RABBITMQ_SALT` to be set. See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for what value to use.
 
 ## Changelog
 

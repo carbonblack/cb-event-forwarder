@@ -114,7 +114,7 @@ def bus_event_loop(cb_hostname, rabbit_mq_user, rabbit_mq_pass):
 
 def build_cli_parser():
     parser = optparse.OptionParser(usage="%prog [options]",
-                                   description="Process VMware Carbon Black EDR sensor event logs")
+                                   description="Process Carbon Black EDR sensor event logs")
 
     #
     # CB server info (needed for host information lookups)

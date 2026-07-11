@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-var theConfig = cfg.Configuration{CbServerURL: "https://cbtests/", EventMap: ALLRAWEVENTS}
+var theConfig = cfg.Configuration{CbServerURL: "https://cbtests/", EventMap: ALLRAWEVENTS, OutputFormat: cfg.JSONOutputFormat}
 
 var processor = protobufmessageprocessor.NewProtobufMessageProcessor(&theConfig)
 
