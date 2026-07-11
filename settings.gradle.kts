@@ -15,4 +15,3 @@ rootProject.name = "event-forwarder"
 include(":regressiontest")
 include(":smoketest")
 include(":docker")
-include(":blackduck")
