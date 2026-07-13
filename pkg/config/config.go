@@ -72,6 +72,7 @@ type Configuration struct {
 	AMQPPassword         string
 	AMQPPort             int
 	AMQPTLSEnabled       bool
+	AMQPTLSVerify        bool
 	AMQPTLSClientKey     string
 	AMQPTLSClientCert    string
 	AMQPTLSCACert        string
@@ -81,6 +82,7 @@ type Configuration struct {
 	EventTypes           []string
 	EventMap             map[string]bool
 	HTTPServerPort       int
+	HTTPServerBindAddress string
 	CbServerURL          string
 	UseRawSensorExchange bool
 
@@ -152,9 +154,6 @@ type Configuration struct {
 	KafkaSSLCertificateLocation *string
 	KafkaSSLCALocation          *string
 
-    KafkaAlgorithm       string
-    KafkaUseTLSTransport bool
-
 	// Splunkd
 	SplunkToken *string
 
@@ -163,7 +162,9 @@ type Configuration struct {
 	NumProcessors    int
 
 	UseTimeFloat       bool
-	ExitTimeoutSeconds time.Duration
+	// IncludeSensorHostDns controls whether sensor DNS (AMQP header / protobuf SensorHostDnsName) is emitted as computer_dns_name.
+	IncludeSensorHostDns bool
+	ExitTimeoutSeconds   time.Duration
 
 	// graphite/carbon
 	RunMetrics            bool
@@ -191,7 +192,7 @@ func (config *Configuration) AMQPURL(censorPassword bool) string {
 	}
 	password := config.AMQPPassword
 	if censorPassword {
-		password = "PASSWORD"
+		password = "****"
 	}
 	return fmt.Sprintf("%s://%s:%s@%s:%d", scheme, config.AMQPUsername, password, config.AMQPHostname, config.AMQPPort)
 }
@@ -346,6 +347,30 @@ func (config *Configuration) parseServerName(input *ini.File) error {
 	return nil
 }
 
+// deriveAutomatedCbServerURL builds https://…/ when cb_server_url is unset.
+// If go-fqdn fails or returns "localhost", hostFn (normally os.Hostname) is used
+// so default EL hostnames like localhost.localdomain still get a URL (EDRSERVER-719).
+func deriveAutomatedCbServerURL(fqdn string, fqdnErr error, hostFn func() (string, error)) (string, error) {
+	if fqdnErr == nil && fqdn != "" && fqdn != "localhost" {
+		log.Infof("Detected system hostname: %s", fqdn)
+		u := fmt.Sprintf("https://%s/", fqdn)
+		log.Infof("Automatically set CbServerURL to %s", u)
+		return u, nil
+	}
+	if fqdnErr != nil {
+		log.Errorf("Error getting detecting hostname %s", fqdnErr)
+	}
+	host, hostErr := hostFn()
+	host = strings.TrimSpace(host)
+	if hostErr != nil || host == "" || host == "localhost" {
+		return "", fmt.Errorf("hostname detection failed - set the system hostname or cb_server_url in the event-forwarder configuration file")
+	}
+	log.Warnf("FQDN auto-detection failed; using os.Hostname()=%q for cb_server_url (set cb_server_url explicitly for production)", host)
+	u := fmt.Sprintf("https://%s/", host)
+	log.Infof("Automatically set CbServerURL to %s", u)
+	return u, nil
+}
+
 func (config *Configuration) parseCbServerURL(input *ini.File) error {
 	foundCbServerUrl := false
 	if input.Section("bridge").HasKey("cb_server_url") {
@@ -360,18 +385,12 @@ func (config *Configuration) parseCbServerURL(input *ini.File) error {
 		}
 	}
 	if !foundCbServerUrl {
-		fqdn, err := fqdn.FqdnHostname()
-		if err != nil || fqdn == "localhost" {
-			if err != nil {
-				log.Errorf("Error getting detecting hostname %s", err)
-			}
-			hostnameError := fmt.Errorf("hostname detection failed - set the system hostname or cb_server_url in the event-forwarder configuration file")
-			return hostnameError
-		} else {
-			log.Infof("Detected system hostname: %s", fqdn)
-			config.CbServerURL = fmt.Sprintf("https://%s/", fqdn)
-			log.Infof("Automatically set CbServerURL to %s", config.CbServerURL)
+		fqdn, fqdnErr := fqdn.FqdnHostname()
+		u, err := deriveAutomatedCbServerURL(fqdn, fqdnErr, os.Hostname)
+		if err != nil {
+			return err
 		}
+		config.CbServerURL = u
 	}
 	return nil
 }
@@ -438,6 +457,13 @@ func (config *Configuration) parseHttpServerPort(input *ini.File) error {
 	return nil
 }
 
+func (config *Configuration) parseHttpServerBindAddress(input *ini.File) error {
+	if input.Section("bridge").HasKey("http_server_bind_address") {
+		config.HTTPServerBindAddress = input.Section("bridge").Key("http_server_bind_address").Value()
+	}
+	return nil
+}
+
 func (config *Configuration) parseExitTimeout(input *ini.File) error {
 	config.ExitTimeoutSeconds = DEFAULTEXITTIMEOUT
 
@@ -487,6 +513,15 @@ func (config *Configuration) parseRabbitmqSettings(input *ini.File, rabbitMQSalt
 		b, err := key.Bool()
 		if err == nil {
 			config.AMQPTLSEnabled = b
+		}
+	}
+
+	config.AMQPTLSVerify = false
+	if input.Section("bridge").HasKey("rabbit_mq_tls_verify") {
+		key := input.Section("bridge").Key("rabbit_mq_tls_verify")
+		b, err := key.Bool()
+		if err == nil {
+			config.AMQPTLSVerify = b
 		}
 	}
 
@@ -828,18 +863,6 @@ func (config *Configuration) parseKafkaSettings(input *ini.File) {
 		SSLKeyLocation := key.Value()
 		config.KafkaSSLKeyLocation = &SSLKeyLocation
 	}
-    if input.Section("kafka").HasKey("algorithm") {
-        key := input.Section("kafka").Key("algorithm")
-        kafkaAlgorithm := key.Value()
-        config.KafkaAlgorithm = kafkaAlgorithm
-    }
-    if input.Section("kafka").HasKey("use_tls_transport") {
-        key := input.Section("kafka").Key("use_tls_transport")
-        config.KafkaUseTLSTransport = false
-        if key.Value() == "true" {
-            config.KafkaUseTLSTransport = true
-        }
-    }
 }
 
 func (config *Configuration) parseSplunkSettings(input *ini.File) {
@@ -874,7 +897,7 @@ func (config *Configuration) parseSplunkSettings(input *ini.File) {
 }
 
 func logRawExchangeUse() {
-	log.Warn("Configured to listen on the VMware Carbon Black EDR raw sensor event feed.")
+	log.Warn("Configured to listen on the Carbon Black EDR raw sensor event feed.")
 	log.Warn("- This will result in a *large* number of messages output via the event forwarder!")
 	log.Warn("- Ensure that raw sensor events are enabled in your EDR server (primary & minion) via")
 	log.Warn("  the 'EnableRawSensorDataBroadcast' variable in /etc/cb/cb.conf")
@@ -1107,6 +1130,15 @@ func (config *Configuration) parseTimeSetting(input *ini.File) {
 	}
 }
 
+func (config *Configuration) parseIncludeSensorHostDns(input *ini.File) {
+	if input.Section("bridge").HasKey("include_sensor_host_dns") {
+		key := input.Section("bridge").Key("include_sensor_host_dns")
+		if v, err := key.Bool(); err == nil {
+			config.IncludeSensorHostDns = v
+		}
+	}
+}
+
 func (config *Configuration) setDefaults() {
 	// defaults
 	config.DebugFlag = false
@@ -1115,6 +1147,7 @@ func (config *Configuration) setDefaults() {
 	config.AMQPHostname = "localhost"
 	config.AMQPUsername = "cb"
 	config.HTTPServerPort = 33706
+	config.HTTPServerBindAddress = "0.0.0.0"
 	config.AMQPPort = 5004
 	config.DebugStore = "/tmp"
 
@@ -1145,6 +1178,8 @@ func ParseConfig(fn string, rabbitMQSalt string) (Configuration, error) {
 	config.parseDebugStore(input)
 
 	config.parseHttpServerPort(input)
+
+	config.parseHttpServerBindAddress(input)
 
 	config.parseExitTimeout(input)
 
@@ -1197,7 +1232,10 @@ func ParseConfig(fn string, rabbitMQSalt string) (Configuration, error) {
 
 	config.parseTimeSetting(input)
 
+	config.parseIncludeSensorHostDns(input)
+
 	config.configLogging(input)
+
 
 	config.ParseEventTypes(input)
 
@@ -1468,7 +1506,10 @@ func (config *Configuration) GetAMQPTLSConfigFromConf() *tls.Config {
 			log.Fatal(err)
 		}
 		tlscfg.Certificates = []tls.Certificate{cert}
-		tlscfg.InsecureSkipVerify = true
+		if !config.AMQPTLSVerify {
+			log.Warn("AMQP TLS certificate verification disabled — not recommended in production")
+			tlscfg.InsecureSkipVerify = true
+		}
 		return tlscfg
 	} else {
 		return nil

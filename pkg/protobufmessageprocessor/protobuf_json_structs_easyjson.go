@@ -125,6 +125,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -173,6 +175,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -265,6 +272,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -358,6 +367,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -456,6 +470,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -565,6 +581,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -641,7 +662,7 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		case "parent_pid":
 			out.ParentPid = int32(in.Int32())
 		case "parent_guid":
-			out.ParentGuid = int64(in.Int64())
+			out.ParentGuid = string(in.String())
 		case "filtering_known_dlls":
 			out.FilteringKnownDLLS = bool(in.Bool())
 		case "parent_md5":
@@ -684,6 +705,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -738,10 +761,10 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.Int32(int32(in.ParentPid))
 	}
-	{
+	if in.ParentGuid != "" {
 		const prefix string = ",\"parent_guid\":"
 		out.RawString(prefix)
-		out.Int64(int64(in.ParentGuid))
+		out.String(string(in.ParentGuid))
 	}
 	{
 		const prefix string = ",\"filtering_known_dlls\":"
@@ -838,6 +861,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -1030,6 +1058,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -1179,6 +1209,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -1284,6 +1319,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -1429,6 +1466,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -1520,6 +1562,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -1613,6 +1657,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -1744,6 +1793,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -1896,6 +1947,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -2081,6 +2137,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -2209,6 +2267,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -2587,6 +2650,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -2695,6 +2760,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"
@@ -2911,6 +2981,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -3045,6 +3117,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -3154,6 +3231,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -3304,6 +3383,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -3400,6 +3484,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -3509,6 +3595,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
 	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
+	}
 	{
 		const prefix string = ",\"event_type\":"
 		out.RawString(prefix)
@@ -3578,6 +3669,8 @@ func easyjson13589e6fDecodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 			out.SensorId = int32(in.Int32())
 		case "computer_name":
 			out.ComputerName = string(in.String())
+		case "computer_dns_name":
+			out.ComputerDnsName = string(in.String())
 		case "event_type":
 			out.EventType = string(in.StringIntern())
 		case "timestamp":
@@ -3627,6 +3720,11 @@ func easyjson13589e6fEncodeGithubComCarbonblackCbEventForwarderPkgProtobufmessag
 		const prefix string = ",\"computer_name\":"
 		out.RawString(prefix)
 		out.String(string(in.ComputerName))
+	}
+	if in.ComputerDnsName != "" {
+		const prefix string = ",\"computer_dns_name\":"
+		out.RawString(prefix)
+		out.String(string(in.ComputerDnsName))
 	}
 	{
 		const prefix string = ",\"event_type\":"

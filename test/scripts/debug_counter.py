@@ -97,7 +97,7 @@ def bus_raw_event_loop(cb_hostname, rabbit_mq_user, rabbit_mq_pass):
 
 def build_cli_parser():
     parser = optparse.OptionParser(usage="%prog [options]",
-                                   description="Process VMware Carbon Black EDR Sensor Event Logs")
+                                   description="Process Carbon Black EDR Sensor Event Logs")
 
     parser.add_option("-u", "--user",
                       action="store",

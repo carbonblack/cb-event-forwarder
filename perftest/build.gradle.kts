@@ -9,11 +9,21 @@ plugins {
     id("com.bmuschko.docker-remote-api")
 }
 
+repositories {
+    maven(System.getenv("ARTIFACTORY_URL") ?: "") {
+        credentials {
+            username = System.getenv("ACCESS_ID")
+            password = System.getenv("ACCESS_TOKEN")
+        }
+    }
+}
+
 val osVersionClassifier: String
     get() {
         return try {
             val versionText = File("/etc/redhat-release").readText()
             when {
+                versionText.contains("release 9") -> "rocky9"
                 versionText.contains("release 8") -> "centos8"
                 else -> "centos7"
             }

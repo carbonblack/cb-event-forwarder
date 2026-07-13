@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	. "github.com/carbonblack/cb-event-forwarder/pkg/config"
 	"github.com/carbonblack/cb-event-forwarder/pkg/leefencoder"
@@ -118,8 +119,12 @@ func (pbm *ProtobufMessageProcessor) NewBaseMessage(msg *CbEventMsg, routingKey,
 	typeFromRoutingKey := routingKey
 	sensorId := msg.Env.Endpoint.GetSensorId()
 	computerName := msg.Env.Endpoint.GetSensorHostName()
+	computerDnsName := ""
+	if pbm.Config.IncludeSensorHostDns {
+		computerDnsName = msg.Env.Endpoint.GetSensorHostDnsName()
+	}
 	serverName := pbm.Config.ServerName
-	return &BaseEvent{EventType: eventType, CbServer: serverName, UnixTimeStamp: timestamp, Type: typeFromRoutingKey, SensorId: sensorId, ComputerName: computerName}
+	return &BaseEvent{EventType: eventType, CbServer: serverName, UnixTimeStamp: timestamp, Type: typeFromRoutingKey, SensorId: sensorId, ComputerName: computerName, ComputerDnsName: computerDnsName}
 }
 
 func (pbm ProtobufMessageProcessor) NewModLoadMessage(msg *CbEventMsg, routingKey string) *ModloadMessage {
@@ -165,15 +170,18 @@ func (pbm *ProtobufMessageProcessor) NewProcessEvent(msg *CbEventMsg, routingKey
 			sha256 = sha256FromHeader(msg)
 		}
 
-	} else {
-		base.Type = "ingress.event.procend"
-	}
+	} else if _, ok := pbm.Config.EventMap["ingress.event.procend"]; ok {
+      		/*CRE-21463: config should have procend subscribed.*/
+      		base.Type = "ingress.event.procend"
+        } else {
+            log.Debugf("ingress.event.procend not specified in config map")
+            return nil
+       }
 
 	command_line := GetUnicodeFromUTF8(msg.Process.GetCommandline())
 
 	parent_path := msg.Process.GetParentPath()
 	parent_pid := msg.Process.GetParentPid()
-	parent_guid := msg.Process.GetParentGuid()
 	parent_create_time := ParentCreateTimestampFromWindowsTime(msg.Process.GetParentCreateTime(), pbm.Config.UseTimeFloat)
 	filtering_known_dlls := msg.Process.GetBFilteringKnownDlls()
 
@@ -189,20 +197,24 @@ func (pbm *ProtobufMessageProcessor) NewProcessEvent(msg *CbEventMsg, routingKey
 
 	expect_followon_w_md5 := msg.Process.GetExpectFollowonWMd5()
 
-	parent_process_guid := ""
-
+	// Build parent_guid as a formatted GUID string when the modern component
+	// fields are available. When falling back to the deprecated raw int64 field,
+	// cast to uint64 before formatting to prevent negative values — the sensor
+	// encodes this as an unsigned 64-bit identifier and values with the MSB set
+	// wrap to negative when naively interpreted as int64.
+	parent_guid := ""
 	if msg.Env != nil && msg.Env.Endpoint != nil && msg.Env.Endpoint.SensorId != nil && msg.Process.ParentPid != nil &&
 		msg.Process.ParentCreateTime != nil {
-		parent_process_guid = MakeGUID(msg.Env.Endpoint.GetSensorId(), msg.Process.GetParentPid(),
+		parent_guid = MakeGUID(msg.Env.Endpoint.GetSensorId(), msg.Process.GetParentPid(),
 			msg.Process.GetParentCreateTime())
 	} else {
-		parent_process_guid = fmt.Sprintf("%d", msg.Process.GetParentGuid())
+		parent_guid = fmt.Sprintf("%d", uint64(msg.Process.GetParentGuid()))
 	}
 
 	// add link to process in the Cb UI if the Cb hostname is set
 	link_parent := ""
 	if pbm.Config.CbServerURL != "" {
-		link_parent = fmt.Sprintf("%s#analyze/%s/1", pbm.Config.CbServerURL, parent_process_guid)
+		link_parent = fmt.Sprintf("%s#analyze/%s/1", pbm.Config.CbServerURL, parent_guid)
 	}
 
 	username := ""
@@ -417,7 +429,7 @@ func (pbm *ProtobufMessageProcessor) NewChildprocEvent(msg *CbEventMsg, routingK
 
 		child_process_guid = MakeGUID(sensorID, pid32, createTime)
 	} else {
-		child_process_guid = fmt.Sprintf("%d", msg.Childproc.GetChildGuid())
+		child_process_guid = fmt.Sprintf("%d", uint64(msg.Childproc.GetChildGuid()))
 	}
 
 	child_pid := msg.Childproc.GetPid()
@@ -431,7 +443,7 @@ func (pbm *ProtobufMessageProcessor) NewChildprocEvent(msg *CbEventMsg, routingK
 		processPid := msg.Header.GetProcessPid()
 		parent_guid = MakeGUID(sensorID, processPid, processCreateTime)
 	} else {
-		parent_guid = fmt.Sprintf("%d", msg.Childproc.GetParentGuid())
+		parent_guid = fmt.Sprintf("%d", uint64(msg.Childproc.GetParentGuid()))
 	}
 
 	// add link to process in the Cb UI if the Cb hostname is set
@@ -720,7 +732,11 @@ func NewProtobufMessageProcessor(conf *Configuration) ProtobufMessageProcessor {
 func (pbm ProtobufMessageProcessor) fromProtobufMessage(msg *CbEventMsg, routingKey string) (event Event, err error) {
 	switch {
 	case msg.Process != nil:
-		return pbm.NewProcessEvent(msg, routingKey), nil
+	        newProcEvent := pbm.NewProcessEvent(msg, routingKey)
+	        if newProcEvent == nil {
+	            return nil, errors.New("Event not subscribed")
+	        }
+		return newProcEvent, nil
 	case msg.Modload != nil:
 		return pbm.NewModLoadMessage(msg, routingKey), nil
 	case msg.Filemod != nil:
@@ -850,7 +866,7 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufBundle(routingKey string, bod
 		return msgs, err
 	}
 
-	env, err := CreateEnvMessage(headers)
+	env, err := CreateEnvMessage(headers, pbm.Config.IncludeSensorHostDns)
 	if err != nil {
 		return nil, err
 	}
@@ -868,7 +884,7 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufBundle(routingKey string, bod
 			break
 		}
 
-		msg, err := pbm.ProcessProtobufMessageWithEnv(routingKey, body[bytesRead:bytesRead+messageLength], headers, env)
+		msg, err := pbm.ProcessProtobufMessageWithEnv(routingKey, body[bytesRead:bytesRead+messageLength], env)
 		if err != nil {
 			log.Debugf("Error in ProcessProtobufBundle for event index %d: %s. Continuing to next message",
 				i, err.Error())
@@ -955,12 +971,12 @@ func (pbm ProtobufMessageProcessor) ProcessRawZipBundle(routingKey string, body 
 }
 
 func (pbm ProtobufMessageProcessor) ProcessProtobufMessage(routingKey string, body []byte, headers amqp.Table) ([]byte, error) {
-	env, err := CreateEnvMessage(headers)
+	env, err := CreateEnvMessage(headers, pbm.Config.IncludeSensorHostDns)
 	if err != nil {
 		return nil, err
 	}
 
-	return pbm.ProcessProtobufMessageWithEnv(routingKey, body, headers, env)
+	return pbm.ProcessProtobufMessageWithEnv(routingKey, body, env)
 }
 
 func (pbm ProtobufMessageProcessor) GetMessageInOutputFormat(message Event) ([]byte, error) {
@@ -977,7 +993,7 @@ func (pbm ProtobufMessageProcessor) GetMessageInOutputFormat(message Event) ([]b
 	}
 }
 
-func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey string, body []byte, headers amqp.Table, env *CbEnvironmentMsg) ([]byte, error) {
+func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey string, body []byte, env *CbEnvironmentMsg) ([]byte, error) {
 	cbMessage := CbEventMsg{}
 	err := proto.Unmarshal(body, &cbMessage)
 	if err != nil {
@@ -993,11 +1009,14 @@ func (pbm ProtobufMessageProcessor) ProcessProtobufMessageWithEnv(routingKey str
 	}
 
 	message, err := pbm.fromProtobufMessage(&cbMessage, routingKey)
+	if message == nil {
+    	    err = fmt.Errorf("message dropped against %s", routingKey)
+    	    return nil, err
+       }
 	if err == nil {
 		return pbm.GetMessageInOutputFormat(message)
-	} else {
-		return nil, err
 	}
+	return nil, err
 }
 
 func regmodAction(a CbRegModMsg_CbRegModAction) string {

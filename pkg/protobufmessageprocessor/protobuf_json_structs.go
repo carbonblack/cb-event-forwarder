@@ -17,9 +17,10 @@ type BaseEvent struct {
 	UnixTimeStamp `json:",inline"`
 	CbServer      string `json:"cb_server,omitempty,intern"`
 	Type          string `json:"type,intern"`
-	SensorId      int32  `json:"sensor_id"`
-	ComputerName  string `json:"computer_name"`
-	EventType     string `json:"event_type,intern"`
+	SensorId        int32  `json:"sensor_id"`
+	ComputerName    string `json:"computer_name"`
+	ComputerDnsName string `json:"computer_dns_name,omitempty"`
+	EventType       string `json:"event_type,intern"`
 }
 
 type EventMessage struct {
@@ -59,7 +60,7 @@ type ProcessEvent struct {
 	CommandLine        string `json:"command_line"`
 	ParentPath         string `json:"parent_path"`
 	ParentPid          int32  `json:"parent_pid"`
-	ParentGuid         int64  `json:"parent_guid"`
+	ParentGuid         string `json:"parent_guid,omitempty"`
 	ParentCreateTime   `json:",inline"`
 	FilteringKnownDLLS bool   `json:"filtering_known_dlls"`
 	ParentMd5          string `json:"parent_md5,omitempty"`

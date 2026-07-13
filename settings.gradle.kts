@@ -1,7 +1,11 @@
 pluginManagement {
     repositories {
         maven {
-            url = uri("https://${System.getenv()["ARTIFACTORY_SERVER"] ?: "artifactory-pub.bit9.local"}:443/artifactory/java-all-release-virtual")
+            url = uri(System.getenv("ARTIFACTORY_URL") ?: "")
+            credentials{
+                username = System.getenv("ACCESS_ID")
+                password = System.getenv("ACCESS_TOKEN")
+            }
         }
     }
 }

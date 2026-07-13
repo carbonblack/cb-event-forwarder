@@ -9,7 +9,7 @@ fi
 
 echo Adding cb user
 groupadd cb --gid 8300 && \
-useradd --shell /sbin/nologin --gid cb --comment "Service account for VMware Carbon Black EDR" -M cb
+useradd --shell /sbin/nologin --gid cb --comment "Service account for Carbon Black EDR" -M cb
 
 mkdir -p /etc/sudoers.d
 touch /etc/sudoers.d/cb-ef

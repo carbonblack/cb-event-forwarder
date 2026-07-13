@@ -20,6 +20,10 @@ chown cb:cb /etc/cb/integrations/event-forwarder/cb-event-forwarder.conf
 chown -R cb:cb /usr/share/cb/integrations/event-forwarder
 chown -R cb:cb /etc/cb/integrations/event-forwarder
 
+if [[ -f /etc/systemd/system/cb-event-forwarder.service ]]; then
+  chmod 644 /etc/systemd/system/cb-event-forwarder.service
+fi
+
 if [[ ! -d /var/cb/data/event-forwarder ]]; then
   mkdir -p /var/cb/data/event-forwarder
 fi
